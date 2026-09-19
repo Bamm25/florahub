@@ -14,11 +14,11 @@ export async function GET() {
       data: categories,
     });
   } catch (error) {
-    console.error("error fetch categories:", error);
+    console.error("Error mengambil kategori:", error);
     return NextResponse.json(
       {
         success: false,
-        message: "Failed fetch categories",
+        message: "Gagal mengambil data kategori",
       },
       { status: 500 },
     );

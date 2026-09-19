@@ -1,4 +1,6 @@
+import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -24,7 +26,7 @@ export async function GET() {
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to fetch products",
+        message: "Gagal mengambil data produk",
       },
       {
         status: 500,
@@ -35,16 +37,44 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
     const body = await request.json();
-    const { name, description, price, stock, image, categoryId, floristId } =
-      body;
+    const { name, description, price, stock, image, categoryId } = body;
 
-    if (!name || !price || !stock || !image || !categoryId || !floristId) {
+    if (!session || !session.user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
+        },
+        { status: 401 },
+      );
+    }
+
+    const userRole = (session.user as any)?.role;
+
+    if (
+      userRole !== "FLORIST" &&
+      userRole !== "SUPPLIER" &&
+      userRole !== "ADMIN"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Forbidden: Anda tidak memiliki izin untuk membuat produk",
+        },
+        { status: 403 },
+      );
+    }
+
+    const userId = (session.user as any)?.id;
+
+    if (!name || !price || !stock || !image || !categoryId) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Missing required fields (name, price, stock, image, categoryId, floristId)",
+            "Field wajib tidak lengkap (name, price, stock, image, categoryId harus diisi)",
         },
         {
           status: 400,
@@ -60,7 +90,7 @@ export async function POST(request: Request) {
         stock: Number(stock),
         image,
         categoryId,
-        floristId,
+        floristId: userId,
         isActive: true,
       },
       include: {
@@ -78,7 +108,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: "Product created successfully",
+        message: "Produk berhasil dibuat",
         data: newProduct,
       },
       { status: 201 },
@@ -88,11 +118,9 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to create product",
+        message: "Gagal membuat produk",
       },
       { status: 500 },
     );
   }
 }
-
-
