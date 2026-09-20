@@ -78,7 +78,6 @@ export async function PUT(
       );
     }
 
-    // Ownership check: Hanya pemilik produk atau ADMIN yang boleh edit
     if (existingProduct.floristId !== userId && userRole !== "ADMIN") {
       return NextResponse.json(
         { success: false, message: "Forbidden: Anda tidak memiliki izin mengedit produk ini" },
@@ -158,7 +157,6 @@ export async function DELETE(
       );
     }
 
-    // Ownership check: Hanya pemilik produk atau ADMIN yang boleh hapus
     if (existingProduct.floristId !== userId && userRole !== "ADMIN") {
       return NextResponse.json(
         { success: false, message: "Forbidden: Anda tidak memiliki izin menghapus produk ini" },

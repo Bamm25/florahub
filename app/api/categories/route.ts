@@ -1,4 +1,6 @@
+import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -19,6 +21,86 @@ export async function GET() {
       {
         success: false,
         message: "Gagal mengambil data kategori",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    const userRole = (session.user as any)?.role;
+    if (userRole !== "ADMIN") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Forbidden: Hanya Admin yang dapat menambah kategori",
+        },
+        { status: 403 },
+      );
+    }
+
+    const body = await request.json();
+    const { name, description } = body;
+
+    if (!name || name.trim() === "") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Nama kategori wajib diisi",
+        },
+        { status: 400 },
+      );
+    }
+
+    const existingCategory = await prisma.flowerCategory.findUnique({
+      where: { name: name.trim() },
+    });
+
+    if (existingCategory) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Kategori dengan nama tersebut sudah ada",
+        },
+        { status: 409 },
+      );
+    }
+
+    const newCategory = await prisma.flowerCategory.create({
+      data: {
+        name: name.trim(),
+        description: description || null,
+      },
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: newCategory,
+        message: "Kategori berhasil ditambahkan",
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error("Error menambah kategori:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Gagal menambahkan kategori bunga",
       },
       { status: 500 },
     );
