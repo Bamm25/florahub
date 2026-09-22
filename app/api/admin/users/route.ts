@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
     const whereClause: any = {};
 
-    if (roleParams && Object.values(Role).includes(roleParams as any)) {
+    if (roleParams && Object.values(Role).includes(roleParams as Role)) {
       whereClause.role = roleParams as Role;
     }
 

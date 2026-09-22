@@ -61,7 +61,11 @@ export async function PATCH(
     const body = await request.json();
     const { role } = body;
 
-    if (!Object.values(Role).includes(role)) {
+    if (
+      !role ||
+      typeof role !== "string" ||
+      !Object.values(Role).includes(role as Role)
+    ) {
       return NextResponse.json(
         {
           success: false,

@@ -91,7 +91,7 @@ export async function PUT(
     const body = await request.json();
     const { name, description } = body;
 
-    if (!name || !name.trim()) {
+    if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
         {
           success: false,
