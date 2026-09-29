@@ -6,6 +6,19 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  ADMIN
+  SUPPLIER
+  FLORIST
+  CUSTOMER
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -19,16 +32,11 @@ model User {
   updatedAt DateTime @updatedAt
 
   // relasi
-  products Product[]
-  orders   Order[]
-  cart   Cart?
-}
-
-enum Role {
-  ADMIN
-  SUPPLIER
-  FLORIST
-  CUSTOMER
+  products              Product[]
+  orders                Order[]
+  cart                  Cart?
+  supplierStocks        Stock[]            @relation("SupplierStocks")
+  floristStockPurchases StockTransaction[] @relation("FloristPurchases")
 }
 
 model Product {
@@ -44,9 +52,9 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  category FlowerCategory @relation(fields: [categoryId], references: [id])
-  florist User @relation(fields: [floristId], references: [id])
-  cartItems CartItem[]
+  category   FlowerCategory @relation(fields: [categoryId], references: [id])
+  florist    User           @relation(fields: [floristId], references: [id])
+  cartItems  CartItem[]
   orderItems OrderItem[]
 }
 
@@ -66,7 +74,7 @@ model Cart {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user  User       @relation(fields: [userId], references: [id])
   items CartItem[]
 }
 
@@ -78,7 +86,7 @@ model CartItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  cart Cart @relation(fields: [cartId], references: [id])
+  cart    Cart    @relation(fields: [cartId], references: [id])
   product Product @relation(fields: [productId], references: [id])
 }
 
@@ -92,9 +100,9 @@ model Order {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
-  items OrderItem[] 
-  payment Payment?
+  user     User        @relation(fields: [userId], references: [id])
+  items    OrderItem[]
+  payment  Payment?
   shipment Shipment?
 }
 
@@ -106,7 +114,7 @@ model OrderItem {
   price     Float
   createdAt DateTime @default(now())
 
-  order Order @relation(fields: [orderId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
   product Product @relation(fields: [productId], references: [id])
 }
 
@@ -136,4 +144,36 @@ model Shipment {
   updatedAt      DateTime  @updatedAt
 
   order Order @relation(fields: [orderId], references: [id])
+}
+
+model Stock {
+  id           String    @id @default(cuid())
+  supplierId   String
+  name         String
+  variety      String?
+  quantity     Int
+  unit         String    @default("tangkai")
+  pricePerUnit Float
+  harvestDate  DateTime  @default(now())
+  expiryDate   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  supplier User @relation("SupplierStocks", fields: [supplierId], references: [id])
+
+  stockTransactions StockTransaction[]
+}
+
+model StockTransaction {
+  id         String            @id @default(cuid())
+  stockId    String
+  floristId  String
+  quantity   Int
+  totalPrice Float
+  status     TransactionStatus @default(PENDING)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  stock   Stock @relation(fields: [stockId], references: [id])
+  florist User  @relation("FloristPurchases", fields: [floristId], references: [id])
 }
