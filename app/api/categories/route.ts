@@ -83,6 +83,7 @@ export async function POST(request: Request) {
     const newCategory = await prisma.flowerCategory.create({
       data: {
         name: name.trim(),
+        slug: name.trim().toLowerCase().replace(/\s+/g, '-'),
         description: description || null,
       },
     });

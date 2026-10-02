@@ -87,10 +87,11 @@ export async function POST(request: Request) {
 
       const newTransaction = await tx.stockTransaction.create({
         data: {
-          stockId,
+          stockId: stockId,
           floristId: userId,
-          quantity,
-          totalPrice,
+          quantity: quantity,
+          pricePerUnit: stock.pricePerUnit,
+          totalPrice: totalPrice,
           status: "PAID",
         },
         include: {

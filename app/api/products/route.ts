@@ -84,12 +84,13 @@ export async function POST(request: Request) {
 
     const newProduct = await prisma.product.create({
       data: {
-        name,
-        description,
-        price: Number(price),
-        stock: Number(stock),
-        image,
-        categoryId,
+        name: name,
+        slug: name.toLowerCase().replace(/\s+/g, '-'),
+        description: description,
+        price: price,
+        stock: stock,
+        image: image,
+        categoryId: categoryId,
         floristId: userId,
         isActive: true,
       },

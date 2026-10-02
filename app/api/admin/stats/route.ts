@@ -58,7 +58,7 @@ export async function GET(request: Request) {
         },
         where: {
           status: {
-            in: ["PAID", "DELIVERED", "COMPLETED"],
+            in: ["PAID", "DELIVERED"],
           },
         },
       }),

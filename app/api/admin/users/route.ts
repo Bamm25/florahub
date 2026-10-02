@@ -45,7 +45,6 @@ export async function GET(request: Request) {
         email: true,
         role: true,
         phone: true,
-        address: true,
         image: true,
         createdAt: true,
         updatedAt: true,

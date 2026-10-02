@@ -26,16 +26,28 @@ async function main() {
   const categoryMawar = await prisma.flowerCategory.create({
     data: {
       name: "Mawar",
+      slug: "mawar",
       description: "Bunga mawar segar pilihan",
+      isActive: true,
     },
   });
   const categoryLily = await prisma.flowerCategory.create({
     data: {
       name: "Lily",
+      slug: "lily",
       description: "Bunga lily putih harum dan elegan",
+      isActive: true,
     },
   });
-  console.log("Created FlowerCategories");
+  const categoryAnggrek = await prisma.flowerCategory.create({
+    data: {
+      name: "Anggrek",
+      slug: "anggrek",
+      description: "Bunga anggrek eksotis dan tahan lama",
+      isActive: true,
+    },
+  });
+  console.log("✅ Created 3 FlowerCategories");
 
   const hashedPassword = await bcrypt.hash("password123", 10);
   // 3. Create User (4 role)
@@ -75,19 +87,20 @@ async function main() {
     },
   });
 
-  console.log("Created User");
+  console.log("✅ Created 4 Users (Admin, Customer, Florist, Supplier)");
 
   // 4. Create Product
   const productMawar = await prisma.product.create({
     data: {
       name: "Mawar Merah Premium",
+      slug: "mawar-merah-premium",
       description:
         "Mawar merah segar berkualitas premium, cocok untuk berbagai acara",
       price: 150000,
       stock: 50,
       category: { connect: { id: categoryMawar.id } },
       florist: {
-        connect: { id: supplier.id },
+        connect: { id: florist.id },
       },
       image: "https://via.placeholder.com/300?text=Mawar+Merah",
       isActive: true,
@@ -97,19 +110,43 @@ async function main() {
   const productLily = await prisma.product.create({
     data: {
       name: "Lily Putih Segar",
+      slug: "lily-putih-segar",
       description: "Bunga lily putih harum dan elegan, tahan lama",
       price: 120000,
       stock: 30,
       category: { connect: { id: categoryLily.id } },
-      florist: { connect: { id: supplier.id } },
+      florist: { connect: { id: florist.id } },
       image: "https://via.placeholder.com/300?text=Lily+Putih",
       isActive: true,
     },
   });
 
-  console.log("Created Products");
+  const productAnggrek = await prisma.product.create({
+    data: {
+      name: "Anggrek Bulan Eksotis",
+      slug: "anggrek-bulan-eksotis",
+      description: "Anggrek bulan putih eksotis, tahan lama hingga 2 minggu",
+      price: 200000,
+      stock: 20,
+      category: { connect: { id: categoryAnggrek.id } },
+      florist: { connect: { id: florist.id } },
+      image: "https://via.placeholder.com/300?text=Anggrek+Bulan",
+      isActive: true,
+    },
+  });
 
-  console.log("Seed completed!");
+  console.log("✅ Created 3 Products (Mawar Merah, Lily Putih, Anggrek Bulan)");
+
+  console.log("\n🎉 Seed completed successfully!");
+  console.log("📊 Summary:");
+  console.log("   - FlowerCategories: 3");
+  console.log("   - Users: 4 (Admin, Customer, Florist, Supplier)");
+  console.log("   - Products: 3");
+  console.log("\n🔑 Login credentials:");
+  console.log("   Email: admin@florahub.com | Password: password123");
+  console.log("   Email: budi@mail.com | Password: password123");
+  console.log("   Email: florist@shop.com | Password: password123");
+  console.log("   Email: supplier@farm.com | Password: password123");
 }
 
 main()

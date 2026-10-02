@@ -86,7 +86,6 @@ export async function PATCH(
         email: true,
         role: true,
         phone: true,
-        address: true,
         image: true,
         createdAt: true,
         updatedAt: true,
