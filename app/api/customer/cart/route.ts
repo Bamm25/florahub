@@ -21,14 +21,13 @@ export async function GET() {
       return NextResponse.json(
         {
           success: false,
-          message: "Forbidden: Hanya customer yang dapat melihat keranjang",
+          message: "Forbidden: Hanya customer yang dapat menambah ke keranjang",
         },
         { status: 403 },
       );
     }
 
     const userId = (session.user as any)?.id;
-
     const cart = await prisma.cart.findUnique({
       where: { userId },
       include: {
@@ -81,8 +80,8 @@ export async function GET() {
     }));
 
     const summary = {
-      totalItems: cart.items.length, 
-      totalQuantity: cart.items.reduce((sum, item) => sum + item.quantity, 0), 
+      totalItems: cart.items.length,
+      totalQuantity: cart.items.reduce((sum, item) => sum + item.quantity, 0),
       totalPrice: itemsWithSubtotal.reduce(
         (sum, item) => sum + item.subtotal,
         0,

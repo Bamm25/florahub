@@ -3,23 +3,13 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-/**
- * PATCH /api/customer/cart/items/[id]
- * Update quantity of cart item
- * 
- * Schema yang dipakai:
- * - CartItem: { id, cartId, productId, quantity }
- * - Product: { stock } → untuk validasi stock availability
- * 
- * Body: { quantity: number }
- */
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // 1. CHECK AUTH
     const session = await getServerSession(authOptions);
+
     if (!session || !session.user) {
       return NextResponse.json(
         {
@@ -30,44 +20,29 @@ export async function PATCH(
       );
     }
 
-    // 2. CHECK ROLE
     const userRole = (session.user as any)?.role;
     if (userRole !== "CUSTOMER") {
       return NextResponse.json(
         {
           success: false,
-          message: "Forbidden: Hanya customer yang dapat mengupdate keranjang",
+          message: "Forbidden: Hanya customer yang dapat menambah ke keranjang",
         },
         { status: 403 },
       );
     }
 
-    // 3. GET PARAMS (Next.js 15: params is Promise!)
+    const userId = (session.user as any)?.id;
     const { id } = await params;
-
-    // 4. PARSE BODY
     const body = await request.json();
     const { quantity } = body;
 
-    // 5. VALIDATE INPUT
     if (typeof quantity !== "number" || quantity < 1) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Quantity minimal 1",
-        },
+        { success: false, message: "Quantity minimal 1" },
         { status: 400 },
       );
     }
 
-    const userId = (session.user as any)?.id;
-
-    // 6. GET CART ITEM (dengan product untuk check stock)
-    /**
-     * PENJELASAN QUERY:
-     * - Include cart untuk verify ownership (pastikan item ini milik user)
-     * - Include product untuk check stock availability
-     */
     const cartItem = await prisma.cartItem.findUnique({
       where: { id },
       include: {
@@ -92,29 +67,20 @@ export async function PATCH(
       );
     }
 
-    // 7. VERIFY OWNERSHIP (pastikan cart ini milik user yang login)
     if (cartItem.cart.userId !== userId) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Item ini bukan milik Anda",
-        },
+        { success: false, message: "Forbidden: Item ini bukan milik Anda" },
         { status: 403 },
       );
     }
 
-    // 8. CHECK PRODUCT ACTIVE
     if (!cartItem.product.isActive) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Produk tidak tersedia lagi",
-        },
+        { success: false, message: "Produk tidak tersedia lagi" },
         { status: 400 },
       );
     }
 
-    // 9. CHECK STOCK AVAILABILITY
     if (cartItem.product.stock < quantity) {
       return NextResponse.json(
         {
@@ -125,7 +91,6 @@ export async function PATCH(
       );
     }
 
-    // 10. UPDATE QUANTITY
     const updatedItem = await prisma.cartItem.update({
       where: { id },
       data: { quantity },
@@ -162,17 +127,13 @@ export async function PATCH(
   }
 }
 
-/**
- * DELETE /api/customer/cart/items/[id]
- * Remove item from cart
- */
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // 1. CHECK AUTH
     const session = await getServerSession(authOptions);
+
     if (!session || !session.user) {
       return NextResponse.json(
         {
@@ -183,23 +144,20 @@ export async function DELETE(
       );
     }
 
-    // 2. CHECK ROLE
     const userRole = (session.user as any)?.role;
     if (userRole !== "CUSTOMER") {
       return NextResponse.json(
         {
           success: false,
-          message: "Forbidden: Hanya customer yang dapat menghapus item",
+          message: "Forbidden: Hanya customer yang dapat menambah ke keranjang",
         },
         { status: 403 },
       );
     }
 
-    // 3. GET PARAMS
     const { id } = await params;
     const userId = (session.user as any)?.id;
 
-    // 4. GET CART ITEM (untuk verify ownership)
     const cartItem = await prisma.cartItem.findUnique({
       where: { id },
       include: {
@@ -219,7 +177,6 @@ export async function DELETE(
       );
     }
 
-    // 5. VERIFY OWNERSHIP
     if (cartItem.cart.userId !== userId) {
       return NextResponse.json(
         {
@@ -230,7 +187,6 @@ export async function DELETE(
       );
     }
 
-    // 6. DELETE ITEM
     await prisma.cartItem.delete({
       where: { id },
     });

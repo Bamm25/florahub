@@ -1,52 +1,26 @@
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat melihat produk",
-        },
-        { status: 403 },
-      );
-    }
-
     const { searchParams } = new URL(request.url);
-    const categoryId = searchParams.get("categoryId");
+    const categoryId = searchParams.get("categiryId");
     const search = searchParams.get("search");
 
     const whereClause: any = {
       isActive: true,
-      stock: {
-        gt: 0,
-      },
     };
 
-    if (categoryId && typeof categoryId === "string") {
+    if (categoryId) {
       whereClause.categoryId = categoryId;
     }
 
-    if (search && typeof search === "string") {
-      whereClause.name = {
-        contains: search,
-        mode: "insensitive",
-      };
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { tags: { hasSome: [search] } },
+      ];
     }
 
     const products = await prisma.product.findMany({
@@ -56,13 +30,14 @@ export async function GET(request: Request) {
           select: {
             id: true,
             name: true,
+            slug: true,
           },
         },
         florist: {
           select: {
             id: true,
             name: true,
-            email: true,
+            phone: true,
           },
         },
       },
@@ -71,14 +46,21 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: products,
-    });
-  } catch (error) {
-    console.error("Error mengambil katalog produk:", error);
     return NextResponse.json(
-      { success: false, message: "Gagal mengambil katalog produk" },
+      {
+        success: true,
+        message: "Produk berhasil diambil",
+        data: products,
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Gagal mengambil data produk",
+      },
       { status: 500 },
     );
   }

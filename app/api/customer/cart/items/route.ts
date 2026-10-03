@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
+
     if (!session || !session.user) {
       return NextResponse.json(
         {
@@ -75,7 +76,6 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-
     if (product.stock < quantity) {
       return NextResponse.json(
         {
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     const userId = (session.user as any)?.id;
 
     let cart = await prisma.cart.findUnique({
-      where: { userId: userId }, 
+      where: { userId },
     });
 
     if (!cart) {
@@ -101,14 +101,14 @@ export async function POST(request: Request) {
     const existingItem = await prisma.cartItem.findFirst({
       where: {
         cartId: cart.id,
-        productId: productId,
+        productId,
       },
     });
 
     let cartItem;
 
     if (existingItem) {
-      const newQuantity = existingItem.quantity + quantity; 
+      const newQuantity = existingItem.quantity + quantity;
 
       if (product.stock < newQuantity) {
         return NextResponse.json(
@@ -139,8 +139,8 @@ export async function POST(request: Request) {
       cartItem = await prisma.cartItem.create({
         data: {
           cartId: cart.id,
-          productId: productId,
-          quantity: quantity,
+          productId,
+          quantity,
         },
         include: {
           product: {
