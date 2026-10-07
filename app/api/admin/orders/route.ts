@@ -26,10 +26,12 @@ export async function GET(request: Request) {
         { status: 403 },
       );
     }
+
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status");
     const isPreorderParam = searchParams.get("isPreorder");
     const whereClause: any = {};
+
     if (
       statusParam &&
       typeof statusParam === "string" &&
