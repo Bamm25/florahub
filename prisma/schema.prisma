@@ -11,10 +11,6 @@ datasource db {
   provider = "postgresql"
 }
 
-// ========================================
-// ENUMS (Type Safety & Normalisasi)
-// ========================================
-
 enum Role {
   ADMIN
   SUPPLIER
@@ -87,9 +83,7 @@ enum AuditAction {
   REFUND
 }
 
-// ========================================
 // USER & AUTHENTICATION
-// ========================================
 
 model User {
   id        String   @id @default(cuid()) @db.Char(25)
@@ -124,9 +118,7 @@ model User {
   @@index([isActive])
 }
 
-// ========================================
 // ADDRESS (Normalisasi 3NF: 1 User bisa punya banyak alamat)
-// ========================================
 
 model Address {
   id            String   @id @default(cuid()) @db.Char(25)
@@ -151,9 +143,7 @@ model Address {
   @@index([isDefault])
 }
 
-// ========================================
 // PRODUCT CATALOG
-// ========================================
 
 model FlowerCategory {
   id          String   @id @default(cuid()) @db.Char(25)
@@ -204,9 +194,7 @@ model Product {
   @@index([categoryId, isActive])
 }
 
-// ========================================
 // SHOPPING CART
-// ========================================
 
 model Cart {
   id        String   @id @default(cuid()) @db.Char(25)
@@ -233,9 +221,7 @@ model CartItem {
   @@index([cartId])
 }
 
-// ========================================
 // ORDER & CHECKOUT
-// ========================================
 
 model Order {
   id               String      @id @default(cuid()) @db.Char(25)
@@ -332,9 +318,7 @@ model Shipment {
   @@index([orderId])
 }
 
-// ========================================
 // SUPPLIER STOCK MANAGEMENT
-// ========================================
 
 model Stock {
   id           String    @id @default(cuid()) @db.Char(25)
@@ -382,9 +366,7 @@ model StockTransaction {
   @@index([createdAt])
 }
 
-// ========================================
 // HARVEST FESTIVAL (Fitur Baru #1)
-// ========================================
 
 model HarvestAnnouncement {
   id                String   @id @default(cuid()) @db.Char(25)
@@ -435,9 +417,7 @@ model HarvestPreOrder {
   @@index([announcementId])
 }
 
-// ========================================
 // FLORIST INVENTORY TRACKING (Fitur Baru #3)
-// ========================================
 
 model FloristInventory {
   id              String    @id @default(cuid()) @db.Char(25)
@@ -476,9 +456,7 @@ model ProductComponent {
   @@index([inventoryId])
 }
 
-// ========================================
 // NOTIFICATION SYSTEM
-// ========================================
 
 model Notification {
   id        String           @id @default(cuid()) @db.Char(25)
@@ -499,9 +477,7 @@ model Notification {
   @@index([userId, isRead])
 }
 
-// ========================================
 // REVIEW & RATING
-// ========================================
 
 model Review {
   id           String   @id @default(cuid()) @db.Char(25)
@@ -526,9 +502,7 @@ model Review {
   @@index([productId, rating])
 }
 
-// ========================================
 // COUPON & VOUCHER SYSTEM
-// ========================================
 
 model Coupon {
   id            String     @id @default(cuid()) @db.Char(25)
@@ -575,9 +549,7 @@ model CouponUsage {
   @@index([orderId])
 }
 
-// ========================================
 // AUDIT LOG (Security & Compliance)
-// ========================================
 
 model AuditLog {
   id        String      @id @default(cuid()) @db.Char(25)
