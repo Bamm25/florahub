@@ -3,6 +3,61 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
+export async function GET(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
+        },
+        { status: 401 },
+      );
+    }
+
+    const userRole = (session.user as any)?.role;
+    if (userRole !== "SUPPLIER" && userRole !== "ADMIN") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Forbidden: Endpoint ini khusus untuk supplier",
+        },
+        { status: 403 },
+      );
+    }
+
+    const userId = (session.user as any)?.id;
+    const [stocks, total] = await Promise.all([
+      prisma.stock.findMany({
+        where: { supplierId: userId },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.stock.count({
+        where: { supplierId: userId },
+      }),
+    ]);
+
+    const lowStockCount = stocks.filter((stock) => stock.quantity < 50).length;
+
+    return NextResponse.json({
+      success: true,
+      message: "Daftar stock berhasil diambil",
+      data: {
+        total,
+        lowStockCount,
+        stocks,
+      },
+    });
+  } catch (error) {
+    console.error("Error mengambil stok:", error);
+    return NextResponse.json(
+      { success: false, message: "Gagal mengambil data stok" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,18 +72,28 @@ export async function POST(request: Request) {
     }
 
     const userRole = (session.user as any)?.role;
-    if (userRole !== "SUPPLIER") {
+    if (userRole !== "SUPPLIER" && userRole !== "ADMIN") {
       return NextResponse.json(
         {
           success: false,
-          message: "Forbidden: Hanya supplier yang dapat menambah stok",
+          message: "Forbidden: Endpoint ini khusus untuk supplier",
         },
         { status: 403 },
       );
     }
 
     const body = await request.json();
-    const { name, variety, quantity, pricePerUnit, harvestDate } = body;
+    const {
+      name,
+      variety,
+      quantity,
+      unit,
+      pricePerUnit,
+      harvestDate,
+      expiryDate,
+      location,
+      isAvailable,
+    } = body;
 
     if (typeof name !== "string" || name.trim() === "") {
       return NextResponse.json(
@@ -65,8 +130,12 @@ export async function POST(request: Request) {
         name: name.trim(),
         variety: variety?.trim() || null,
         quantity,
+        unit: unit?.trim() || "tangkai",
         pricePerUnit,
         harvestDate: harvestDate ? new Date(harvestDate) : new Date(),
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
+        location: location?.trim() || null,
+        isAvailable: isAvailable !== undefined ? isAvailable : true,
       },
     });
 
@@ -82,51 +151,6 @@ export async function POST(request: Request) {
     console.error("Error menambah stok:", error);
     return NextResponse.json(
       { success: false, message: "Gagal menambah stok bunga" },
-      { status: 500 },
-    );
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "SUPPLIER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya supplier yang dapat menambah stok",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userid = (session.user as any)?.id;
-    const stocks = await prisma.stock.findMany({
-      where: { supplierId: userid },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: stocks,
-    });
-  } catch (error) {
-    console.error("Error mengambil stok:", error);
-    return NextResponse.json(
-      { success: false, message: "Gagal mengambil data stok" },
       { status: 500 },
     );
   }
