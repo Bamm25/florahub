@@ -1,3 +1,4 @@
+import { createAuditLog } from "@/lib/auditLog";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
@@ -123,7 +124,11 @@ export async function POST(request: Request) {
     }
 
     const userId = (session.user as any)?.id;
-
+    const ipAddress =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
     const newStock = await prisma.stock.create({
       data: {
         supplierId: userId,
@@ -137,6 +142,20 @@ export async function POST(request: Request) {
         location: location?.trim() || null,
         isAvailable: isAvailable !== undefined ? isAvailable : true,
       },
+    });
+
+    await createAuditLog({
+      userId,
+      action: "CREATE",
+      entity: "Stock",
+      entityId: newStock.id,
+      newValue: {
+        name: newStock.name,
+        quantity: newStock.quantity,
+        pricePerUnit: newStock.pricePerUnit,
+      },
+      ipAddress,
+      userAgent,
     });
 
     return NextResponse.json(

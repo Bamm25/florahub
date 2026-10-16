@@ -84,7 +84,6 @@ enum AuditAction {
 }
 
 // USER & AUTHENTICATION
-
 model User {
   id        String   @id @default(cuid()) @db.Char(25)
   name      String   @db.VarChar(200)
@@ -118,8 +117,7 @@ model User {
   @@index([isActive])
 }
 
-// ADDRESS (Normalisasi 3NF: 1 User bisa punya banyak alamat)
-
+// ADDRESS 
 model Address {
   id            String   @id @default(cuid()) @db.Char(25)
   userId        String   @db.Char(25)
@@ -144,7 +142,6 @@ model Address {
 }
 
 // PRODUCT CATALOG
-
 model FlowerCategory {
   id          String   @id @default(cuid()) @db.Char(25)
   name        String   @unique @db.VarChar(100)
@@ -195,7 +192,6 @@ model Product {
 }
 
 // SHOPPING CART
-
 model Cart {
   id        String   @id @default(cuid()) @db.Char(25)
   userId    String   @unique @db.Char(25)
@@ -222,7 +218,6 @@ model CartItem {
 }
 
 // ORDER & CHECKOUT
-
 model Order {
   id               String      @id @default(cuid()) @db.Char(25)
   orderNumber      String      @unique @db.VarChar(50)
@@ -319,7 +314,6 @@ model Shipment {
 }
 
 // SUPPLIER STOCK MANAGEMENT
-
 model Stock {
   id           String    @id @default(cuid()) @db.Char(25)
   supplierId   String    @db.Char(25)
@@ -367,7 +361,6 @@ model StockTransaction {
 }
 
 // HARVEST FESTIVAL (Fitur Baru #1)
-
 model HarvestAnnouncement {
   id                String   @id @default(cuid()) @db.Char(25)
   supplierId        String   @db.Char(25)
@@ -418,7 +411,6 @@ model HarvestPreOrder {
 }
 
 // FLORIST INVENTORY TRACKING (Fitur Baru #3)
-
 model FloristInventory {
   id              String    @id @default(cuid()) @db.Char(25)
   floristId       String    @db.Char(25)
@@ -457,7 +449,6 @@ model ProductComponent {
 }
 
 // NOTIFICATION SYSTEM
-
 model Notification {
   id        String           @id @default(cuid()) @db.Char(25)
   userId    String           @db.Char(25)
@@ -478,7 +469,6 @@ model Notification {
 }
 
 // REVIEW & RATING
-
 model Review {
   id           String   @id @default(cuid()) @db.Char(25)
   productId    String   @db.Char(25)
@@ -503,7 +493,6 @@ model Review {
 }
 
 // COUPON & VOUCHER SYSTEM
-
 model Coupon {
   id            String     @id @default(cuid()) @db.Char(25)
   code          String     @unique @db.VarChar(50)
@@ -549,8 +538,7 @@ model CouponUsage {
   @@index([orderId])
 }
 
-// AUDIT LOG (Security & Compliance)
-
+// AUDIT LOG
 model AuditLog {
   id        String      @id @default(cuid()) @db.Char(25)
   userId    String?     @db.Char(25)
