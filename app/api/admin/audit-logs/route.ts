@@ -81,7 +81,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error mengambil audit log:", error);
+    console.error("Failed to create audit log:", error);
     return NextResponse.json(
       { success: false, message: "Gagal mengambil audit log" },
       { status: 500 },

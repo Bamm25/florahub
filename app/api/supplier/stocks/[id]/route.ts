@@ -1,3 +1,4 @@
+import { createAuditLog } from "@/lib/auditLog";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
@@ -99,6 +100,11 @@ export async function PUT(
       );
     }
 
+    const ipAddress =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
     const userId = (session.user as any)?.id;
     const { id } = await params;
     const body = await request.json();
@@ -141,6 +147,16 @@ export async function PUT(
         { status: 403 },
       );
     }
+
+    const stockBeforeUpdate = await prisma.stock.findUnique({
+      where: { id },
+      select: {
+        name: true,
+        quantity: true,
+        pricePerUnit: true,
+        isAvailable: true,
+      },
+    });
 
     if (
       name !== undefined &&
@@ -209,6 +225,40 @@ export async function PUT(
       data: updateData,
     });
 
+    const oldValues: any = {};
+    const newValues: any = {};
+
+    if (name !== undefined && stockBeforeUpdate) {
+      oldValues.name = stockBeforeUpdate.name;
+      newValues.name = updateData.name;
+    }
+
+    if (quantity !== undefined && stockBeforeUpdate) {
+      oldValues.quantity = stockBeforeUpdate.quantity;
+      newValues.quantity = updateData.quantity;
+    }
+
+    if (pricePerUnit !== undefined && stockBeforeUpdate) {
+      oldValues.pricePerUnit = stockBeforeUpdate.pricePerUnit;
+      newValues.pricePerUnit = updateData.pricePerUnit;
+    }
+
+    if (isAvailable !== undefined && stockBeforeUpdate) {
+      oldValues.isAvailable = stockBeforeUpdate.isAvailable;
+      newValues.isAvailable = updateData.isAvailable;
+    }
+
+    await createAuditLog({
+      userId,
+      action: "UPDATE",
+      entity: "Stock",
+      entityId: updatedStock.id,
+      oldValue: Object.keys(oldValues).length > 0 ? oldValues : null,
+      newValue: Object.keys(newValues).length > 0 ? newValues : null,
+      ipAddress,
+      userAgent,
+    });
+
     return NextResponse.json({
       success: true,
       message: "Stock berhasil diperbarui",
@@ -255,11 +305,20 @@ export async function DELETE(
     const userId = (session.user as any)?.id;
     const { id } = await params;
 
+    const ipAddress =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
+
     const existingStock = await prisma.stock.findUnique({
       where: { id },
       select: {
         id: true,
         supplierId: true,
+        name: true,
+        quantity: true,
+        pricePerUnit: true,
       },
     });
 
@@ -301,6 +360,20 @@ export async function DELETE(
         { status: 400 },
       );
     }
+
+    await createAuditLog({
+      userId,
+      action: "DELETE",
+      entity: "Stock",
+      entityId: existingStock.id,
+      oldValue: {
+        name: existingStock.name,
+        quantity: existingStock.quantity,
+        pricePerUnit: existingStock.pricePerUnit,
+      },
+      ipAddress,
+      userAgent,
+    });
 
     await prisma.stock.delete({
       where: { id },

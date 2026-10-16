@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import prisma from "./prisma";
 
 export async function createAuditLog({
@@ -21,8 +22,8 @@ export async function createAuditLog({
     | "REFUND";
   entity: string;
   entityId: string;
-  oldValue?: object | null;
-  newValue?: object | null;
+  oldValue?: Prisma.InputJsonValue | null;
+  newValue?: Prisma.InputJsonValue | null;
   ipAddress?: string;
   userAgent?: string;
 }): Promise<void> {
@@ -42,8 +43,8 @@ export async function createAuditLog({
         action,
         entity,
         entityId,
-        oldValue: oldValue || null,
-        newValue: newValue || null,
+        oldValue: oldValue ?? Prisma.JsonNull,
+        newValue: newValue ?? Prisma.JsonNull,
         ipAddress: ipAddress || null,
         userAgent: userAgent || null,
       },
