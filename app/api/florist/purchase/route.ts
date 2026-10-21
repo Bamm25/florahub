@@ -75,43 +75,30 @@ export async function POST(request: Request) {
     const totalPrice = stock.pricePerUnit * quantity;
     const userId = (session.user as any)?.id;
 
-    const transaction = await prisma.$transaction(async (tx) => {
-      await tx.stock.update({
-        where: { id: stockId },
-        data: {
-          quantity: {
-            decrement: quantity,
+    const transaction = await prisma.stockTransaction.create({
+      data: {
+        stockId,
+        floristId: userId,
+        quantity,
+        pricePerUnit: stock.pricePerUnit,
+        totalPrice,
+        status: "PENDING",
+      },
+      include: {
+        stock: {
+          select: {
+            name: true,
+            variety: true,
+            quantity: true,
           },
         },
-      });
-
-      const newTransaction = await tx.stockTransaction.create({
-        data: {
-          stockId: stockId,
-          floristId: userId,
-          quantity: quantity,
-          pricePerUnit: stock.pricePerUnit,
-          totalPrice: totalPrice,
-          status: "PAID",
-        },
-        include: {
-          stock: {
-            select: {
-              name: true,
-              variety: true,
-              quantity: true,
-            },
-          },
-        },
-      });
-
-      return newTransaction;
+      },
     });
 
     return NextResponse.json(
       {
         success: true,
-        message: "Pembelian stok berhasil",
+        message: "Pesanan stok berhasil dibuat, menunggu pembayaran",
         data: transaction,
       },
       { status: 201 },
@@ -125,3 +112,90 @@ export async function POST(request: Request) {
   }
 }
 
+export async function GET(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
+        },
+        { status: 401 },
+      );
+    }
+    const userRole = (session.user as any)?.role;
+    if (userRole !== "FLORIST") {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Forbidden: Hanya florist yang dapat melihat riwayat pembelian",
+        },
+        { status: 403 },
+      );
+    }
+
+    const userId = (session.user as any)?.id;
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+    const status = searchParams.get("status");
+    const stockId = searchParams.get("stockId");
+    const whereClause: any = {
+      floristId: userId,
+    };
+
+    if (status) whereClause.status = status;
+    if (stockId) whereClause.stockId = stockId;
+
+    const [transactions, total] = await Promise.all([
+      prisma.stockTransaction.findMany({
+        where: whereClause,
+        include: {
+          stock: {
+            select: {
+              id: true,
+              name: true,
+              variety: true,
+              unit: true,
+              supplier: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.stockTransaction.count({ where: whereClause }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({
+      success: true,
+      message: "Riwayat pembelian berhasil diambil",
+      data: {
+        total,
+        page,
+        limit,
+        totalPages,
+        transactions,
+      },
+    });
+  } catch (error) {
+    console.error("Error mengambil riwayat pembelian:", error);
+    return NextResponse.json(
+      { success: false, message: "Gagal mengambil riwayat pembelian" },
+      { status: 500 },
+    );
+  }
+}
