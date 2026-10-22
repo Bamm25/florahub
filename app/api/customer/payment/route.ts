@@ -1,33 +1,11 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import { snap } from "@/lib/midtrans";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat melakukan pembayaran",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const { orderId } = body;
 
@@ -152,7 +130,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error creating payment:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

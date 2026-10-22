@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -8,31 +7,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat melihat order",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
-    const userId = (session.user as any)?.id;
-
     if (!id) {
       return NextResponse.json(
         {
@@ -138,7 +114,9 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error fetching order detail:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

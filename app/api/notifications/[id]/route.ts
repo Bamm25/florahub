@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 type RouteParams = {
@@ -9,18 +8,7 @@ type RouteParams = {
 
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request);
     const { id: notificationId } = await params;
 
     const notification = await prisma.notification.findUnique({
@@ -62,7 +50,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error("Error updating notification:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -75,18 +65,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request);
     const { id: notificationId } = await params;
 
     const notification = await prisma.notification.findUnique({
@@ -122,7 +101,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       message: "Notifikasi berhasil dihapus",
     });
   } catch (error) {
-    console.error("Error deleting notification:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

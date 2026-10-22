@@ -1,33 +1,12 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 type RouteParms = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, { params }: RouteParms) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any).role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat mengakses alamat",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any).id;
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
 
     const address = await prisma.address.findUnique({
@@ -60,7 +39,9 @@ export async function GET(request: Request, { params }: RouteParms) {
       data: { address },
     });
   } catch (error) {
-    console.error("Error fetching address detail:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -73,27 +54,7 @@ export async function GET(request: Request, { params }: RouteParms) {
 
 export async function PUT(request: Request, { params }: RouteParms) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any).role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat mengakses alamat",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any).id;
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
 
     const existingAddress = await prisma.address.findUnique({
@@ -186,7 +147,9 @@ export async function PUT(request: Request, { params }: RouteParms) {
       data: { address: updatedAddress },
     });
   } catch (error) {
-    console.error("Error updating address:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -199,27 +162,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
 
 export async function DELETE(request: Request, { params }: RouteParms) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any).role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat mengakses alamat",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any).id;
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
 
     const existingAddress = await prisma.address.findUnique({
@@ -271,7 +214,9 @@ export async function DELETE(request: Request, { params }: RouteParms) {
       message: "Alamat berhasil dihapus",
     });
   } catch (error) {
-    console.error("Error deleting address:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -281,4 +226,3 @@ export async function DELETE(request: Request, { params }: RouteParms) {
     );
   }
 }
-

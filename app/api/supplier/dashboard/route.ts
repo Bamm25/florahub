@@ -1,0 +1,276 @@
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
+
+export async function GET(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
+        },
+        { status: 401 },
+      );
+    }
+
+    const userRole = (session.user as any)?.role;
+    if (userRole !== "SUPPLIER" && userRole !== "ADMIN") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Forbidden: Endpoint ini khusus untuk supplier",
+        },
+        { status: 403 },
+      );
+    }
+
+    const userId = (session.user as any)?.id;
+
+    // 1. Total Revenue (PAID transactions only)
+    const revenueData = await prisma.stockTransaction.aggregate({
+      where: {
+        stock: {
+          supplierId: userId,
+        },
+        status: "PAID",
+      },
+      _sum: {
+        totalPrice: true,
+      },
+    });
+
+    const totalRevenue = revenueData._sum.totalPrice || 0;
+
+    // 2. Total Sales (all transactions)
+    const totalSales = await prisma.stockTransaction.count({
+      where: {
+        stock: {
+          supplierId: userId,
+        },
+      },
+    });
+
+    // 3. Stock Sold (PAID only)
+    const stockSoldData = await prisma.stockTransaction.aggregate({
+      where: {
+        stock: {
+          supplierId: userId,
+        },
+        status: "PAID",
+      },
+      _sum: {
+        quantity: true,
+      },
+    });
+
+    const stockSold = stockSoldData._sum.quantity || 0;
+
+    // 4. Active Stocks
+    const activeStocks = await prisma.stock.count({
+      where: {
+        supplierId: userId,
+        isAvailable: true,
+      },
+    });
+
+    // 5. Low Stock Alert (< 50)
+    const lowStockAlert = await prisma.stock.count({
+      where: {
+        supplierId: userId,
+        isAvailable: true,
+        quantity: {
+          lt: 50,
+        },
+      },
+    });
+
+    // 6. Pending Transactions
+    const pendingTransactions = await prisma.stockTransaction.count({
+      where: {
+        stock: {
+          supplierId: userId,
+        },
+        status: "PENDING",
+      },
+    });
+
+    // 7. Average Order Value
+    const avgOrderData = await prisma.stockTransaction.aggregate({
+      where: {
+        stock: {
+          supplierId: userId,
+        },
+        status: "PAID",
+      },
+      _avg: {
+        totalPrice: true,
+      },
+    });
+
+    const averageOrderValue = avgOrderData._avg.totalPrice
+      ? Math.round(Number(avgOrderData._avg.totalPrice))
+      : 0;
+
+    // 8. Monthly Revenue (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const monthlyTransactions = await prisma.stockTransaction.findMany({
+      where: {
+        stock: {
+          supplierId: userId,
+        },
+        status: "PAID",
+        createdAt: {
+          gte: sixMonthsAgo,
+        },
+      },
+      select: {
+        totalPrice: true,
+        createdAt: true,
+      },
+    });
+
+    const monthlyRevenue = monthlyTransactions.reduce(
+      (acc: any, transaction) => {
+        const month = transaction.createdAt.toISOString().slice(0, 7);
+        if (!acc[month]) {
+          acc[month] = 0;
+        }
+        acc[month] += transaction.totalPrice;
+        return acc;
+      },
+      {},
+    );
+
+    const monthlyRevenueChart = Object.entries(monthlyRevenue)
+      .map(([month, revenue]) => ({
+        month,
+        revenue,
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    // 9. Top 5 Stocks
+    const topStocks = await prisma.stockTransaction.groupBy({
+      by: ["stockId"],
+      where: {
+        stock: {
+          supplierId: userId,
+        },
+        status: "PAID",
+      },
+      _sum: {
+        quantity: true,
+      },
+      orderBy: {
+        _sum: {
+          quantity: "desc",
+        },
+      },
+      take: 5,
+    });
+
+    const topStocksWithDetails = await Promise.all(
+      topStocks.map(async (item) => {
+        const stock = await prisma.stock.findUnique({
+          where: { id: item.stockId },
+          select: {
+            id: true,
+            name: true,
+            variety: true,
+            pricePerUnit: true,
+            quantity: true,
+          },
+        });
+        return {
+          ...stock,
+          totalSold: item._sum.quantity || 0,
+        };
+      }),
+    );
+
+    // 10. Active Harvest Announcements
+    const activeAnnouncements = await prisma.harvestAnnouncement.count({
+      where: {
+        supplierId: userId,
+        isActive: true,
+      },
+    });
+
+    // 11. Confirmed Pre-Orders
+    const confirmedPreOrders = await prisma.harvestPreOrder.count({
+      where: {
+        announcement: {
+          supplierId: userId,
+        },
+        status: "CONFIRMED",
+      },
+    });
+
+    // 12. Recent Sales
+    const recentSales = await prisma.stockTransaction.findMany({
+      where: {
+        stock: {
+          supplierId: userId,
+        },
+      },
+      select: {
+        id: true,
+        quantity: true,
+        totalPrice: true,
+        status: true,
+        createdAt: true,
+        stock: {
+          select: {
+            name: true,
+            variety: true,
+          },
+        },
+        florist: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Dashboard data berhasil diambil",
+      data: {
+        summary: {
+          totalRevenue,
+          totalSales,
+          stockSold,
+          activeStocks,
+          lowStockAlert,
+          pendingTransactions,
+          averageOrderValue,
+        },
+        harvestMetrics: {
+          activeAnnouncements,
+          confirmedPreOrders,
+        },
+        charts: {
+          monthlyRevenue: monthlyRevenueChart,
+          topStocks: topStocksWithDetails,
+        },
+        recentSales,
+      },
+    });
+  } catch (error) {
+    console.error("Error mengambil dashboard data:", error);
+    return NextResponse.json(
+      { success: false, message: "Gagal mengambil dashboard data" },
+      { status: 500 },
+    );
+  }
+}

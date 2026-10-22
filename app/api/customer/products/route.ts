@@ -55,7 +55,9 @@ export async function GET(request: Request) {
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error fetching products:", error);
+        if (error instanceof NextResponse) {
+          return error;
+        }
     return NextResponse.json(
       {
         success: false,

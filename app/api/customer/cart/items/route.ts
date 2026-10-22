@@ -1,33 +1,10 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat menambah ke keranjang",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const { productId, quantity = 1 } = body;
 
@@ -85,8 +62,6 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-
-    const userId = (session.user as any)?.id;
 
     let cart = await prisma.cart.findUnique({
       where: { userId },
@@ -167,7 +142,9 @@ export async function POST(request: Request) {
       { status: existingItem ? 200 : 201 },
     );
   } catch (error) {
-    console.error("Error add to cart:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal menambahkan produk ke keranjang" },
       { status: 500 },

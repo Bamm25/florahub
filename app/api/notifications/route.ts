@@ -1,22 +1,10 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request);
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get("unreadOnly");
 
@@ -53,7 +41,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching notifications:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -64,20 +54,9 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PATCH() {
+export async function PATCH(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userId = (session.user as any)?.id;
-
+    const { userId } = await requireAuth(request);
     const updateResult = await prisma.notification.updateMany({
       where: {
         userId,
@@ -96,7 +75,9 @@ export async function PATCH() {
       },
     });
   } catch (error) {
-    console.error("Error marking all notifications as read:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

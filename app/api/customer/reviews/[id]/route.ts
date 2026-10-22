@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 type RouteParams = {
@@ -9,28 +8,7 @@ type RouteParams = {
 
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat memberikan ulasan",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id: reviewId } = await params;
 
     const existingReview = await prisma.review.findUnique({
@@ -102,7 +80,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error("Error updating review:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -115,28 +95,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat memberikan ulasan",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id: reviewId } = await params;
 
     const existingReview = await prisma.review.findUnique({
@@ -172,7 +131,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       message: "Ulasan berhasil dihapus",
     });
   } catch (error) {
-    console.error("Error deleting review:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

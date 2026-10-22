@@ -1,32 +1,10 @@
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any).role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat mengakses alamat",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any).id;
-
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const addresses = await prisma.address.findMany({
       where: { userId },
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
@@ -41,7 +19,9 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Error fetching addresses:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -54,28 +34,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any).role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat mengakses alamat",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any).id;
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const {
       label,
@@ -148,7 +107,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating address:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

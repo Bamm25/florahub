@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function PATCH(
@@ -8,30 +7,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat menambah ke keranjang",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
     const body = await request.json();
     const { quantity } = body;
@@ -119,7 +95,10 @@ export async function PATCH(
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error update cart item:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
+
     return NextResponse.json(
       { success: false, message: "Gagal mengupdate quantity" },
       { status: 500 },
@@ -132,31 +111,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "CUSTOMER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya customer yang dapat menambah ke keranjang",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
-    const userId = (session.user as any)?.id;
 
     const cartItem = await prisma.cartItem.findUnique({
       where: { id },
@@ -199,7 +155,9 @@ export async function DELETE(
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error delete cart item:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal menghapus item dari keranjang" },
       { status: 500 },

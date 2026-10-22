@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -8,17 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ orderId: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request);
     const { orderId } = await params;
 
     const shipment = await prisma.shipment.findUnique({
@@ -62,7 +51,9 @@ export async function GET(
       data: { shipment },
     });
   } catch (error) {
-    console.error("Error mengambil informasi pengiriman:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil informasi pengiriman" },
       { status: 500 },
