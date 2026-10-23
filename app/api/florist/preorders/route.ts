@@ -1,34 +1,13 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    const userId = (session.user as any)?.id;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya florist atau admin yang dapat melihat riwayat pre-order",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId, userRole } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const whereClause: any = {};
@@ -69,7 +48,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching florist preorders:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -82,30 +63,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    const userId = (session.user as any)?.id;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya florist yang dapat melakukan pre-order hasil panen",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
     const body = await request.json();
     const { announcementId, quantity, notes } = body;
 
@@ -252,11 +210,15 @@ export async function POST(request: Request) {
       },
     });
 
+    const florist = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
     await prisma.notification.create({
       data: {
         userId: announcement.supplierId,
         title: "Pre-Order Panen Baru Masuk!",
-        message: `Florist ${(session.user as any)?.name || "Mitra"} memesan ${requestedQuantity} tangkai ${announcement.flowerName} untuk jadwal panen mendatang.`,
+        message: `Florist ${florist?.name || "Mitra"} memesan ${requestedQuantity} tangkai ${announcement.flowerName} untuk jadwal panen mendatang.`,
         type: "HARVEST_ANNOUNCEMENT",
         link: `/supplier/harvest-announcements/${announcement.id}`,
         isRead: false,
@@ -272,7 +234,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating florist preorder:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

@@ -1,34 +1,14 @@
 import { createAuditLog } from "@/lib/auditLog";
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId: floristId } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const ipAddress =
       request.headers.get("x-forwarded-for") ||
       request.headers.get("x-real-ip") ||
@@ -104,7 +84,7 @@ export async function POST(request: Request) {
     }
 
     const isOwner = order.items.some(
-      (item) => item.product.floristId === userId,
+      (item) => item.product.floristId === floristId,
     );
     if (!isOwner) {
       return NextResponse.json(
@@ -136,7 +116,7 @@ export async function POST(request: Request) {
     ]);
 
     await createAuditLog({
-      userId,
+      userId: floristId,
       action: "CREATE",
       entity: "Shipment",
       entityId: shipment.id,
@@ -160,7 +140,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error membuat shipment:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal membuat shipment" },
       { status: 500 },
@@ -170,28 +152,10 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any)?.id;
-
+    const { userId: floristId } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
@@ -204,7 +168,7 @@ export async function GET(request: Request) {
         items: {
           some: {
             product: {
-              floristId: userId,
+              floristId: floristId,
             },
           },
         },
@@ -259,7 +223,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error mengambil daftar shipment:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil daftar shipment" },
       { status: 500 },

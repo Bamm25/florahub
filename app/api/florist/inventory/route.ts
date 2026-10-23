@@ -1,36 +1,15 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
+    const { userId, userRole } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
 
     const whereClause: any = {};
-    const userId = (session.user as any)?.id;
-
     if (userRole === "FLORIST") {
       whereClause.floristId = userId;
     }
@@ -79,7 +58,9 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Error mengambil inventory florist:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil data inventory" },
       { status: 500 },
@@ -89,28 +70,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    const userId = (session.user as any)?.id;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
+    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
     const body = await request.json();
     const { stockId, quantity, minThreshold, maxCapacity, location } = body;
 
@@ -213,7 +173,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error menambahkan inventory:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal menambahkan inventory" },
       { status: 500 },

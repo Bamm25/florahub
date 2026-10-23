@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function PUT(
@@ -8,27 +7,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya florist yang dapat mengupload bukti bayar",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id } = await params;
 
     const transaction = await prisma.stockTransaction.findUnique({
@@ -38,7 +17,6 @@ export async function PUT(
           select: {
             name: true,
             supplier: {
-              // notifikasi
               select: {
                 id: true,
                 name: true,
@@ -117,7 +95,9 @@ export async function PUT(
       data: updatedTransaction,
     });
   } catch (error) {
-    console.error("Error upload bukti bayar:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal upload bukti bayar" },
       { status: 500 },
@@ -130,28 +110,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya florist yang dapat melihat detail pembelian",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id } = await params;
 
     const transaction = await prisma.stockTransaction.findUnique({
@@ -203,7 +162,9 @@ export async function GET(
       data: { transaction },
     });
   } catch (error) {
-    console.error("Error mengambil detail transaksi:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil detail transaksi" },
       { status: 500 },

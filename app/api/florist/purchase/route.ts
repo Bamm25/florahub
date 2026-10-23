@@ -1,33 +1,10 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya florist yang dapat membeli stok dari supplier",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const body = await request.json();
     const { stockId, quantity } = body;
 
@@ -73,7 +50,6 @@ export async function POST(request: Request) {
     }
 
     const totalPrice = stock.pricePerUnit * quantity;
-    const userId = (session.user as any)?.id;
 
     const transaction = await prisma.stockTransaction.create({
       data: {
@@ -104,7 +80,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error membeli stok:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal membeli stok" },
       { status: 500 },
@@ -114,29 +92,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya florist yang dapat melihat riwayat pembelian",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
@@ -192,7 +148,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error mengambil riwayat pembelian:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil riwayat pembelian" },
       { status: 500 },

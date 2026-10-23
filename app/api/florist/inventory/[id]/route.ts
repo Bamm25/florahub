@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 // type RouteParams = {
@@ -12,29 +11,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    const userId = (session.user as any)?.id;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId, userRole } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { id } = await params;
 
     const inventory = await prisma.floristInventory.findUnique({
@@ -99,7 +79,9 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error mengambil detail inventory:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil detail inventory" },
       { status: 500 },
@@ -112,29 +94,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    const userId = (session.user as any)?.id;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId, userRole } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { id } = await params;
     const body = await request.json();
     const { quantity, minThreshold, maxCapacity, location } = body;
@@ -224,7 +187,9 @@ export async function PUT(
       },
     });
   } catch (error) {
-    console.error("Error memperbarui inventory:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal memperbarui inventory" },
       { status: 500 },
@@ -237,29 +202,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    const userId = (session.user as any)?.id;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId, userRole } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { id } = await params;
 
     const existingInventory = await prisma.floristInventory.findUnique({
@@ -292,12 +238,6 @@ export async function DELETE(
       },
     });
 
-    if (componentsCount > 0) {
-      console.warn(
-        `Menghapus inventory ${id} akan menghapus ${componentsCount} product components`,
-      );
-    }
-
     await prisma.floristInventory.delete({
       where: { id },
     });
@@ -310,7 +250,9 @@ export async function DELETE(
           : "Inventory berhasil dihapus",
     });
   } catch (error) {
-    console.error("Error menghapus inventory:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal menghapus inventory" },
       { status: 500 },

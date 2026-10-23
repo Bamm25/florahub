@@ -1,34 +1,10 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya florist yang dapat melihat pesanan masuk",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
-
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const orders = await prisma.order.findMany({
       where: {
         items: {
@@ -83,7 +59,9 @@ export async function GET(request: Request) {
       data: orders,
     });
   } catch (error) {
-    console.error("Error mengambil pesanan florist:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil data pesanan" },
       { status: 500 },

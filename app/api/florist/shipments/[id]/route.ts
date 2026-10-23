@@ -1,5 +1,6 @@
 import { createAuditLog } from "@/lib/auditLog";
 import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -9,29 +10,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId: floristId } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const ipAddress =
       request.headers.get("x-forwarded-for") ||
       request.headers.get("x-real-ip") ||
@@ -71,7 +53,7 @@ export async function PUT(
     }
 
     const isOwner = existingShipment.order.items.some(
-      (item) => item.product.floristId === userId,
+      (item) => item.product.floristId === floristId,
     );
 
     if (!isOwner) {
@@ -181,7 +163,7 @@ export async function PUT(
     ]);
 
     await createAuditLog({
-      userId,
+      userId: floristId,
       action: "UPDATE",
       entity: "Shipment",
       entityId: updatedShipment.id,
@@ -197,7 +179,9 @@ export async function PUT(
       data: { shipment: updatedShipment },
     });
   } catch (error) {
-    console.error("Error memperbarui shipment:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal memperbarui shipment" },
       { status: 500 },
@@ -210,27 +194,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any)?.id;
+    const { userId: floristId } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { id } = await params;
 
     const shipment = await prisma.shipment.findUnique({
@@ -273,7 +240,7 @@ export async function GET(
     }
 
     const isOwner = shipment.order.items.some(
-      (item) => item.product.floristId === userId,
+      (item) => item.product.floristId === floristId,
     );
     if (!isOwner) {
       return NextResponse.json(
@@ -290,7 +257,9 @@ export async function GET(
       data: { shipment },
     });
   } catch (error) {
-    console.error("Error mengambil detail shipment:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil detail shipment" },
       { status: 500 },

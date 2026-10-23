@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function PUT(
@@ -8,31 +7,10 @@ export async function PUT(
   { params }: { params: Promise<{ productId: string; id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    const userId = (session.user as any)?.id;
-
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId: floristId } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { productId, id: componentId } = await params;
 
     const product = await prisma.product.findUnique({
@@ -53,7 +31,7 @@ export async function PUT(
       );
     }
 
-    if (userRole === "FLORIST" && product.floristId !== userId) {
+    if (floristId === "FLORIST" && product.floristId !== floristId) {
       return NextResponse.json(
         {
           success: false,
@@ -153,7 +131,9 @@ export async function PUT(
       },
     });
   } catch (error) {
-    console.error("Error memperbarui komponen produk:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal memperbarui komponen produk" },
       { status: 500 },
@@ -166,30 +146,8 @@ export async function DELETE(
   { params }: { params: Promise<{ productId: string; id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk florist",
-        },
-        { status: 403 },
-      );
-    }
-
+    const {userId : floristId} = await requireAuth(request, ["FLORIST", "ADMIN"])
     const { productId, id: componentId } = await params;
-    const userId = (session.user as any)?.id;
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -209,7 +167,7 @@ export async function DELETE(
       );
     }
 
-    if (userRole === "FLORIST" && product.floristId !== userId) {
+    if (floristId === "FLORIST" && product.floristId !== floristId) {
       return NextResponse.json(
         {
           success: false,
@@ -256,7 +214,9 @@ export async function DELETE(
       message: "Komponen produk berhasil dihapus",
     });
   } catch (error) {
-    console.error("Error menghapus komponen produk:", error);
+        if (error instanceof NextResponse) {
+          return error;
+        }
     return NextResponse.json(
       { success: false, message: "Gagal menghapus komponen produk" },
       { status: 500 },
