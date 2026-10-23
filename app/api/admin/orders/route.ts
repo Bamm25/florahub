@@ -1,32 +1,10 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya Admin yang dapat mengakses data pesanan global",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId } = await requireAuth(request, ["ADMIN"]);
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status");
     const isPreorderParam = searchParams.get("isPreorder");
@@ -76,7 +54,9 @@ export async function GET(request: Request) {
       data: orders,
     });
   } catch (error) {
-    console.error("Error mengambil data pesanan admin:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

@@ -1,33 +1,11 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { CouponType } from "@prisma/client";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya Admin yang dapat mengakses data pesanan global",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId } = await requireAuth(request, ["ADMIN"]);
     const coupons = await prisma.coupon.findMany({
       orderBy: { createdAt: "desc" },
       include: {
@@ -38,7 +16,7 @@ export async function GET() {
         },
       },
     });
-    
+
     return NextResponse.json({
       success: true,
       message: "Daftar kupon berhasil diambil",
@@ -48,7 +26,9 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Error fetching coupons:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -61,29 +41,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya Admin yang dapat mengakses data pesanan global",
-        },
-        { status: 403 },
-      );
-    }
-
-    const adminId = (session.user as any)?.id;
+    const { userId } = await requireAuth(request, ["ADMIN"]);
     const body = await request.json();
     const {
       code,
@@ -203,7 +161,7 @@ export async function POST(request: Request) {
         validUntil: endDate,
         usageLimit: usageLimit ? Math.round(usageLimit) : null,
         usagePerUser: usagePerUser ? Math.round(usagePerUser) : 1,
-        createdById: adminId,
+        createdById: userId,
         applicableFor: Array.isArray(applicableFor) ? applicableFor : [],
         isActive: true,
       },
@@ -220,7 +178,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating coupon:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

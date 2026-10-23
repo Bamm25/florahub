@@ -1,7 +1,6 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { Role } from "@prisma/client";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function PATCH(
@@ -9,32 +8,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya Admin yang dapat mengakses",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId } = await requireAuth(request, ["ADMIN"]);
     const { id } = await params;
-    const currentUserId = (session.user as any)?.id;
-
-    if (id === currentUserId) {
+    if (id === userId) {
       return NextResponse.json(
         {
           success: false,
@@ -98,7 +74,9 @@ export async function PATCH(
       data: updatedUserRole,
     });
   } catch (error) {
-    console.error("Error memperbarui role pengguna:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

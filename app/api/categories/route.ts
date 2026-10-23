@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -16,7 +15,9 @@ export async function GET() {
       data: categories,
     });
   } catch (error) {
-    console.error("Error mengambil kategori:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -29,30 +30,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        {
-          status: 401,
-        },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya Admin yang dapat menambah kategori",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId } = await requireAuth(request, ["ADMIN"]);
     const body = await request.json();
     const { name, description } = body;
 
@@ -83,7 +61,7 @@ export async function POST(request: Request) {
     const newCategory = await prisma.flowerCategory.create({
       data: {
         name: name.trim(),
-        slug: name.trim().toLowerCase().replace(/\s+/g, '-'),
+        slug: name.trim().toLowerCase().replace(/\s+/g, "-"),
         description: description || null,
       },
     });
@@ -97,7 +75,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error menambah kategori:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
