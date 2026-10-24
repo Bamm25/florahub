@@ -2,7 +2,7 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function DELETE(
+export async function PUT(
   request: Request,
   { params }: { params: Promise<{ productId: string; id: string }> },
 ) {
@@ -146,7 +146,10 @@ export async function DELETE(
   { params }: { params: Promise<{ productId: string; id: string }> },
 ) {
   try {
-    const {userId : floristId} = await requireAuth(request, ["FLORIST", "ADMIN"])
+    const { userId, userRole } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { productId, id: componentId } = await params;
 
     const product = await prisma.product.findUnique({
@@ -167,7 +170,7 @@ export async function DELETE(
       );
     }
 
-    if (floristId === "FLORIST" && product.floristId !== floristId) {
+    if (userRole === "FLORIST" && product.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -214,9 +217,9 @@ export async function DELETE(
       message: "Komponen produk berhasil dihapus",
     });
   } catch (error) {
-        if (error instanceof NextResponse) {
-          return error;
-        }
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal menghapus komponen produk" },
       { status: 500 },
