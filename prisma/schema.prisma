@@ -337,7 +337,7 @@ model Stock {
   @@index([harvestDate])
   @@index([isAvailable])
 }
-
+ 
 model StockTransaction {
   id           String            @id @default(cuid()) @db.Char(25)
   stockId      String            @db.Char(25)

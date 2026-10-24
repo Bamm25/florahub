@@ -1,7 +1,5 @@
-import { authOptions } from "@/lib/auth";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -9,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
-    const { userId: floristId } = await requireAuth(request, [
+    const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
@@ -34,7 +32,7 @@ export async function GET(
       );
     }
 
-    if (floristId === "FLORIST" && product.floristId !== floristId) {
+    if (userRole === "FLORIST" && product.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -103,7 +101,7 @@ export async function POST(
   { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
-    const { userId: floristId } = await requireAuth(request, [
+    const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
@@ -149,7 +147,7 @@ export async function POST(
       );
     }
 
-    if (floristId === "FLORIST" && inventory.floristId !== floristId) {
+    if (userRole === "FLORIST" && inventory.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,

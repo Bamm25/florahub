@@ -1,40 +1,21 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
+    const { userId, userRole } = await requireAuth(request, [
+      "SUPPLIER",
+      "ADMIN",
+    ]);
 
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "SUPPLIER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya supplier yang dapat melihat riwayat penjualan",
-        },
-        { status: 403 },
-      );
+    const whereClause: any = {};
+    if (userRole === "SUPPLIER") {
+      whereClause.stock = { supplierId: userId };
     }
-
-    const userId = (session.user as any)?.id;
 
     const sales = await prisma.stockTransaction.findMany({
-      where: {
-        stock: {
-          supplierId: userId,
-        },
-      },
+      where: whereClause,
       include: {
         stock: {
           select: {
@@ -62,7 +43,9 @@ export async function GET(request: Request) {
       data: sales,
     });
   } catch (error) {
-    console.error("Error mengambil riwayat penjualan:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil riwayat penjualan" },
       { status: 500 },

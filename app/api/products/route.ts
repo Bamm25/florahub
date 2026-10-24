@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -22,7 +21,9 @@ export async function GET() {
       data: products,
     });
   } catch (error) {
-    console.error("error fetching products", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -37,38 +38,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
     const body = await request.json();
     const { name, description, price, stock, image, categoryId } = body;
-
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-
-    if (
-      userRole !== "FLORIST" &&
-      userRole !== "SUPPLIER" &&
-      userRole !== "ADMIN"
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Anda tidak memiliki izin untuk membuat produk",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
-
     if (!name || !price || !stock || !image || !categoryId) {
       return NextResponse.json(
         {
@@ -85,7 +57,7 @@ export async function POST(request: Request) {
     const newProduct = await prisma.product.create({
       data: {
         name: name,
-        slug: name.toLowerCase().replace(/\s+/g, '-'),
+        slug: name.toLowerCase().replace(/\s+/g, "-"),
         description: description,
         price: price,
         stock: stock,
@@ -115,7 +87,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Error creating product:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

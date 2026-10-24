@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -39,7 +38,9 @@ export async function GET(
       data: product,
     });
   } catch (error) {
-    console.error("Error mengambil produk:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -55,18 +56,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { success: false, message: "Tidak terautentikasi: Silakan login terlebih dahulu" },
-        { status: 401 },
-      );
-    }
-
+    const { userId, userRole } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { id } = await params;
-    const userId = (session.user as any)?.id;
-    const userRole = (session.user as any)?.role;
-
     const existingProduct = await prisma.product.findUnique({
       where: { id },
     });
@@ -78,9 +72,12 @@ export async function PUT(
       );
     }
 
-    if (existingProduct.floristId !== userId && userRole !== "ADMIN") {
+    if (userRole === "FLORIST" && existingProduct.floristId !== userId) {
       return NextResponse.json(
-        { success: false, message: "Forbidden: Anda tidak memiliki izin mengedit produk ini" },
+        {
+          success: false,
+          message: "Forbidden: Anda tidak memiliki izin mengedit produk ini",
+        },
         { status: 403 },
       );
     }
@@ -90,7 +87,11 @@ export async function PUT(
 
     if (!name || !price || !stock || !image) {
       return NextResponse.json(
-        { success: false, message: "Field wajib tidak lengkap (name, price, stock, image harus diisi)" },
+        {
+          success: false,
+          message:
+            "Field wajib tidak lengkap (name, price, stock, image harus diisi)",
+        },
         { status: 400 },
       );
     }
@@ -118,7 +119,9 @@ export async function PUT(
       data: updatedProduct,
     });
   } catch (error) {
-    console.error("Error memperbarui produk:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal memperbarui produk" },
       { status: 500 },
@@ -131,18 +134,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { success: false, message: "Tidak terautentikasi: Silakan login terlebih dahulu" },
-        { status: 401 },
-      );
-    }
-
+    const { userId, userRole } = await requireAuth(request, [
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { id } = await params;
-    const userId = (session.user as any)?.id;
-    const userRole = (session.user as any)?.role;
-
     const existingProduct = await prisma.product.findUnique({
       where: { id },
     });
@@ -157,9 +153,12 @@ export async function DELETE(
       );
     }
 
-    if (existingProduct.floristId !== userId && userRole !== "ADMIN") {
+    if (userRole === "FLORIST" && existingProduct.floristId !== userId) {
       return NextResponse.json(
-        { success: false, message: "Forbidden: Anda tidak memiliki izin menghapus produk ini" },
+        {
+          success: false,
+          message: "Forbidden: Anda tidak memiliki izin menghapus produk ini",
+        },
         { status: 403 },
       );
     }
@@ -173,7 +172,9 @@ export async function DELETE(
       message: "Produk berhasil dihapus",
     });
   } catch (error) {
-    console.error("Error menghapus produk:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

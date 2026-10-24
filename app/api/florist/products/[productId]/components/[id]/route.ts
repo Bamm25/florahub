@@ -2,12 +2,12 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function PUT(
+export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ productId: string; id: string }> },
 ) {
   try {
-    const { userId: floristId } = await requireAuth(request, [
+    const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
@@ -31,7 +31,7 @@ export async function PUT(
       );
     }
 
-    if (floristId === "FLORIST" && product.floristId !== floristId) {
+    if (userRole === "FLORIST" && product.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,

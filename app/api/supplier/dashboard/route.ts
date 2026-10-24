@@ -1,34 +1,10 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "SUPPLIER" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Endpoint ini khusus untuk supplier",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
-
+    const { userId } = await requireAuth(request, ["SUPPLIER", "ADMIN"]);
     // 1. Total Revenue (PAID transactions only)
     const revenueData = await prisma.stockTransaction.aggregate({
       where: {
@@ -267,7 +243,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error mengambil dashboard data:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil dashboard data" },
       { status: 500 },

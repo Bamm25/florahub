@@ -1,7 +1,6 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { HarvestPreOrderStatus } from "@prisma/client";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 type RouteParams = {
@@ -10,31 +9,11 @@ type RouteParams = {
 
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "SUPPLIER" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya supplier atau admin yang dapat mengubah status pre-order",
-        },
-        { status: 403 },
-      );
-    }
-
-    const userId = (session.user as any)?.id;
+    const { userId, userRole } = await requireAuth(request, [
+      "SUPPLIER",
+      "ADMIN",
+    ]);
     const { id: preOrderId } = await params;
-
     const existingPreOrder = await prisma.harvestPreOrder.findUnique({
       where: { id: preOrderId },
       include: {
@@ -146,9 +125,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     let notificationTitle = "";
     let notificationMessage = "";
 
+    const supplier = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+
     if (status === "CONFIRMED") {
       notificationTitle = "Pre-Order Anda Dikonfirmasi!";
-      notificationMessage = `Supplier ${(session.user as any)?.name || "Petani"} telah menerima pre-order Anda untuk ${existingPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName}.`;
+      notificationMessage = `Supplier ${supplier?.name || "Petani"} telah menerima pre-order Anda untuk ${existingPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName}.`;
     } else if (status === "CANCELLED") {
       notificationTitle = "Pre-Order Dibatalkan Supplier!";
       notificationMessage = `Pre-order Anda untuk ${existingPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName} dibatalkan. Alasan: ${cancelReason.trim()}`;
@@ -173,7 +157,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       data: { preOrder: updatedPreOrder },
     });
   } catch (error) {
-    console.error("Error updating preorder status:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

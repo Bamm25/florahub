@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function PUT(
@@ -8,29 +7,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "SUPPLIER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Hanya supplier yang dapat mengupdate transaksi",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any)?.id;
+    const { userId, userRole } = await requireAuth(request, [
+      "SUPPLIER",
+      "ADMIN",
+    ]);
     const { id } = await params;
-
     const transaction = await prisma.stockTransaction.findUnique({
       where: { id },
       include: {
@@ -61,7 +42,7 @@ export async function PUT(
       );
     }
 
-    if (transaction.stock.supplierId !== userId) {
+    if (userRole === "SUPPLIER" && transaction.stock.supplierId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -184,7 +165,9 @@ export async function PUT(
       data: updatedTransaction,
     });
   } catch (error) {
-    console.error("Error update transaksi:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal update transaksi" },
       { status: 500 },
@@ -197,30 +180,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "SUPPLIER") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya supplier yang dapat melihat detail penjualan",
-        },
-        { status: 403 },
-      );
-    }
-    const userId = (session.user as any)?.id;
+    const { userId, userRole } = await requireAuth(request, [
+      "SUPPLIER",
+      "ADMIN",
+    ]);
     const { id } = await params;
-
     const transaction = await prisma.stockTransaction.findUnique({
       where: { id },
       include: {
@@ -255,7 +219,7 @@ export async function GET(
       );
     }
 
-    if (transaction.stock.supplierId !== userId) {
+    if (userRole === "SUPPLIER" && transaction.stock.supplierId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -270,7 +234,9 @@ export async function GET(
       data: { transaction },
     });
   } catch (error) {
-    console.error("Error mengambil detail penjualan:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil detail penjualan" },
       { status: 500 },

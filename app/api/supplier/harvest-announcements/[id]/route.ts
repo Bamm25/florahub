@@ -1,6 +1,5 @@
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 type RouteParams = {
@@ -54,7 +53,9 @@ export async function GET(request: Request, { params }: RouteParams) {
       data: { announcement },
     });
   } catch (error) {
-    console.error("Error fetching harvest announcement detail:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -67,31 +68,11 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "SUPPLIER" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya supplier atau admin yang dapat mengubah pengumuman panen",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId, userRole } = await requireAuth(request, [
+      "SUPPLIER",
+      "ADMIN",
+    ]);
     const { id: announcementId } = await params;
-    const userId = (session.user as any)?.id;
-
     const existingAnnouncement = await prisma.harvestAnnouncement.findUnique({
       where: { id: announcementId },
     });
@@ -226,7 +207,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error("Error updating harvest announcement:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
@@ -239,32 +222,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak terautentikasi: Silakan login terlebih dahulu",
-        },
-        { status: 401 },
-      );
-    }
-
-    const userRole = (session.user as any)?.role;
-    if (userRole !== "SUPPLIER" && userRole !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Forbidden: Hanya supplier atau admin yang dapat mengubah pengumuman panen",
-        },
-        { status: 403 },
-      );
-    }
-
+    const { userId, userRole } = await requireAuth(request, [
+      "SUPPLIER",
+      "ADMIN",
+    ]);
     const { id: announcementId } = await params;
-    const userId = (session.user as any)?.id;
-
     const existingAnnouncement = await prisma.harvestAnnouncement.findUnique({
       where: { id: announcementId },
     });
@@ -299,7 +261,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       message: "Pengumuman panen berhasil dihapus",
     });
   } catch (error) {
-    console.error("Error deleting harvest announcement:", error);
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,
