@@ -7,7 +7,9 @@ export async function GET(request: Request) {
     const { userId } = await requireAuth(request);
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get("unreadOnly");
-
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
     const whereClause: any = {
       userId,
     };
@@ -16,12 +18,17 @@ export async function GET(request: Request) {
       whereClause.isRead = false;
     }
 
-    const [notifications, unreadCount] = await Promise.all([
+    const [notifications, total, unreadCount] = await Promise.all([
       prisma.notification.findMany({
         where: whereClause,
+        skip,
+        take: limit,
         orderBy: {
           createdAt: "desc",
         },
+      }),
+      prisma.notification.count({
+        where: whereClause,
       }),
       prisma.notification.count({
         where: {
@@ -35,9 +42,16 @@ export async function GET(request: Request) {
       success: true,
       message: "Notifikasi berhasil diambil",
       data: {
-        total: notifications.length,
-        unreadCount,
         notifications,
+        unreadCount,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
       },
     });
   } catch (error) {

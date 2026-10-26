@@ -149,24 +149,26 @@ export async function GET(request: Request) {
       take: 5,
     });
 
-    const topStocksWithDetails = await Promise.all(
-      topStocks.map(async (item) => {
-        const stock = await prisma.stock.findUnique({
-          where: { id: item.stockId },
-          select: {
-            id: true,
-            name: true,
-            variety: true,
-            pricePerUnit: true,
-            quantity: true,
-          },
-        });
-        return {
-          ...stock,
-          totalSold: item._sum.quantity || 0,
-        };
-      }),
-    );
+    const stockIds = topStocks.map((t) => t.stockId);
+    const stocks = await prisma.stock.findMany({
+      where: {
+        id: { in: stockIds },
+        supplierId: userId,
+      },
+      select: {
+        id: true,
+        name: true,
+        variety: true,
+        pricePerUnit: true,
+        quantity: true,
+      },
+    });
+
+    const stockMap = new Map(stocks.map((s) => [s.id, s]));
+    const topStocksWithDetails = topStocks.map((item) => ({
+      ...stockMap.get(item.stockId),
+      totalSold: item._sum.quantity || 0,
+    }));
 
     // 10. Active Harvest Announcements
     const activeAnnouncements = await prisma.harvestAnnouncement.count({

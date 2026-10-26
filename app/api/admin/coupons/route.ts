@@ -6,23 +6,40 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["ADMIN"]);
-    const coupons = await prisma.coupon.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        _count: {
-          select: {
-            usages: true,
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
+
+    const [coupons, total] = await Promise.all([
+      prisma.coupon.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          _count: {
+            select: {
+              usages: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.coupon.count(),
+    ]);
 
     return NextResponse.json({
       success: true,
       message: "Daftar kupon berhasil diambil",
       data: {
-        total: coupons.length,
         coupons,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
       },
     });
   } catch (error) {

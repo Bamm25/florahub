@@ -215,11 +215,15 @@ export async function GET(request: Request) {
       success: true,
       message: "Daftar shipment berhasil diambil",
       data: {
-        total,
-        page,
-        limit,
-        totalPages,
         shipments,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
       },
     });
   } catch (error) {

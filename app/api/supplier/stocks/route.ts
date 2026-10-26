@@ -6,9 +6,16 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["SUPPLIER"]);
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
+
     const [stocks, total] = await Promise.all([
       prisma.stock.findMany({
         where: { supplierId: userId },
+        skip,
+        take: limit,
         orderBy: { createdAt: "desc" },
       }),
       prisma.stock.count({
@@ -22,9 +29,16 @@ export async function GET(request: Request) {
       success: true,
       message: "Daftar stock berhasil diambil",
       data: {
-        total,
-        lowStockCount,
         stocks,
+        lowStockCount,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
       },
     });
   } catch (error) {

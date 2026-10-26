@@ -4,10 +4,10 @@ import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    const { userId: adminId } = await requireAuth(request, ["ADMIN"]);
+    const { userId } = await requireAuth(request, ["ADMIN"]);
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
     const entity = searchParams.get("entity") || undefined;
     const action = searchParams.get("action") || undefined;
     const filterUserId = searchParams.get("userId") || undefined;
@@ -37,11 +37,11 @@ export async function GET(request: Request) {
             },
           },
         },
+        skip,
+        take: limit,
         orderBy: {
           createdAt: "desc",
         },
-        skip,
-        take: Math.min(limit, 100),
       }),
       prisma.auditLog.count({
         where: whereClause,
@@ -51,11 +51,15 @@ export async function GET(request: Request) {
       success: true,
       message: "Daftar audit log berhasil diambil",
       data: {
-        total: total,
-        page: page,
-        limit: limit,
-        totalPages: Math.ceil(total / limit),
-        logs: logs,
+        logs,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
       },
     });
   } catch (error) {

@@ -7,6 +7,9 @@ export async function GET(request: Request) {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
 
     const validStatuses = [
       "PENDING",
@@ -37,26 +40,33 @@ export async function GET(request: Request) {
       whereClause.status = status;
     }
 
-    const orders = await prisma.order.findMany({
-      where: whereClause,
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where: whereClause,
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                },
               },
             },
           },
+          payment: true,
         },
-        payment: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.order.count({
+        where: whereClause,
+      }),
+    ]);
 
     const ordersSummary = orders.map((order) => ({
       id: order.id,
@@ -70,14 +80,22 @@ export async function GET(request: Request) {
       },
     }));
 
-    return NextResponse.json({
-      success: true,
-      message: "Riwayat order berhasil diambil",
-      data: {
-        total: orders.length,
-        orders: ordersSummary,
-      },
-    });
+        return NextResponse.json({
+          success: true,
+          message: "Riwayat order berhasil diambil",
+          data: {
+            orders: ordersSummary,
+            pagination: {
+              page,
+              limit,
+              total,
+              totalPages: Math.ceil(total / limit),
+              hasNext: page * limit < total,
+              hasPrev: page > 1,
+            },
+          },
+        });
+
   } catch (error) {
     if (error instanceof NextResponse) {
       return error;

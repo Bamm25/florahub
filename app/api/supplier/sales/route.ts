@@ -8,35 +8,46 @@ export async function GET(request: Request) {
       "SUPPLIER",
       "ADMIN",
     ]);
-
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
     const whereClause: any = {};
+
     if (userRole === "SUPPLIER") {
       whereClause.stock = { supplierId: userId };
     }
 
-    const sales = await prisma.stockTransaction.findMany({
-      where: whereClause,
-      include: {
-        stock: {
-          select: {
-            id: true,
-            name: true,
-            variety: true,
-            pricePerUnit: true,
+    const [sales, total] = await Promise.all([
+      prisma.stockTransaction.findMany({
+        where: whereClause,
+        include: {
+          stock: {
+            select: {
+              id: true,
+              name: true,
+              variety: true,
+              pricePerUnit: true,
+            },
+          },
+          florist: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-        florist: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+      }),
+      prisma.stockTransaction.count({
+        where: whereClause,
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,

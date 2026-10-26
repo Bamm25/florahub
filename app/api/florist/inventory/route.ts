@@ -9,6 +9,11 @@ export async function GET(request: Request) {
       "ADMIN",
     ]);
 
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
+
     const whereClause: any = {};
     if (userRole === "FLORIST") {
       whereClause.floristId = userId;
@@ -30,6 +35,8 @@ export async function GET(request: Request) {
             },
           },
         },
+        skip,
+        take: limit,
         orderBy: {
           createdAt: "desc",
         },
@@ -52,9 +59,16 @@ export async function GET(request: Request) {
       success: true,
       message: "Daftar inventory berhasil diambil",
       data: {
-        total,
-        lowStockCount,
         inventories: inventoriesWithFlag,
+        lowStockCount,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
       },
     });
   } catch (error) {

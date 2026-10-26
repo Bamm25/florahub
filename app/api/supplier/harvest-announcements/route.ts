@@ -7,7 +7,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const supplierId = searchParams.get("supplierId");
     const activeOnly = searchParams.get("activeOnly");
-
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
     const whereClause: any = {};
 
     if (supplierId) {
@@ -22,33 +24,47 @@ export async function GET(request: Request) {
       };
     }
 
-    const announcements = await prisma.harvestAnnouncement.findMany({
-      where: whereClause,
-      include: {
-        supplier: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const [announcements, total] = await Promise.all([
+      prisma.harvestAnnouncement.findMany({
+        where: whereClause,
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          _count: {
+            select: {
+              preOrders: true,
+            },
           },
         },
-        _count: {
-          select: {
-            preOrders: true,
-          },
+        skip,
+        take: limit,
+        orderBy: {
+          harvestDate: "asc",
         },
-      },
-      orderBy: {
-        harvestDate: "asc",
-      },
-    });
+      }),
+      prisma.harvestAnnouncement.count({
+        where: whereClause,
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
       message: "Daftar pengumuman panen berhasil diambil",
       data: {
-        total: announcements.length,
         announcements,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
       },
     });
   } catch (error) {

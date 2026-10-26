@@ -9,6 +9,9 @@ export async function GET(request: Request) {
       "ADMIN",
     ]);
     const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
     const status = searchParams.get("status");
     const whereClause: any = {};
     if (userRole === "FLORIST") {
@@ -19,32 +22,46 @@ export async function GET(request: Request) {
       whereClause.status = status;
     }
 
-    const preOrders = await prisma.harvestPreOrder.findMany({
-      where: whereClause,
-      include: {
-        announcement: {
-          include: {
-            supplier: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
+    const [preOrders, total] = await Promise.all([
+      prisma.harvestPreOrder.findMany({
+        where: whereClause,
+        include: {
+          announcement: {
+            include: {
+              supplier: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.harvestPreOrder.count({
+        where: whereClause,
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
       message: "Daftar pre-order berhasil diambil",
       data: {
-        total: preOrders.length,
         preOrders,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
       },
     });
   } catch (error) {

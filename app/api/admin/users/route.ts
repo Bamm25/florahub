@@ -8,33 +8,53 @@ export async function GET(request: Request) {
     const { userId } = await requireAuth(request, ["ADMIN"]);
     const { searchParams } = new URL(request.url);
     const roleParams = searchParams.get("role");
-
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
     const whereClause: any = {};
 
     if (roleParams && Object.values(Role).includes(roleParams as Role)) {
       whereClause.role = roleParams as Role;
     }
 
-    const users = await prisma.user.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        phone: true,
-        image: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          phone: true,
+          image: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.user.count({
+        where: whereClause,
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
-      data: users,
+      message: "Daftar pengguna berhasil diambil",
+      data: {
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
+      },
     });
   } catch (error) {
     if (error instanceof NextResponse) {

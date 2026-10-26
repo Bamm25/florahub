@@ -2,23 +2,65 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        category: true,
-        florist: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search") || "";
+    const categoryId = searchParams.get("categoryId") || "";
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const skip = (page - 1) * limit;
+    const whereClause: any = {
+      isActive: true,
+    };
+    if (search) {
+      whereClause.name = {
+        contains: search,
+        mode: "insensitive",
+      };
+    }
+    if (categoryId) {
+      whereClause.categoryId = categoryId;
+    }
+
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where: whereClause,
+        include: {
+          category: true,
+          florist: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.product.count({
+        where: whereClause,
+      }),
+    ]);
+
     return NextResponse.json({
       success: true,
-      data: products,
+      message: "Daftar produk berhasil diambil",
+      data: {
+        products,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
+      },
     });
   } catch (error) {
     if (error instanceof NextResponse) {
