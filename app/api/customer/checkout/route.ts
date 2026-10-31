@@ -1,22 +1,14 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { checkoutSchema } from "@/lib/validations/schemas";
 
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
-    const { addressId, shippingCost = 0, notes } = body;
-
-    if (typeof shippingCost !== "number" || shippingCost < 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Ongkir harus berupa angka positif",
-        },
-        { status: 400 },
-      );
-    }
+    const validatedData = checkoutSchema.parse(body);
+    const { addressId, shippingCost, couponCode, notes } = validatedData;
 
     const cart = await prisma.cart.findUnique({
       where: { userId },
@@ -95,7 +87,129 @@ export async function POST(request: Request) {
       return sum + item.product.price * item.quantity;
     }, 0);
 
-    const discount = 0;
+    let discount = 0;
+    let appliedCoupon = null;
+
+    if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
+      const normalizedCode = couponCode.trim().toUpperCase();
+
+      // Cari kupon berdasarkan kode
+      const coupon = await prisma.coupon.findUnique({
+        where: { code: normalizedCode },
+      });
+
+      if (!coupon) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Kode kupon "${normalizedCode}" tidak ditemukan`,
+          },
+          { status: 404 },
+        );
+      }
+
+      if (!coupon.isActive) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Kupon sudah tidak aktif",
+          },
+          { status: 400 },
+        );
+      }
+
+      const now = new Date();
+      if (now < coupon.validFrom) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Kupon belum berlaku. Mulai berlaku: ${coupon.validFrom.toLocaleDateString("id-ID")}`,
+          },
+          { status: 400 },
+        );
+      }
+
+      if (now > coupon.validUntil) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Kupon sudah kadaluarsa",
+          },
+          { status: 400 },
+        );
+      }
+
+      if (coupon.minPurchase && subtotal < coupon.minPurchase) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Minimal belanja Rp ${coupon.minPurchase.toLocaleString("id-ID")} untuk menggunakan kupon ini`,
+          },
+          { status: 400 },
+        );
+      }
+
+      if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Kupon sudah habis digunakan",
+          },
+          { status: 400 },
+        );
+      }
+
+      const userUsageCount = await prisma.couponUsage.count({
+        where: {
+          couponId: coupon.id,
+          userId,
+        },
+      });
+
+      if (userUsageCount >= coupon.usagePerUser) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Anda sudah mencapai batas penggunaan kupon ini (${coupon.usagePerUser}x)`,
+          },
+          { status: 400 },
+        );
+      }
+
+      if (coupon.type === "PERCENTAGE") {
+        const rawDiscount = (subtotal * coupon.value) / 100;
+        discount = Math.round(rawDiscount);
+
+        if (coupon.maxDiscount && discount > coupon.maxDiscount) {
+          discount = coupon.maxDiscount;
+        }
+
+        if (discount > subtotal) {
+          discount = subtotal;
+        }
+      } else if (coupon.type === "FIXED") {
+        discount = Math.round(coupon.value);
+
+        if (discount > subtotal) {
+          discount = subtotal;
+        }
+      } else if (coupon.type === "FREE_SHIPPING") {
+        const maxShippingDiscount = coupon.maxDiscount || shippingCost;
+        discount = Math.min(shippingCost, maxShippingDiscount);
+      } else {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Tipe kupon tidak valid: ${coupon.type}`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Coupon applied successfully
+      appliedCoupon = coupon;
+    }
+
     const totalAmount = subtotal + shippingCost - discount;
 
     const order = await prisma.order.create({
@@ -143,6 +257,25 @@ export async function POST(request: Request) {
       },
     });
 
+    if (appliedCoupon) {
+      await prisma.$transaction([
+        prisma.couponUsage.create({
+          data: {
+            couponId: appliedCoupon.id,
+            orderId: order.id,
+            userId,
+            discount,
+          },
+        }),
+        prisma.coupon.update({
+          where: { id: appliedCoupon.id },
+          data: {
+            usageCount: { increment: 1 },
+          },
+        }),
+      ]);
+    }
+
     await prisma.cartItem.deleteMany({
       where: { cartId: cart.id },
     });
@@ -150,7 +283,9 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: "Order berhasil dibuat",
+        message: appliedCoupon
+          ? `Order berhasil dibuat dengan diskon ${appliedCoupon.code}`
+          : "Order berhasil dibuat",
         data: {
           order: {
             id: order.id,
@@ -174,6 +309,14 @@ export async function POST(request: Request) {
               },
             })),
             address: order.address,
+            couponApplied: appliedCoupon
+              ? {
+                  code: appliedCoupon.code,
+                  name: appliedCoupon.name,
+                  type: appliedCoupon.type,
+                  discountAmount: discount,
+                }
+              : null,
           },
           payment: {
             id: order.payment!.id,
@@ -189,6 +332,7 @@ export async function POST(request: Request) {
     if (error instanceof NextResponse) {
       return error;
     }
+    console.error("Error checkout:", error);
     return NextResponse.json(
       {
         success: false,

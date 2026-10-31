@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createProductSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
@@ -81,29 +83,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
-    const body = await request.json();
-    const { name, description, price, stock, image, categoryId } = body;
-    if (!name || !price || !stock || !image || !categoryId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Field wajib tidak lengkap (name, price, stock, image, categoryId harus diisi)",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
+    
+    try {
+      const body = await request.json();
+      const validatedData = createProductSchema.parse(body);
+      const { name, description, price, stock, image, categoryId } = validatedData;
 
     const newProduct = await prisma.product.create({
       data: {
-        name: name,
+        name: name.trim(),
         slug: name.toLowerCase().replace(/\s+/g, "-"),
-        description: description,
+        description: description?.trim() || "",
         price: price,
-        stock: stock,
-        image: image,
+        stock: stock || 0,
+        image: image?.trim() || "",
         categoryId: categoryId,
         floristId: userId,
         isActive: true,
@@ -128,6 +121,15 @@ export async function POST(request: Request) {
       },
       { status: 201 },
     );
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { success: false, message: "Validation error", errors: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof NextResponse) {
       return error;

@@ -1,32 +1,15 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { validateCouponSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request);
     const body = await request.json();
-    const { code, subtotal, shippingCost = 0 } = body;
-
-    if (!code || typeof code !== "string" || code.trim() === "") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Kode kupon wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (typeof subtotal !== "number" || subtotal < 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Nilai subtotal belanja harus berupa angka valid",
-        },
-        { status: 400 },
-      );
-    }
+    const validated = validateCouponSchema.parse(body);
+    const { code, subtotal, shippingCost = 0 } = validated;
 
     const normalizedCode = code.trim().toUpperCase();
 
@@ -159,6 +142,16 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updateProductComponentSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function PUT(
   request: Request,
@@ -42,27 +44,8 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { quantity } = body;
-
-    if (!quantity) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Field quantity wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (quantity <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Quantity harus lebih dari 0",
-        },
-        { status: 400 },
-      );
-    }
+    const validatedData = updateProductComponentSchema.parse(body);
+    const { quantity } = validatedData;
 
     const existingComponent = await prisma.productComponent.findUnique({
       where: { id: componentId },
@@ -131,6 +114,16 @@ export async function PUT(
       },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createReviewSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -9,6 +11,10 @@ type RouteParams = {
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id: productId } = await params;
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const skip = (page - 1) * limit;
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -25,27 +31,35 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    const reviews = await prisma.review.findMany({
-      where: { productId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { productId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: limit,
+        skip: skip,
+      }),
+      prisma.review.count({ where: { productId } }),
+    ]);
 
-    const totalReview = reviews.length;
     let averageRating = 0;
-    if (totalReview > 0) {
-      const sumRating = reviews.reduce((sum, item) => sum + item.rating, 0);
-      averageRating = Number((sumRating / totalReview).toFixed(1));
+    if (total > 0) {
+      const allReviews = await prisma.review.findMany({
+        where: { productId },
+        select: { rating: true },
+      });
+      const sumRating = allReviews.reduce((sum, item) => sum + item.rating, 0);
+      averageRating = Number((sumRating / total).toFixed(1));
     }
 
     return NextResponse.json({
@@ -57,10 +71,16 @@ export async function GET(request: Request, { params }: RouteParams) {
           name: product.name,
         },
         stats: {
-          totalReview,
+          totalReview: total,
           averageRating,
         },
-        reviews,
+        items: reviews,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
       },
     });
   } catch (error) {
@@ -97,17 +117,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { rating, comment, images } = body;
-
-    if (typeof rating !== "number" || rating < 1 || rating > 5) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Rating wajib berupa angka dari 1 sampai 5",
-        },
-        { status: 400 },
-      );
-    }
+    const validatedData = createReviewSchema.parse(body);
+    const { rating, comment, images } = validatedData;
 
     const existingReview = await prisma.review.findFirst({
       where: {
@@ -178,6 +189,16 @@ export async function POST(request: Request, { params }: RouteParams) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

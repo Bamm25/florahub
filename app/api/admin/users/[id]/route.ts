@@ -2,6 +2,8 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { Role } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { updateUserSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function PATCH(
   request: Request,
@@ -35,26 +37,17 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { role } = body;
-
-    if (
-      !role ||
-      typeof role !== "string" ||
-      !Object.values(Role).includes(role as Role)
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Role tidak valid, Pilihan role ${Object.values(Role).join(", ")}`,
-        },
-        { status: 400 },
-      );
-    }
+    const validated = updateUserSchema.parse(body);
+    const { role, name, email, phone, isActive } = validated;
 
     const updatedUserRole = await prisma.user.update({
       where: { id },
       data: {
-        role: role as Role,
+        ...(role && { role: role as Role }),
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(phone && { phone }),
+        ...(isActive !== undefined && { isActive }),
       },
       select: {
         id: true,
@@ -74,6 +67,16 @@ export async function PATCH(
       data: updatedUserRole,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

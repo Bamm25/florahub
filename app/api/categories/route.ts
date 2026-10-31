@@ -1,18 +1,38 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createCategorySchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const categories = await prisma.flowerCategory.findMany({
-      orderBy: {
-        name: "asc",
-      },
-    });
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const skip = (page - 1) * limit;
+
+    const [categories, total] = await Promise.all([
+      prisma.flowerCategory.findMany({
+        orderBy: {
+          name: "asc",
+        },
+        take: limit,
+        skip: skip,
+      }),
+      prisma.flowerCategory.count(),
+    ]);
 
     return NextResponse.json({
       success: true,
-      data: categories,
+      data: {
+        items: categories,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (error) {
     if (error instanceof NextResponse) {
@@ -31,19 +51,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["ADMIN"]);
+
     const body = await request.json();
-    const { name, description } = body;
+    const validatedData = createCategorySchema.parse(body);
+    const { name, slug, description } = validatedData;
 
-    if (!name || typeof name !== "string" || name.trim() === "") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Nama kategori wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
+    // Business logic validation: unique name check
     const existingCategory = await prisma.flowerCategory.findUnique({
       where: { name: name.trim() },
     });
@@ -61,7 +74,7 @@ export async function POST(request: Request) {
     const newCategory = await prisma.flowerCategory.create({
       data: {
         name: name.trim(),
-        slug: name.trim().toLowerCase().replace(/\s+/g, "-"),
+        slug,
         description: description || null,
       },
     });
@@ -75,6 +88,12 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { success: false, message: "Validation error", errors: error.issues },
+        { status: 400 }
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updateReviewSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -34,19 +36,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { rating, comment, images } = body;
-
-    if (rating !== undefined) {
-      if (typeof rating !== "number" || rating < 1 || rating > 5) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Rating wajib berupa angka dari 1 sampai 5",
-          },
-          { status: 400 },
-        );
-      }
-    }
+    const validatedData = updateReviewSchema.parse(body);
+    const { rating, comment, images } = validatedData;
 
     const updatedReview = await prisma.review.update({
       where: { id: reviewId },
@@ -54,12 +45,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         rating:
           rating !== undefined ? Math.round(rating) : existingReview.rating,
         comment: comment !== undefined ? comment : existingReview.comment,
-        images:
-          images !== undefined
-            ? Array.isArray(images)
-              ? images
-              : existingReview.images
-            : existingReview.images,
+        images: images !== undefined ? images : existingReview.images,
       },
       include: {
         user: {
@@ -80,6 +66,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

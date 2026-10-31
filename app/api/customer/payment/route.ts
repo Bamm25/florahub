@@ -2,22 +2,15 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import { snap } from "@/lib/midtrans";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createPaymentSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
-    const { orderId } = body;
-
-    if (!orderId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Order ID wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
+    const validated = createPaymentSchema.parse(body);
+    const { orderId } = validated;
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -130,6 +123,16 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

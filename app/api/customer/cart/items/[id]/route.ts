@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updateCartItemSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function PATCH(
   request: Request,
@@ -10,14 +12,8 @@ export async function PATCH(
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
     const body = await request.json();
-    const { quantity } = body;
-
-    if (typeof quantity !== "number" || quantity < 1) {
-      return NextResponse.json(
-        { success: false, message: "Quantity minimal 1" },
-        { status: 400 },
-      );
-    }
+    const validated = updateCartItemSchema.parse(body);
+    const { quantity } = validated;
 
     const cartItem = await prisma.cartItem.findUnique({
       where: { id },
@@ -95,6 +91,16 @@ export async function PATCH(
       { status: 200 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

@@ -1,7 +1,9 @@
 import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { createStockSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
@@ -55,88 +57,59 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["SUPPLIER"]);
-    const body = await request.json();
-    const {
-      name,
-      variety,
-      quantity,
-      unit,
-      pricePerUnit,
-      harvestDate,
-      expiryDate,
-      location,
-      isAvailable,
-    } = body;
+    
+    try {
+      const body = await request.json();
+      const validatedData = createStockSchema.parse(body);
+      const { name, variety, unit, pricePerUnit, quantity } = validatedData;
 
-    if (typeof name !== "string" || name.trim() === "") {
+      const ipAddress =
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        "unknown";
+      const userAgent = request.headers.get("user-agent") || "unknown";
+      const newStock = await prisma.stock.create({
+        data: {
+          supplierId: userId,
+          name,
+          variety,
+          quantity,
+          unit,
+          pricePerUnit,
+        },
+      });
+
+      await createAuditLog({
+        userId,
+        action: "CREATE",
+        entity: "Stock",
+        entityId: newStock.id,
+        newValue: {
+          name: newStock.name,
+          quantity: newStock.quantity,
+          pricePerUnit: newStock.pricePerUnit,
+        },
+        ipAddress,
+        userAgent,
+      });
+
       return NextResponse.json(
         {
-          success: false,
-          message: "Nama bunga wajib diisi dan harus berupa teks",
+          success: true,
+          message: "Stok bunga berhasil ditambahkan",
+          data: newStock,
         },
-        { status: 400 },
+        { status: 201 },
       );
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { success: false, message: "Validation error", errors: error.issues },
+          { status: 400 },
+        );
+      }
+      throw error;
     }
-
-    if (typeof quantity !== "number" || quantity <= 0) {
-      return NextResponse.json(
-        { success: false, message: "Jumlah stok harus berupa angka positif" },
-        { status: 400 },
-      );
-    }
-
-    if (typeof pricePerUnit !== "number" || pricePerUnit <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Harga per unit harus berupa angka positif",
-        },
-        { status: 400 },
-      );
-    }
-
-    const ipAddress =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-    const userAgent = request.headers.get("user-agent") || "unknown";
-    const newStock = await prisma.stock.create({
-      data: {
-        supplierId: userId,
-        name: name.trim(),
-        variety: variety?.trim() || null,
-        quantity,
-        unit: unit?.trim() || "tangkai",
-        pricePerUnit,
-        harvestDate: harvestDate ? new Date(harvestDate) : new Date(),
-        expiryDate: expiryDate ? new Date(expiryDate) : null,
-        location: location?.trim() || null,
-        isAvailable: isAvailable !== undefined ? isAvailable : true,
-      },
-    });
-
-    await createAuditLog({
-      userId,
-      action: "CREATE",
-      entity: "Stock",
-      entityId: newStock.id,
-      newValue: {
-        name: newStock.name,
-        quantity: newStock.quantity,
-        pricePerUnit: newStock.pricePerUnit,
-      },
-      ipAddress,
-      userAgent,
-    });
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Stok bunga berhasil ditambahkan",
-        data: newStock,
-      },
-      { status: 201 },
-    );
   } catch (error) {
     if (error instanceof NextResponse) {
       return error;

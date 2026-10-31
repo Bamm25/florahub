@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updateInventorySchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 // type RouteParams = {
 //   id: Promise<{ id: string }>;
@@ -100,7 +102,8 @@ export async function PUT(
     ]);
     const { id } = await params;
     const body = await request.json();
-    const { quantity, minThreshold, maxCapacity, location } = body;
+    const validatedData = updateInventorySchema.parse(body);
+    const { quantity, location, notes } = validatedData;
 
     const existingInventory = await prisma.floristInventory.findUnique({
       where: { id },
@@ -128,34 +131,12 @@ export async function PUT(
 
     const updateData: any = {};
 
-    if (quantity !== undefined) updateData.quantity = quantity;
-    if (minThreshold !== undefined) updateData.minThreshold = minThreshold;
-    if (maxCapacity !== undefined) updateData.maxCapacity = maxCapacity;
-    if (location !== undefined) updateData.location = location;
-
-    if (quantity !== undefined && quantity <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Quantity harus lebih dari 0",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak ada data yang diubah",
-        },
-        { status: 400 },
-      );
-    }
-
     if (quantity !== undefined) {
+      updateData.quantity = quantity;
       updateData.lastRestockDate = new Date();
     }
+    if (location !== undefined) updateData.location = location;
+    if (notes !== undefined) updateData.notes = notes;
 
     const inventory = await prisma.floristInventory.update({
       where: { id },
@@ -187,6 +168,16 @@ export async function PUT(
       },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

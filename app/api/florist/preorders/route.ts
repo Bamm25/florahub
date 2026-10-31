@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createPreorderSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
@@ -82,32 +84,8 @@ export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
     const body = await request.json();
-    const { announcementId, quantity, notes } = body;
-
-    if (
-      !announcementId ||
-      typeof announcementId !== "string" ||
-      announcementId.trim() === ""
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "ID pengumuman panen (announcementId) wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (typeof quantity !== "number" || quantity <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Jumlah pesanan (quantity) harus berupa angka bulat positif lebih dari 0",
-        },
-        { status: 400 },
-      );
-    }
+    const validated = createPreorderSchema.parse(body);
+    const { harvestAnnouncementId: announcementId, quantity, notes } = validated;
 
     const announcement = await prisma.harvestAnnouncement.findUnique({
       where: { id: announcementId },
@@ -251,6 +229,16 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

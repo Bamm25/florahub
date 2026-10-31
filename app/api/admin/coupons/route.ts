@@ -2,6 +2,8 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { CouponType } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { createCouponSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
@@ -59,7 +61,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["ADMIN"]);
+
     const body = await request.json();
+    const validatedData = createCouponSchema.parse(body);
     const {
       code,
       name,
@@ -72,50 +76,10 @@ export async function POST(request: Request) {
       validUntil,
       usageLimit,
       usagePerUser,
-      applicableFor,
-    } = body;
+      isActive,
+    } = validatedData;
 
-    if (
-      !code ||
-      !name ||
-      !type ||
-      value === undefined ||
-      !validFrom ||
-      !validUntil
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Field code, name, type, value, validFrom, dan validUntil wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
-    const validTypes: CouponType[] = ["PERCENTAGE", "FIXED", "FREE_SHIPPING"];
-    if (!validTypes.includes(type as CouponType)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Tipe kupon tidak valid. Pilih antara: PERCENTAGE, FIXED, atau FREE_SHIPPING",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (typeof value !== "number" || value <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Nilai diskon (value) harus berupa angka positif lebih dari 0",
-        },
-        { status: 400 },
-      );
-    }
-
+    // Business logic validation: PERCENTAGE value range
     if (type === "PERCENTAGE" && (value < 1 || value > 100)) {
       return NextResponse.json(
         {
@@ -127,18 +91,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const startDate = new Date(validFrom);
-    const endDate = new Date(validUntil);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Format tanggal validFrom atau validUntil tidak valid",
-        },
-        { status: 400 },
-      );
-    }
+    // Business logic validation: date comparison
+    const startDate = validFrom ? new Date(validFrom) : new Date();
+    const endDate = validUntil ? new Date(validUntil) : new Date();
 
     if (endDate <= startDate) {
       return NextResponse.json(
@@ -150,16 +105,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const normalizedCode = code.trim().toUpperCase();
+    // Business logic validation: unique code check
     const existingCoupon = await prisma.coupon.findUnique({
-      where: { code: normalizedCode },
+      where: { code },
     });
 
     if (existingCoupon) {
       return NextResponse.json(
         {
           success: false,
-          message: `Kode kupon "${normalizedCode}" sudah terdaftar`,
+          message: `Kode kupon "${code}" sudah terdaftar`,
         },
         { status: 400 },
       );
@@ -167,7 +122,7 @@ export async function POST(request: Request) {
 
     const newCoupon = await prisma.coupon.create({
       data: {
-        code: normalizedCode,
+        code,
         name: name.trim(),
         description: description ? description.trim() : null,
         type: type as CouponType,
@@ -177,10 +132,10 @@ export async function POST(request: Request) {
         validFrom: startDate,
         validUntil: endDate,
         usageLimit: usageLimit ? Math.round(usageLimit) : null,
-        usagePerUser: usagePerUser ? Math.round(usagePerUser) : 1,
+        usagePerUser: Math.round(usagePerUser),
         createdById: userId,
-        applicableFor: Array.isArray(applicableFor) ? applicableFor : [],
-        isActive: true,
+        applicableFor: [],
+        isActive,
       },
     });
 
@@ -195,6 +150,12 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { success: false, message: "Validation error", errors: error.issues },
+        { status: 400 }
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

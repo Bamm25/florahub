@@ -2,6 +2,8 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { CouponType } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { updateCouponSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -96,6 +98,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
+    const validatedData = updateCouponSchema.parse(body);
     const {
       name,
       description,
@@ -108,38 +111,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
       usageLimit,
       usagePerUser,
       isActive,
-      applicableFor,
-    } = body;
+    } = validatedData;
 
-    if (type !== undefined) {
-      const validTypes: CouponType[] = ["PERCENTAGE", "FIXED", "FREE_SHIPPING"];
-      if (!validTypes.includes(type as CouponType)) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Tipe kupon tidak valid. Pilih antara: PERCENTAGE, FIXED, atau FREE_SHIPPING",
-          },
-          { status: 400 },
-        );
-      }
-    }
-
-    if (value !== undefined) {
-      if (typeof value !== "number" || value <= 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Nilai diskon (value) harus berupa angka positif lebih dari 0",
-          },
-          { status: 400 },
-        );
-      }
-    }
-
+    // Business logic validation: PERCENTAGE value range
     const targetType = type !== undefined ? type : existingCoupon.type;
-    if (targetType === "PERCENTAGE" && (value < 1 || value > 100)) {
+    if (value !== undefined && targetType === "PERCENTAGE" && (value < 1 || value > 100)) {
       return NextResponse.json(
         {
           success: false,
@@ -150,33 +126,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Business logic validation: date comparison
     let startDate = existingCoupon.validFrom;
     let endDate = existingCoupon.validUntil;
 
     if (validFrom !== undefined) {
       startDate = new Date(validFrom);
     }
-    if (isNaN(startDate.getTime())) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Format tanggal validFrom tidak valid",
-        },
-        { status: 400 },
-      );
-    }
 
     if (validUntil !== undefined) {
       endDate = new Date(validUntil);
-      if (isNaN(endDate.getTime())) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Format tanggal validUntil tidak valid",
-          },
-          { status: 400 },
-        );
-      }
     }
 
     if (endDate <= startDate) {
@@ -227,12 +186,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
             : existingCoupon.usagePerUser,
         isActive:
           isActive !== undefined ? Boolean(isActive) : existingCoupon.isActive,
-        applicableFor:
-          applicableFor !== undefined
-            ? Array.isArray(applicableFor)
-              ? applicableFor
-              : existingCoupon.applicableFor
-            : existingCoupon.applicableFor,
+        applicableFor: existingCoupon.applicableFor,
       },
     });
     return NextResponse.json({
@@ -241,6 +195,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
       data: { coupon: updatedCoupon },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { success: false, message: "Validation error", errors: error.issues },
+        { status: 400 }
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

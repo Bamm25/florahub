@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updateHarvestAnnouncementSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -99,6 +101,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
+    const validated = updateHarvestAnnouncementSchema.parse(body);
     const {
       flowerName,
       variety,
@@ -109,47 +112,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
       location,
       image,
       isActive,
-    } = body;
-
-    if (estimatedQuantity !== undefined) {
-      if (typeof estimatedQuantity !== "number" || estimatedQuantity <= 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Estimasi jumlah panen (estimatedQuantity) harus berupa angka positif lebih dari 0",
-          },
-          { status: 400 },
-        );
-      }
-    }
-
-    if (pricePerUnit !== undefined) {
-      if (typeof pricePerUnit !== "number" || pricePerUnit <= 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Harga per unit (pricePerUnit) harus berupa angka positif lebih dari 0",
-          },
-          { status: 400 },
-        );
-      }
-    }
+    } = validated;
 
     let parsedHarvestDate = existingAnnouncement.harvestDate;
     if (harvestDate !== undefined) {
       parsedHarvestDate = new Date(harvestDate);
-      if (isNaN(parsedHarvestDate.getTime())) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Format tanggal harvestDate tidak valid (gunakan format ISO 8601)",
-          },
-          { status: 400 },
-        );
-      }
     }
 
     const updatedAnnouncement = await prisma.harvestAnnouncement.update({
@@ -207,6 +174,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

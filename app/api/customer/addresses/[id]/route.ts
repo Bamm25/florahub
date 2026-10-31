@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updateAddressSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 type RouteParms = { params: Promise<{ id: string }> };
 
@@ -82,6 +84,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
     }
 
     const body = await request.json();
+    const validatedData = updateAddressSchema.parse(body);
     const {
       label,
       recipientName,
@@ -93,7 +96,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
       latitude,
       longitude,
       isDefault,
-    } = body;
+    } = validatedData;
 
     if (isDefault === true) {
       await prisma.address.updateMany({
@@ -123,17 +126,9 @@ export async function PUT(request: Request, { params }: RouteParms) {
         postalCode:
           postalCode !== undefined ? postalCode : existingAddress.postalCode,
         latitude:
-          latitude !== undefined
-            ? latitude
-              ? parseFloat(latitude)
-              : null
-            : existingAddress.latitude,
+          latitude !== undefined ? latitude : existingAddress.latitude,
         longitude:
-          longitude !== undefined
-            ? longitude
-              ? parseFloat(longitude)
-              : null
-            : existingAddress.longitude,
+          longitude !== undefined ? longitude : existingAddress.longitude,
         isDefault:
           isDefault !== undefined
             ? Boolean(isDefault)
@@ -147,6 +142,16 @@ export async function PUT(request: Request, { params }: RouteParms) {
       data: { address: updatedAddress },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

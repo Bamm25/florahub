@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createProductComponentSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function GET(
   request: Request,
@@ -42,25 +44,35 @@ export async function GET(
       );
     }
 
-    const components = await prisma.productComponent.findMany({
-      where: { productId },
-      include: {
-        inventory: {
-          include: {
-            stock: {
-              select: {
-                name: true,
-                variety: true,
-                unit: true,
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const skip = (page - 1) * limit;
+
+    const [components, total] = await Promise.all([
+      prisma.productComponent.findMany({
+        where: { productId },
+        include: {
+          inventory: {
+            include: {
+              stock: {
+                select: {
+                  name: true,
+                  variety: true,
+                  unit: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    });
+        orderBy: {
+          createdAt: "asc",
+        },
+        take: limit,
+        skip: skip,
+      }),
+      prisma.productComponent.count({ where: { productId } }),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -70,8 +82,7 @@ export async function GET(
           id: product.id,
           name: product.name,
         },
-        total: components.length,
-        components: components.map((comp) => ({
+        items: components.map((comp) => ({
           id: comp.id,
           quantity: comp.quantity,
           inventory: {
@@ -83,6 +94,12 @@ export async function GET(
           createdAt: comp.createdAt,
           updatedAt: comp.updatedAt,
         })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
       },
     });
   } catch (error) {
@@ -107,27 +124,8 @@ export async function POST(
     ]);
     const { productId } = await params;
     const body = await request.json();
-    const { inventoryId, quantity } = body;
-
-    if (!inventoryId || !quantity) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Field inventoryId dan quantity wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (quantity <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Quantity harus lebih dari 0",
-        },
-        { status: 400 },
-      );
-    }
+    const validatedData = createProductComponentSchema.parse(body);
+    const { inventoryId, quantity } = validatedData;
 
     const inventory = await prisma.floristInventory.findUnique({
       where: { id: inventoryId },
@@ -207,6 +205,16 @@ export async function POST(
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

@@ -2,6 +2,8 @@ import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createShipmentSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function POST(request: Request) {
   try {
@@ -16,28 +18,8 @@ export async function POST(request: Request) {
     const userAgent = request.headers.get("user-agent") || "unknown";
 
     const body = await request.json();
-    const { orderId, courier, service, trackingNumber, estimatedDays, weight } =
-      body;
-
-    if (!orderId || typeof orderId !== "string") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Order ID wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (!courier || typeof courier !== "string" || courier.trim() === "") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Nama kurir wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
+    const validated = createShipmentSchema.parse(body);
+    const { orderId, courier, service, trackingNumber, estimatedDays, weight } = validated;
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -140,6 +122,16 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

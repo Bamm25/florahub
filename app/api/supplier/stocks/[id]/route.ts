@@ -1,7 +1,9 @@
 import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { updateStockSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 export async function GET(
   request: Request,
@@ -62,165 +64,102 @@ export async function PUT(
       "unknown";
     const userAgent = request.headers.get("user-agent") || "unknown";
     const { id } = await params;
-    const body = await request.json();
-    const {
-      name,
-      variety,
-      quantity,
-      unit,
-      pricePerUnit,
-      harvestDate,
-      expiryDate,
-      location,
-      isAvailable,
-    } = body;
 
-    const existingStock = await prisma.stock.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        supplierId: true,
-      },
-    });
+    try {
+      const body = await request.json();
+      const validatedData = updateStockSchema.parse(body);
 
-    if (!existingStock) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Stock tidak ditemukan",
+      const existingStock = await prisma.stock.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          supplierId: true,
         },
-        { status: 404 },
-      );
-    }
+      });
 
-    if (existingStock.supplierId !== userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Forbidden: Anda tidak memiliki akses ke stock ini",
+      if (!existingStock) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Stock tidak ditemukan",
+          },
+          { status: 404 },
+        );
+      }
+
+      if (existingStock.supplierId !== userId) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Forbidden: Anda tidak memiliki akses ke stock ini",
+          },
+          { status: 403 },
+        );
+      }
+
+      const stockBeforeUpdate = await prisma.stock.findUnique({
+        where: { id },
+        select: {
+          name: true,
+          pricePerUnit: true,
         },
-        { status: 403 },
-      );
-    }
+      });
 
-    const stockBeforeUpdate = await prisma.stock.findUnique({
-      where: { id },
-      select: {
-        name: true,
-        quantity: true,
-        pricePerUnit: true,
-        isAvailable: true,
-      },
-    });
+      if (Object.keys(validatedData).length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Tidak ada data yang diubah",
+          },
+          { status: 400 },
+        );
+      }
 
-    if (
-      name !== undefined &&
-      (typeof name !== "string" || name.trim() === "")
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Nama bunga harus berupa teks dan tidak boleh kosong",
+      const updatedStock = await prisma.stock.update({
+        where: { id },
+        data: validatedData,
+      });
+
+      const oldValues: any = {};
+      const newValues: any = {};
+
+      if (validatedData.name !== undefined && stockBeforeUpdate) {
+        oldValues.name = stockBeforeUpdate.name;
+        newValues.name = validatedData.name;
+      }
+
+      if (validatedData.pricePerUnit !== undefined && stockBeforeUpdate) {
+        oldValues.pricePerUnit = stockBeforeUpdate.pricePerUnit;
+        newValues.pricePerUnit = validatedData.pricePerUnit;
+      }
+
+      await createAuditLog({
+        userId,
+        action: "UPDATE",
+        entity: "Stock",
+        entityId: updatedStock.id,
+        oldValue: Object.keys(oldValues).length > 0 ? oldValues : null,
+        newValue: Object.keys(newValues).length > 0 ? newValues : null,
+        ipAddress,
+        userAgent,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "Stock berhasil diperbarui",
+        data: {
+          stock: updatedStock,
         },
-        { status: 400 },
-      );
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { success: false, message: "Validation error", errors: error.issues },
+          { status: 400 },
+        );
+      }
+      throw error;
     }
-
-    if (
-      quantity !== undefined &&
-      (typeof quantity !== "number" || quantity <= 0)
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Jumlah stok harus berupa angka positif",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (
-      pricePerUnit !== undefined &&
-      (typeof pricePerUnit !== "number" || pricePerUnit <= 0)
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Harga per unit harus berupa angka positif",
-        },
-        { status: 400 },
-      );
-    }
-
-    const updateData: any = {};
-    if (name !== undefined) updateData.name = name.trim();
-    if (variety !== undefined) updateData.variety = variety?.trim() || null;
-    if (quantity !== undefined) updateData.quantity = quantity;
-    if (unit !== undefined) updateData.unit = unit?.trim() || "tangkai";
-    if (pricePerUnit !== undefined) updateData.pricePerUnit = pricePerUnit;
-    if (harvestDate !== undefined)
-      updateData.harvestDate = new Date(harvestDate);
-    if (expiryDate !== undefined)
-      updateData.expiryDate = expiryDate ? new Date(expiryDate) : null;
-    if (location !== undefined) updateData.location = location?.trim() || null;
-    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
-
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tidak ada data yang diubah",
-        },
-        { status: 400 },
-      );
-    }
-
-    const updatedStock = await prisma.stock.update({
-      where: { id },
-      data: updateData,
-    });
-
-    const oldValues: any = {};
-    const newValues: any = {};
-
-    if (name !== undefined && stockBeforeUpdate) {
-      oldValues.name = stockBeforeUpdate.name;
-      newValues.name = updateData.name;
-    }
-
-    if (quantity !== undefined && stockBeforeUpdate) {
-      oldValues.quantity = stockBeforeUpdate.quantity;
-      newValues.quantity = updateData.quantity;
-    }
-
-    if (pricePerUnit !== undefined && stockBeforeUpdate) {
-      oldValues.pricePerUnit = stockBeforeUpdate.pricePerUnit;
-      newValues.pricePerUnit = updateData.pricePerUnit;
-    }
-
-    if (isAvailable !== undefined && stockBeforeUpdate) {
-      oldValues.isAvailable = stockBeforeUpdate.isAvailable;
-      newValues.isAvailable = updateData.isAvailable;
-    }
-
-    await createAuditLog({
-      userId,
-      action: "UPDATE",
-      entity: "Stock",
-      entityId: updatedStock.id,
-      oldValue: Object.keys(oldValues).length > 0 ? oldValues : null,
-      newValue: Object.keys(newValues).length > 0 ? newValues : null,
-      ipAddress,
-      userAgent,
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: "Stock berhasil diperbarui",
-      data: {
-        stock: updatedStock,
-      },
-    });
   } catch (error) {
     if (error instanceof NextResponse) {
       return error;

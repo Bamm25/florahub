@@ -4,6 +4,8 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { updateShipmentStatusSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function PUT(
   request: Request,
@@ -22,8 +24,8 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, courier, service, trackingNumber, estimatedDays, weight } =
-      body;
+    const validated = updateShipmentStatusSchema.parse(body);
+    const { status, courier, service, trackingNumber, estimatedDays, weight } = validated;
 
     const existingShipment = await prisma.shipment.findUnique({
       where: { id },
@@ -119,8 +121,7 @@ export async function PUT(
     if (status !== undefined) updateData.status = status;
     if (courier !== undefined) updateData.courier = courier.trim();
     if (service !== undefined) updateData.service = service?.trim() || null;
-    if (trackingNumber !== undefined)
-      updateData.trackingNumber = trackingNumber?.trim() || null;
+    if (trackingNumber !== undefined) updateData.trackingNumber = trackingNumber?.trim() || null;
     if (estimatedDays !== undefined) updateData.estimatedDays = estimatedDays;
     if (weight !== undefined) updateData.weight = weight;
 
@@ -146,8 +147,7 @@ export async function PUT(
     if (status !== undefined) oldValues.status = existingShipment.status;
     if (courier !== undefined) oldValues.courier = existingShipment.courier;
     if (service !== undefined) oldValues.service = existingShipment.service;
-    if (trackingNumber !== undefined)
-      oldValues.trackingNumber = existingShipment.trackingNumber;
+    if (trackingNumber !== undefined) oldValues.trackingNumber = existingShipment.trackingNumber;
 
     const [updatedShipment] = await prisma.$transaction([
       prisma.shipment.update({
@@ -179,6 +179,16 @@ export async function PUT(
       data: { shipment: updatedShipment },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

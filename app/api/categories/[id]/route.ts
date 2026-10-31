@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updateCategorySchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function GET(
   request: Request,
@@ -69,39 +71,34 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description } = body;
+    const validatedData = updateCategorySchema.parse(body);
+    const { name, description, slug } = validatedData;
 
-    if (!name || typeof name !== "string" || !name.trim()) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Nama kategori harus diisi",
+    // Business logic validation: unique name check
+    if (name) {
+      const duplicateCategory = await prisma.flowerCategory.findFirst({
+        where: {
+          name: name.trim(),
+          NOT: { id },
         },
-        { status: 400 },
-      );
-    }
+      });
 
-    const duplicateCategory = await prisma.flowerCategory.findFirst({
-      where: {
-        name: name.trim(),
-        NOT: { id },
-      },
-    });
-
-    if (duplicateCategory) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Nama kategori sudah terdaftar",
-        },
-        { status: 409 },
-      );
+      if (duplicateCategory) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Nama kategori sudah terdaftar",
+          },
+          { status: 409 },
+        );
+      }
     }
 
     const updateCategory = await prisma.flowerCategory.update({
       where: { id },
       data: {
-        name: name.trim(),
+        name: name ? name.trim() : existingCategory.name,
+        slug: slug !== undefined ? slug : existingCategory.slug,
         description:
           description !== undefined
             ? description
@@ -115,6 +112,16 @@ export async function PUT(
       message: "Kategori bunga berhasil diperbarui",
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

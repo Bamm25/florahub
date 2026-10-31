@@ -1,32 +1,15 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createPurchaseSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["FLORIST"]);
     const body = await request.json();
-    const { stockId, quantity } = body;
-
-    if (typeof stockId !== "string" || stockId.trim() === "") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "ID stok wajib diisi dan harus berupa teks",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (typeof quantity !== "number" || quantity <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Jumlah pembelian harus berupa angka positif",
-        },
-        { status: 400 },
-      );
-    }
+    const validated = createPurchaseSchema.parse(body);
+    const { stockId, quantity } = validated;
 
     const stock = await prisma.stock.findUnique({
       where: { id: stockId },
@@ -80,6 +63,16 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

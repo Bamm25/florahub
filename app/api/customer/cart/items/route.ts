@@ -1,32 +1,15 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createCartItemSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
-    const { productId, quantity = 1 } = body;
-
-    if (typeof productId !== "string" || productId.trim() === "") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Product ID wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (typeof quantity !== "number" || quantity < 1) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Quantity minimal 1",
-        },
-        { status: 400 },
-      );
-    }
+    const validated = createCartItemSchema.parse(body);
+    const { productId, quantity } = validated;
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -142,6 +125,16 @@ export async function POST(request: Request) {
       { status: existingItem ? 200 : 201 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

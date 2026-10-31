@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updateProductSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function GET(
   request: Request,
@@ -82,19 +84,10 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
-    const { name, description, price, stock, image } = body;
-
-    if (!name || !price || !stock || !image) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Field wajib tidak lengkap (name, price, stock, image harus diisi)",
-        },
-        { status: 400 },
-      );
-    }
+    try {
+      const body = await request.json();
+      const validatedData = updateProductSchema.parse(body);
+      const { name, description, price, stock, image } = validatedData;
 
     const updatedProduct = await prisma.product.update({
       where: { id },
@@ -118,6 +111,15 @@ export async function PUT(
       message: "Produk berhasil diperbarui",
       data: updatedProduct,
     });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { success: false, message: "Validation error", errors: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof NextResponse) {
       return error;

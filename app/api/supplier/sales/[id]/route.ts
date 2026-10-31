@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updateSaleSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function PUT(
   request: Request,
@@ -53,29 +55,8 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { status, deliveredAt } = body;
-
-    if (!status && !deliveredAt) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Minimal harus mengupdate status atau deliveredAt",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (status) {
-      if (status !== "PAID" && status !== "CANCELLED") {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Status hanya boleh PAID atau CANCELLED",
-          },
-          { status: 400 },
-        );
-      }
-    }
+    const validated = updateSaleSchema.parse(body);
+    const { status, deliveredAt } = validated;
 
     if (transaction.status === "PAID" || transaction.status === "CANCELLED") {
       return NextResponse.json(
@@ -165,6 +146,16 @@ export async function PUT(
       data: updatedTransaction,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

@@ -1,21 +1,38 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { createAddressSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
-    const addresses = await prisma.address.findMany({
-      where: { userId },
-      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
-    });
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const skip = (page - 1) * limit;
+
+    const [addresses, total] = await Promise.all([
+      prisma.address.findMany({
+        where: { userId },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+        take: limit,
+        skip: skip,
+      }),
+      prisma.address.count({ where: { userId } }),
+    ]);
 
     return NextResponse.json({
       success: true,
       message: "Daftar alamat berhasil diambil",
       data: {
-        total: addresses.length,
-        addresses,
+        items: addresses,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
       },
     });
   } catch (error) {
@@ -36,6 +53,7 @@ export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
+    const validatedData = createAddressSchema.parse(body);
     const {
       label,
       recipientName,
@@ -47,26 +65,7 @@ export async function POST(request: Request) {
       latitude,
       longitude,
       isDefault,
-    } = body;
-
-    if (
-      !label ||
-      !recipientName ||
-      !phone ||
-      !fullAddress ||
-      !city ||
-      !province ||
-      !postalCode
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Nama penerima, no hp, alamat lengkap, kota, provinsi, kode pos, dan label wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
+    } = validatedData;
 
     const existingAddressCount = await prisma.address.count({
       where: { userId },
@@ -92,8 +91,8 @@ export async function POST(request: Request) {
         city,
         province,
         postalCode,
-        latitude: latitude ? parseFloat(latitude) : null,
-        longitude: longitude ? parseFloat(longitude) : null,
+        latitude: latitude || null,
+        longitude: longitude || null,
         isDefault: shouldBeDefault,
       },
     });
@@ -107,6 +106,16 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

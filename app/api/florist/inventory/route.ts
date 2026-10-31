@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { createInventorySchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
@@ -85,28 +87,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
-    const body = await request.json();
-    const { stockId, quantity, minThreshold, maxCapacity, location } = body;
-
-    if (!stockId || !quantity) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "stockId dan quantity wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (quantity <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Quantity harus lebih dari 0",
-        },
-        { status: 400 },
-      );
-    }
+    
+    try {
+      const body = await request.json();
+      const validatedData = createInventorySchema.parse(body);
+      const { stockId, quantity, location, notes } = validatedData;
 
     const stock = await prisma.stock.findUnique({
       where: { id: stockId },
@@ -156,8 +141,8 @@ export async function POST(request: Request) {
         floristId: userId,
         stockId,
         quantity,
-        minThreshold: minThreshold || 10,
-        maxCapacity: maxCapacity || null,
+        minThreshold: 10,
+        maxCapacity: null,
         location: location || null,
         lastRestockDate: new Date(),
       },
@@ -186,6 +171,15 @@ export async function POST(request: Request) {
       },
       { status: 201 },
     );
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { success: false, message: "Validation error", errors: error.issues },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof NextResponse) {
       return error;

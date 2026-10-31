@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { updatePurchaseSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function PUT(
   request: Request,
@@ -58,21 +60,8 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { paymentProof } = body;
-
-    if (
-      !paymentProof ||
-      typeof paymentProof !== "string" ||
-      paymentProof.trim() === ""
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "URL bukti bayar wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
+    const validated = updatePurchaseSchema.parse(body);
+    const { paymentProof } = validated;
 
     const updatedTransaction = await prisma.stockTransaction.update({
       where: { id },
@@ -95,6 +84,16 @@ export async function PUT(
       data: updatedTransaction,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

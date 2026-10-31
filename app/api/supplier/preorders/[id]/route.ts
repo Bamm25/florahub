@@ -2,6 +2,8 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { HarvestPreOrderStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { updatePreorderSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -53,24 +55,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { status, cancelReason } = body;
-
-    const validStatuses: HarvestPreOrderStatus[] = [
-      "CONFIRMED",
-      "CANCELLED",
-      "PENDING",
-    ];
-
-    if (!status || !validStatuses.includes(status as HarvestPreOrderStatus)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Status tidak valid. Pilih antara: CONFIRMED, CANCELLED, atau PENDING",
-        },
-        { status: 400 },
-      );
-    }
+    const validated = updatePreorderSchema.parse(body);
+    const { status, cancelReason } = validated;
 
     if (
       existingPreOrder.status === "CONFIRMED" ||
@@ -107,7 +93,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         cancelledAt: status === "CANCELLED" ? now : null,
         cancelReason:
           status === "CANCELLED"
-            ? cancelReason.trim()
+            ? cancelReason?.trim() || ""
             : existingPreOrder.cancelReason,
       },
       include: {
@@ -135,7 +121,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       notificationMessage = `Supplier ${supplier?.name || "Petani"} telah menerima pre-order Anda untuk ${existingPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName}.`;
     } else if (status === "CANCELLED") {
       notificationTitle = "Pre-Order Dibatalkan Supplier!";
-      notificationMessage = `Pre-order Anda untuk ${existingPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName} dibatalkan. Alasan: ${cancelReason.trim()}`;
+      notificationMessage = `Pre-order Anda untuk ${existingPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName} dibatalkan${cancelReason ? `. Alasan: ${cancelReason.trim()}` : ""}.`;
     }
 
     if (notificationTitle && notificationMessage) {
@@ -143,7 +129,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         data: {
           userId: existingPreOrder.floristId,
           title: notificationTitle,
-          message: notificationMessage,
+          message: `${notificationMessage}${cancelReason ? ` (Alasan: ${cancelReason.trim()})` : ""}`,
           type: "PREORDER_CONFIRMED",
           link: `/florist/preorders`,
           isRead: false,
@@ -157,6 +143,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       data: { preOrder: updatedPreOrder },
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
+    }
     if (error instanceof NextResponse) {
       return error;
     }

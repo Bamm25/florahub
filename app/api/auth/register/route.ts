@@ -1,23 +1,14 @@
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+import { registerSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, password, role } = body;
-
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Semua form harus diisi",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
+    const validatedData = registerSchema.parse(body);
+    const { name, email, password, role, phone } = validatedData;
 
     const emailExisting = await prisma.user.findUnique({
       where: { email },
@@ -35,9 +26,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const validRoles = ["CUSTOMER", "FLORIST", "SUPPLIER"];
-    const assignedRole = role && validRoles.includes(role) ? role : "CUSTOMER";
-
     const hashPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.user.create({
@@ -45,7 +33,8 @@ export async function POST(request: Request) {
         name,
         email,
         password: hashPassword,
-        role: assignedRole,
+        role,
+        phone,
       },
       select: {
         id: true,
@@ -67,6 +56,18 @@ export async function POST(request: Request) {
       },
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Validation error",
+          errors: error.issues,
+        },
+        {
+          status: 400,
+        },
+      );
+    }
     console.error("Error register user:", error);
     return NextResponse.json(
       {

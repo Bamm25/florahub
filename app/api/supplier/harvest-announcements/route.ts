@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { createHarvestAnnouncementSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 export async function GET(request: Request) {
   try {
@@ -87,119 +89,75 @@ export async function POST(request: Request) {
       "SUPPLIER",
       "ADMIN",
     ]);
-    const body = await request.json();
-    const {
-      flowerName,
-      variety,
-      estimatedQuantity,
-      pricePerUnit,
-      harvestDate,
-      description,
-      location,
-      image,
-    } = body;
 
-    if (
-      !flowerName ||
-      typeof flowerName !== "string" ||
-      flowerName.trim() === ""
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Nama bunga (flowerName) wajib diisi",
+    try {
+      const body = await request.json();
+      const validatedData = createHarvestAnnouncementSchema.parse(body);
+      const {
+        flowerName,
+        variety,
+        estimatedQuantity,
+        pricePerUnit,
+        harvestDate,
+        description,
+        location,
+        image,
+      } = validatedData;
+
+      // Business logic validation: harvest date must be in the future
+      const parsedHarvestDate = new Date(harvestDate);
+      const now = new Date();
+      if (parsedHarvestDate < now) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Tanggal panen tidak boleh di masa lalu",
+          },
+          { status: 400 },
+        );
+      }
+
+      const announcement = await prisma.harvestAnnouncement.create({
+        data: {
+          supplierId: userId,
+          flowerName: flowerName.trim(),
+          variety: variety?.trim() || null,
+          estimatedQuantity,
+          pricePerUnit,
+          harvestDate: new Date(harvestDate),
+          description: description?.trim() || null,
+          location: location?.trim() || null,
+          image: image?.trim() || null,
+          isActive: true,
         },
-        { status: 400 },
-      );
-    }
-
-    if (typeof estimatedQuantity !== "number" || estimatedQuantity <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Estimasi jumlah panen (estimatedQuantity) harus berupa angka positif lebih dari 0",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (typeof pricePerUnit !== "number" || pricePerUnit <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Harga per unit (pricePerUnit) harus berupa angka positif lebih dari 0",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (!harvestDate) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tanggal estimasi panen (harvestDate) wajib diisi",
-        },
-        { status: 400 },
-      );
-    }
-
-    const parsedHarvestDate = new Date(harvestDate);
-    if (isNaN(parsedHarvestDate.getTime())) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Format tanggal harvestDate tidak valid (gunakan format ISO 8601)",
-        },
-        { status: 400 },
-      );
-    }
-
-    const now = new Date();
-    if (parsedHarvestDate < now) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Tanggal estimasi panen tidak boleh di masa lalu",
-        },
-        { status: 400 },
-      );
-    }
-
-    const announcement = await prisma.harvestAnnouncement.create({
-      data: {
-        supplierId: userId,
-        flowerName: flowerName.trim(),
-        variety: variety ? variety.trim() : null,
-        estimatedQuantity: Math.round(estimatedQuantity),
-        pricePerUnit: Math.round(pricePerUnit),
-        harvestDate: parsedHarvestDate,
-        description: description ? description.trim() : null,
-        location: location ? location.trim() : null,
-        image: image ? image.trim() : null,
-        isActive: true,
-      },
-      include: {
-        supplier: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Pengumuman panen berhasil dibuat",
-        data: { announcement },
-      },
-      { status: 201 },
-    );
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Pengumuman panen berhasil dibuat",
+          data: { announcement },
+        },
+        { status: 201 },
+      );
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { success: false, message: "Validation error", errors: error.issues },
+          { status: 400 },
+        );
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof NextResponse) {
       return error;
