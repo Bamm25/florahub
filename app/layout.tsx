@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import AuthProvider from "@/components/providers/AuthProvider";
+import Script from "next/script";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -41,6 +42,13 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>{children}</AuthProvider>
+
+        {/* Midtrans Snap Script */}
+        <Script
+          src="https://app.sandbox.midtrans.com/snap/snap.js"
+          data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

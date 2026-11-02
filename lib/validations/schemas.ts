@@ -48,10 +48,17 @@ export const updateAddressSchema = z.object({
 // Checkout
 // Customer checkout order
 export const checkoutSchema = z.object({
-  addressId: z.uuid("Address ID tidak valid").optional(),
+  addressId: z.string().min(1, "Address ID tidak valid").optional(),
   shippingCost: z.number().min(0, "Ongkir tidak boleh negatif"),
   couponCode: z.string().min(3).toUpperCase().optional(),
   notes: z.string().max(500).optional(),
+  items: z.array(
+    z.object({
+      productId: z.string().min(1, "Product ID tidak valid"),
+      quantity: z.number().int().min(1, "Quantity minimal 1"),
+      price: z.number().min(0, "Harga tidak boleh negatif"),
+    })
+  ).min(1, "Cart tidak boleh kosong"),
 });
 
 // Coupons
@@ -290,7 +297,7 @@ export const updateSaleSchema = z.object({
 // Payment
 // Create payment for order
 export const createPaymentSchema = z.object({
-  orderId: z.uuid("Order ID tidak valid"),
+  orderId: z.string().min(1, "Order ID tidak valid"),
 });
 
 // Cart item schemas

@@ -8,28 +8,10 @@ export async function POST(request: Request) {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const validatedData = checkoutSchema.parse(body);
-    const { addressId, shippingCost, couponCode, notes } = validatedData;
+    const { addressId, shippingCost, couponCode, notes, items } = validatedData;
 
-    const cart = await prisma.cart.findUnique({
-      where: { userId },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                price: true,
-                stock: true,
-                isActive: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!cart || cart.items.length === 0) {
+    // Validasi items dari frontend
+    if (!items || items.length === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -39,22 +21,49 @@ export async function POST(request: Request) {
       );
     }
 
-    for (const item of cart.items) {
-      if (!item.product.isActive) {
+    // Fetch product details dari database untuk validasi
+    const productIds = items.map((item) => item.productId);
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        stock: true,
+        isActive: true,
+        floristId: true,
+      },
+    });
+
+    // Validasi setiap item
+    for (const item of items) {
+      const product = products.find((p) => p.id === item.productId);
+
+      if (!product) {
         return NextResponse.json(
           {
             success: false,
-            message: `Produk tidak aktif: ${item.product.name}`,
+            message: `Produk tidak ditemukan`,
+          },
+          { status: 404 },
+        );
+      }
+
+      if (!product.isActive) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Produk tidak aktif: ${product.name}`,
           },
           { status: 400 },
         );
       }
 
-      if (item.product.stock < item.quantity) {
+      if (product.stock < item.quantity) {
         return NextResponse.json(
           {
             success: false,
-            message: `Stok tidak cukup: ${item.product.name}. Tersedia: ${item.product.stock}`,
+            message: `Stok tidak cukup: ${product.name}. Tersedia: ${product.stock}`,
           },
           { status: 400 },
         );
@@ -83,8 +92,9 @@ export async function POST(request: Request) {
 
     const orderNumber = `ORD-${dateStr}-${sequance.toString().padStart(3, "0")}`;
 
-    const subtotal = cart.items.reduce((sum, item) => {
-      return sum + item.product.price * item.quantity;
+    // Hitung subtotal dari items yang dikirim frontend
+    const subtotal = items.reduce((sum, item) => {
+      return sum + item.price * item.quantity;
     }, 0);
 
     let discount = 0;
@@ -225,11 +235,11 @@ export async function POST(request: Request) {
         notes: notes || null,
 
         items: {
-          create: cart.items.map((item) => ({
+          create: items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
-            price: item.product.price,
-            subtotal: item.product.price * item.quantity,
+            price: item.price,
+            subtotal: item.price * item.quantity,
           })),
         },
         payment: {
@@ -276,9 +286,7 @@ export async function POST(request: Request) {
       ]);
     }
 
-    await prisma.cartItem.deleteMany({
-      where: { cartId: cart.id },
-    });
+    // Cart di-manage oleh frontend (localStorage), tidak perlu hapus dari database
 
     return NextResponse.json(
       {
@@ -328,15 +336,26 @@ export async function POST(request: Request) {
       },
       { status: 201 },
     );
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof NextResponse) {
       return error;
+    }
+    if (error?.name === "ZodError" || error?.issues) {
+      console.error("Zod validation error checkout:", error.issues);
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Data checkout tidak valid",
+          errors: error.issues,
+        },
+        { status: 400 },
+      );
     }
     console.error("Error checkout:", error);
     return NextResponse.json(
       {
         success: false,
-        message: "Gagal membuat order",
+        message: error?.message || "Gagal membuat order",
       },
       { status: 500 },
     );
