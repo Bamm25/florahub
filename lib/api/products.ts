@@ -5,6 +5,43 @@ import type {
   ProductFormData,
 } from "@/types";
 
+interface ProductDetailResponse {
+  success: boolean;
+  data: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string;
+    price: number;
+    stock: number;
+    image: string | null;
+    categoryId: string;
+    floristId: string;
+    createdAt: string;
+    florist: {
+      id: string;
+      shopName: string;
+      city: string;
+    };
+    category: {
+      id: string;
+      name: string;
+    };
+    averageRating: number;
+    totalReviews: number;
+  };
+}
+
+export interface Review {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  user: {
+    name: string;
+  };
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 //  Get semua products
@@ -122,4 +159,42 @@ export async function deleteProduct(
   }
 
   return res.json();
+}
+
+//  fetch detail produk slug
+export async function getProductBySlug(
+  slug: string,
+): Promise<ProductDetailResponse> {
+  const response = await fetch(`/api/products?slug=${slug}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Gagal memuat detail produk");
+  }
+  return response.json();
+}
+
+// fetch reviews produk
+export async function getProductReviews(productId: string) {
+  const response = await fetch(`/api/products/${productId}/reviews`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Gagal memuat ulasan produk");
+  }
+  const result = await response.json();
+  return {
+    success: true,
+    data: {
+      reviews: result.data.items,
+      averageRating: result.data.stats.averageRating,
+      totalReviews: result.data.stats.totalReview,
+    },
+  };
 }

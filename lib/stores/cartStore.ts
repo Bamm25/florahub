@@ -1,10 +1,19 @@
-import type { CartItem, Product } from "@/types";
+import type { CartItem } from "@/types";
 import { create } from "zustand";
+
+interface AddToCartProduct {
+  id: string;
+  name: string;
+  price: number;
+  image: string | null;
+  stock: number;
+  floristId: string;
+}
 
 // state + actions
 interface CartStore {
   items: CartItem[];
-  addItem: (product: Product, quantity?: number) => void;
+  addItem: (product: AddToCartProduct, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -15,7 +24,7 @@ interface CartStore {
 export const useCartStore = create<CartStore>((set, get) => ({
   items: [],
   // Tambah item ke cart / update quantity
-  addItem: (product: Product, quantity: number = 1) => {
+  addItem: (product: AddToCartProduct, quantity: number = 1) => {
     set((state) => {
       const existingItem = state.items.find(
         (item) => item.productId === product.id,
