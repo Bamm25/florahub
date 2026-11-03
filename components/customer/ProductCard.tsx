@@ -2,10 +2,7 @@
 
 import { useCartStore } from "@/lib/stores/cartStore";
 import type { Product } from "@/types";
-import { Card, CardContent, CardFooter } from "../ui/card";
 import Image from "next/image";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
 import { ShoppingCart } from "lucide-react";
 import Link from "next/link";
 
@@ -17,18 +14,6 @@ export default function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem);
   const isOutOfStock = product.stock === 0;
   const isLowStock = product.stock > 0 && product.stock < 10;
-
-  const stockBadgeVariant = isOutOfStock
-    ? "destructive"
-    : isLowStock
-      ? "secondary"
-      : "default";
-
-  const stockBadgeText = isOutOfStock
-    ? "Stok Habis"
-    : isLowStock
-      ? `Stok Menipis (${product.stock})`
-      : "Tersedia";
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -44,11 +29,11 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <Card className="group flex h-full flex-col overflow-hidden transition-all hover:shadow-lg">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:shadow-md hover:bg-surface-container-low">
       {/* Hanya gambar yang bisa diklik ke detail produk */}
       <Link
         href={`/products/${product.slug}`}
-        className="relative aspect-square w-full cursor-pointer overflow-hidden bg-gray-100"
+        className="relative aspect-square w-full cursor-pointer overflow-hidden bg-surface-container"
       >
         {product.image ? (
           <Image
@@ -59,44 +44,54 @@ export default function ProductCard({ product }: ProductCardProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-400">
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
             Tidak Ada Gambar
           </div>
         )}
         {/* Stock Badge (overlay) */}
-        <div className="absolute right-2 top-2">
-          <Badge variant={stockBadgeVariant} className="shadow-sm">
-            {stockBadgeText}
-          </Badge>
+        <div className="absolute right-3 top-3">
+          {isOutOfStock ? (
+            <span className="inline-flex items-center rounded-full bg-error px-3 py-1 text-xs font-semibold text-error-foreground shadow-sm">
+              Stok Habis
+            </span>
+          ) : isLowStock ? (
+            <span className="inline-flex items-center rounded-full bg-warning/90 px-3 py-1 text-xs font-semibold text-warning-foreground shadow-sm">
+              Stok Menipis ({product.stock})
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-secondary-container-foreground shadow-sm">
+              Tersedia
+            </span>
+          )}
         </div>
       </Link>
 
       {/* Content text - bisa di-select/copy, cursor default */}
-      <CardContent className="flex-1 p-4 cursor-default">
-        <h3 className="line-clamp-2 text-base font-semibold text-gray-900 select-text">
+      <div className="flex-1 p-5 cursor-default">
+        <h3 className="line-clamp-2 text-lg font-bold text-foreground select-text group-hover:text-primary transition-colors">
           {product.name}
         </h3>
-        <p className="mt-2 text-lg font-bold text-gray-900 select-text">
+        <p className="mt-2 text-xl font-bold text-primary select-text">
           Rp {product.price.toLocaleString("id-ID")}
         </p>
         {product.description && (
-          <p className="mt-2 line-clamp-2 text-sm text-gray-600 select-text">
+          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground select-text">
             {product.description}
           </p>
         )}
-      </CardContent>
+      </div>
 
       {/* Add to Cart Button - cursor pointer */}
-      <CardFooter className="p-4 pt-0">
-        <Button
+      <div className="p-5 pt-0">
+        <button
           onClick={handleAddToCart}
           disabled={isOutOfStock}
-          className="w-full cursor-pointer"
+          className="btn-primary w-full h-12 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ShoppingCart className="mr-2 h-4 w-4" />
           {isOutOfStock ? "Stok Habis" : "Tambah ke Keranjang"}
-        </Button>
-      </CardFooter>
-    </Card>
+        </button>
+      </div>
+    </div>
   );
 }

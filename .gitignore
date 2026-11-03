@@ -42,5 +42,17 @@ next-env.d.ts
 
 /app/generated/prisma
 
-/app/generated/prisma
-./graphify-out
+# Graphify output
+/graphify-out
+graphify-out/
+
+# Backup files
+*.backup
+app/globals.css.backup
+
+# Research documents (not for production)
+DESIGN_COMPARISON_ANALYSIS.md
+FundedNext.md
+Tradeify.md
+IMPLEMENTATION_PROGRESS.md
+QUICK_UPDATE_GUIDE.md

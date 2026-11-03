@@ -9,8 +9,9 @@ import {
   type Review,
 } from "@/lib/api/products";
 import { useCartStore } from "@/lib/stores/cartStore";
-import { ShoppingCart, Store, Star, Minus, Plus } from "lucide-react";
+import { ShoppingCart, Store, Star, Minus, Plus, ArrowLeft } from "lucide-react";
 import ProductReviews from "@/components/customer/ProductReviews";
+import Link from "next/link";
 
 interface ProductDetail {
   id: string;
@@ -83,13 +84,13 @@ export default function ProductDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="grid gap-8 md:grid-cols-2">
-          <div className="aspect-square animate-pulse rounded-lg bg-gray-200" />
-          <div className="space-y-4">
-            <div className="h-8 w-3/4 animate-pulse rounded bg-gray-200" />
-            <div className="h-6 w-1/2 animate-pulse rounded bg-gray-200" />
-            <div className="h-24 animate-pulse rounded bg-gray-200" />
+      <div className="container-custom section-spacing">
+        <div className="grid gap-10 lg:grid-cols-2">
+          <div className="aspect-square animate-pulse rounded-2xl bg-surface-container" />
+          <div className="space-y-6">
+            <div className="h-10 w-3/4 animate-pulse rounded-xl bg-surface-container" />
+            <div className="h-8 w-1/2 animate-pulse rounded-xl bg-surface-container" />
+            <div className="h-32 animate-pulse rounded-xl bg-surface-container" />
           </div>
         </div>
       </div>
@@ -98,24 +99,40 @@ export default function ProductDetailPage() {
 
   if (error || !product) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="mb-4 text-2xl font-bold text-red-600">
-          {error || "Produk tidak ditemukan"}
-        </h1>
-        <a
-          href="/"
-          className="inline-block rounded-lg bg-emerald-600 px-6 py-2 text-white hover:bg-emerald-700"
-        >
-          Kembali ke Beranda
-        </a>
+      <div className="container-custom section-spacing">
+        <div className="mx-auto max-w-2xl text-center">
+          <div className="inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-error/10 mb-6">
+            <ShoppingCart className="h-10 w-10 text-error" />
+          </div>
+          <h1 className="text-3xl font-bold text-foreground mb-4">
+            {error || "Produk tidak ditemukan"}
+          </h1>
+          <p className="text-base text-muted-foreground mb-8">
+            Produk yang Anda cari mungkin sudah tidak tersedia atau telah dihapus.
+          </p>
+          <Link href="/" className="btn-primary">
+            <ArrowLeft className="mr-2 h-5 w-5" />
+            Kembali ke Beranda
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <div className="grid gap-8 md:grid-cols-2">
-        <div className="relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+    <div className="container-custom section-spacing">
+      {/* Back Button */}
+      <Link 
+        href="/" 
+        className="inline-flex items-center gap-2 text-base font-medium text-muted-foreground hover:text-primary transition-colors mb-8"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Kembali ke Katalog
+      </Link>
+
+      <div className="grid gap-10 lg:grid-cols-2">
+        {/* Product Image */}
+        <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-surface-container-low shadow-md">
           {product.image ? (
             <Image
               src={product.image}
@@ -126,115 +143,135 @@ export default function ProductDetailPage() {
               priority
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-gray-400">
-              <span className="text-sm">Gambar tidak tersedia</span>
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <ShoppingCart className="mx-auto h-16 w-16 mb-3 opacity-40" />
+                <span className="text-sm">Gambar tidak tersedia</span>
+              </div>
             </div>
           )}
         </div>
 
+        {/* Product Info */}
         <div className="flex flex-col">
-          <div className="mb-2 inline-block w-fit rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
+          <div className="badge bg-primary/10 text-primary mb-4 w-fit">
             {product.category.name}
           </div>
-          <h1 className="mb-3 text-3xl font-bold text-gray-900">
+          
+          <h1 className="text-4xl font-bold text-foreground mb-4 leading-tight">
             {product.name}
           </h1>
 
-          <div className="mb-4 flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              <span className="font-semibold text-gray-900">
+          {/* Rating & Reviews */}
+          <div className="mb-6 flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Star className="h-6 w-6 fill-warning text-warning" />
+              <span className="text-xl font-bold text-foreground">
                 {product.averageRating.toFixed(1)}
               </span>
             </div>
-            <span className="text-sm text-gray-500">
+            <span className="text-base text-muted-foreground">
               ({product.totalReviews} ulasan)
             </span>
           </div>
 
-          <div className="mb-6 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-emerald-600">
-              Rp {product.price.toLocaleString("id-ID")}
-            </span>
-            <span className="text-sm text-gray-500">/ tangkai</span>
+          {/* Price */}
+          <div className="mb-6 rounded-xl bg-surface-container-low p-6 border border-border">
+            <p className="text-sm font-medium text-muted-foreground mb-1">Harga</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-bold text-primary">
+                Rp {product.price.toLocaleString("id-ID")}
+              </span>
+              <span className="text-base text-muted-foreground">/ tangkai</span>
+            </div>
           </div>
 
-          {/* Info Florist */}
-          <div className="mb-6 flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
-              <Store className="h-5 w-5 text-emerald-600" />
+          {/* Florist Info */}
+          <div className="mb-6 flex items-center gap-3 rounded-xl bg-surface-container p-4 border border-border">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+              <Store className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900">
-                {product.florist.shopName}
-              </p>
-              <p className="text-xs text-gray-500">{product.florist.city}</p>
+              <p className="text-sm font-medium text-muted-foreground">Dijual oleh</p>
+              <p className="text-base font-bold text-foreground">{product.florist.shopName}</p>
+              <p className="text-sm text-muted-foreground">{product.florist.city}</p>
             </div>
           </div>
 
+          {/* Description */}
           <div className="mb-6">
-            <h3 className="mb-2 font-semibold text-gray-900">Deskripsi</h3>
-            <p className="text-sm leading-relaxed text-gray-700">
+            <h2 className="text-xl font-bold text-foreground mb-3">Deskripsi Produk</h2>
+            <p className="text-base text-muted-foreground leading-relaxed">
               {product.description}
             </p>
           </div>
 
+          {/* Stock Status */}
           <div className="mb-6">
-            <p className="text-sm text-gray-600">
-              Stok tersedia:{" "}
-              <span className="font-semibold text-gray-900">
-                {product.stock} tangkai
+            <p className="text-sm font-medium text-muted-foreground mb-2">Ketersediaan Stok</p>
+            {product.stock > 0 ? (
+              <span className="badge bg-success/10 text-success">
+                Tersedia ({product.stock} tangkai)
               </span>
-            </p>
+            ) : (
+              <span className="badge bg-error/10 text-error">
+                Stok Habis
+              </span>
+            )}
           </div>
 
-          <div className="mb-6">
-            <label className="mb-2 block text-sm font-medium text-gray-900">
-              Jumlah
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                disabled={quantity <= 1}
-                className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <input
-                type="number"
-                min="1"
-                max={product.stock}
-                value={quantity}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 1;
-                  setQuantity(Math.min(Math.max(1, val), product.stock));
-                }}
-                className="w-20 rounded-md border border-gray-300 px-3 py-2 text-center text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-              <button
-                onClick={() =>
-                  setQuantity(Math.min(quantity + 1, product.stock))
-                }
-                disabled={quantity >= product.stock}
-                className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-300 text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+          {/* Quantity Selector */}
+          {product.stock > 0 && (
+            <div className="mb-6">
+              <label className="text-sm font-medium text-muted-foreground mb-3 block">
+                Jumlah
+              </label>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                >
+                  <Minus className="h-5 w-5" />
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max={product.stock}
+                  value={quantity}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value) || 1;
+                    setQuantity(Math.min(Math.max(1, val), product.stock));
+                  }}
+                  className="input-field w-24 text-center text-xl font-bold"
+                />
+                <button
+                  onClick={() =>
+                    setQuantity(Math.min(quantity + 1, product.stock))
+                  }
+                  disabled={quantity >= product.stock}
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
+          {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart}
             disabled={product.stock === 0}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            className="btn-primary w-full h-14 text-lg disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <ShoppingCart className="h-5 w-5" />
+            <ShoppingCart className="mr-2 h-6 w-6" />
             {product.stock === 0 ? "Stok Habis" : "Tambah ke Keranjang"}
           </button>
         </div>
       </div>
 
-      <div className="mt-12">
+      {/* Reviews Section */}
+      <div className="mt-16">
         <ProductReviews
           productId={product.id}
           reviews={reviews}

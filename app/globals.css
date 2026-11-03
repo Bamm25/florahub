@@ -4,127 +4,382 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* 
+  FloraHub Design System v2.0
+  FULL FUNDEDNEXT COLOR PALETTE IMPLEMENTATION
+  Updated: 2026-11-03 16:42 WIB
+  
+  Color Philosophy:
+  - Violet Primary (#635bff) - Confidence & Premium
+  - Success Green Secondary (#09e354) - Nature/Fresh flowers
+  - Blue Tertiary (#2e90fa) - Trust & Innovation
+  - Light theme with generous spacing for product showcase
+*/
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
+  
+  /* Surface Stack */
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  
+  /* Primary (Violet - FundedNext) */
   --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-container: var(--primary-container);
+  --color-primary-container-foreground: var(--primary-container-foreground);
+  
+  /* Secondary (Success Green - Nature/Fresh) */
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-container: var(--secondary-container);
+  --color-secondary-container-foreground: var(--secondary-container-foreground);
+  
+  /* Tertiary (Blue - Trust) */
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-tertiary-container: var(--tertiary-container);
+  
+  /* Semantic Colors */
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  
+  /* UI Elements */
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  
+  /* Outline & Dividers */
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  
+  /* Charts */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Border Radius - FundedNext Scale (Organic feel) */
+  --radius-xs: 0.5rem;    /* 8px - small elements */
+  --radius-sm: 0.625rem;  /* 10px - inputs, badges */
+  --radius-md: 0.75rem;   /* 12px - buttons */
+  --radius-lg: 1rem;      /* 16px - cards */
+  --radius-xl: 1.25rem;   /* 20px - large cards */
+  --radius-2xl: 1.5rem;   /* 24px - feature panels */
+  --radius-3xl: 2rem;     /* 32px - hero sections */
+  --radius-4xl: 2.5rem;   /* 40px - modal */
+  --radius-full: 9999px;  /* pills, avatars */
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* ===== FUNDEDNEXT EXACT COLOR PALETTE ===== */
+  
+  /* Base Surfaces - Pure White Foundation */
+  --background: oklch(100% 0 0);           /* #ffffff - pure white */
+  --foreground: oklch(16.47% 0.028 260.91);  /* #181b26 - dark text */
+  
+  /* Surface Stack - Violet Tint (FundedNext Style) */
+  --surface: oklch(100% 0 0);                      /* #ffffff - base surface */
+  --surface-dim: oklch(97.25% 0.004 260.91);       /* #f6f7f9 - dimmed surface */
+  --surface-container-lowest: oklch(100% 0 0);     /* #ffffff - lowest elevation */
+  --surface-container-low: oklch(97.25% 0.004 260.91); /* #f6f7f9 - low elevation */
+  --surface-container: oklch(96.08% 0.028 283.75); /* #f3f2ff - violet tint container */
+  --surface-container-high: oklch(95.29% 0.024 283.75); /* #efedfb - high violet tint */
+  --surface-container-highest: oklch(92.55% 0.014 243.38); /* #e3e8ef - highest neutral */
+  
+  /* Primary - VIOLET #635bff (FundedNext Signature Color) */
+  --primary: oklch(56.89% 0.238 283.75);              /* #635bff - violet primary */
+  --primary-foreground: oklch(100% 0 0);              /* #ffffff - white on violet */
+  --primary-container: oklch(96.08% 0.028 283.75);    /* #f3f2ff - violet light bg */
+  --primary-container-foreground: oklch(46.15% 0.208 283.75); /* #432ad8 - violet dark text */
+  
+  /* Secondary - SUCCESS GREEN #09e354 (Nature/Fresh Flowers) */
+  --secondary: oklch(79.85% 0.238 145.35);            /* #09e354 - vibrant success green */
+  --secondary-foreground: oklch(20.39% 0.071 145.35); /* #023114 - dark green text */
+  --secondary-container: oklch(96.47% 0.071 145.35);  /* #d7ffe4 - light green bg */
+  --secondary-container-foreground: oklch(12.94% 0 0); /* #111111 - near black */
+  
+  /* Tertiary - BLUE #2e90fa (Trust & Innovation) */
+  --tertiary: oklch(66.67% 0.158 245.51);             /* #2e90fa - blue tertiary */
+  --tertiary-foreground: oklch(12.94% 0 0);           /* #111111 - dark text */
+  --tertiary-container: oklch(91.76% 0.047 245.51);   /* #d7dfff - light blue bg */
+  
+  /* Semantic Colors (FundedNext Exact) */
+  --error: oklch(60.78% 0.238 27.33);                 /* #ff3844 - clear error red */
+  --error-foreground: oklch(12.94% 0 0);              /* #111111 - dark text */
+  --warning: oklch(76.86% 0.157 85.87);               /* #fbbf24 - amber warning */
+  --warning-foreground: oklch(12.94% 0 0);            /* #111111 - dark text */
+  --success: oklch(79.85% 0.238 145.35);              /* #09e354 - same as secondary */
+  --success-foreground: oklch(20.39% 0.071 145.35);   /* #023114 - dark green */
+  --info: oklch(66.67% 0.158 245.51);                 /* #2e90fa - blue info */
+  
+  /* Card & Popover */
+  --card: oklch(100% 0 0);                            /* #ffffff - pure white card */
+  --card-foreground: oklch(16.47% 0.028 260.91);      /* #181b26 - dark text */
+  --popover: oklch(100% 0 0);                         /* #ffffff - white popover */
+  --popover-foreground: oklch(16.47% 0.028 260.91);   /* #181b26 - dark text */
+  
+  /* Muted & Accent */
+  --muted: oklch(97.25% 0.004 260.91);                /* #f6f7f9 - muted background */
+  --muted-foreground: oklch(42.35% 0.024 252.63);     /* #4b5565 - muted text */
+  --accent: oklch(96.08% 0.028 283.75);               /* #f3f2ff - violet accent */
+  --accent-foreground: oklch(46.15% 0.208 283.75);    /* #432ad8 - dark violet */
+  
+  /* Destructive */
+  --destructive: oklch(60.78% 0.238 27.33);           /* #ff3844 - error red */
+  
+  /* Borders & Inputs */
+  --border: oklch(85.49% 0.012 243.38);               /* #cdd5df - outline variant */
+  --input: oklch(97.25% 0.004 260.91);                /* #f6f7f9 - input background */
+  --ring: oklch(56.89% 0.238 283.75);                 /* #635bff - violet focus ring */
+  
+  /* Outline */
+  --outline: oklch(68.63% 0.019 243.38);              /* #9aa4b2 - outline */
+  --outline-variant: oklch(85.49% 0.012 243.38);      /* #cdd5df - light outline */
+  
+  /* Charts (FundedNext Palette) */
+  --chart-1: oklch(56.89% 0.238 283.75);              /* violet */
+  --chart-2: oklch(79.85% 0.238 145.35);              /* success green */
+  --chart-3: oklch(66.67% 0.158 245.51);              /* blue */
+  --chart-4: oklch(76.86% 0.157 85.87);               /* amber */
+  --chart-5: oklch(42.35% 0.024 252.63);              /* gray */
+  
+  /* Sidebar (Admin/Florist Dashboard) */
+  --sidebar: oklch(100% 0 0);                         /* #ffffff - white sidebar */
+  --sidebar-foreground: oklch(16.47% 0.028 260.91);   /* #181b26 - dark text */
+  --sidebar-primary: oklch(56.89% 0.238 283.75);      /* #635bff - violet */
+  --sidebar-primary-foreground: oklch(100% 0 0);      /* #ffffff */
+  --sidebar-accent: oklch(96.08% 0.028 283.75);       /* #f3f2ff - violet tint */
+  --sidebar-accent-foreground: oklch(46.15% 0.208 283.75); /* #432ad8 */
+  --sidebar-border: oklch(85.49% 0.012 243.38);       /* #cdd5df */
+  --sidebar-ring: oklch(56.89% 0.238 283.75);         /* #635bff */
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* ===== DARK THEME (Optional for Admin Dashboard) ===== */
+  
+  /* Base Surfaces - Dark Foundation */
+  --background: oklch(12% 0 0);            /* #10121b - dark background */
+  --foreground: oklch(100% 0 0);           /* #ffffff - white text */
+  
+  /* Surface Stack - Dark Elevation */
+  --surface: oklch(12% 0 0);                       /* #10121b */
+  --surface-dim: oklch(8% 0 0);                    /* darker */
+  --surface-container-lowest: oklch(10% 0 0);      /* lowest */
+  --surface-container-low: oklch(15% 0 0);         /* low */
+  --surface-container: oklch(18% 0 0);             /* mid */
+  --surface-container-high: oklch(22% 0 0);        /* high */
+  --surface-container-highest: oklch(28% 0 0);     /* highest */
+  
+  /* Primary - Lighter Violet for Dark Mode */
+  --primary: oklch(72% 0.20 283.75);               /* lighter violet */
+  --primary-foreground: oklch(12% 0 0);            /* dark text */
+  --primary-container: oklch(30% 0.15 283.75);     /* dark violet container */
+  --primary-container-foreground: oklch(85% 0.15 283.75); /* light text */
+  
+  /* Secondary - Lighter Success Green */
+  --secondary: oklch(85% 0.20 145.35);             /* lighter green */
+  --secondary-foreground: oklch(12% 0 0);          /* dark text */
+  --secondary-container: oklch(25% 0.12 145.35);   /* dark green bg */
+  --secondary-container-foreground: oklch(90% 0.15 145.35); /* light text */
+  
+  /* Tertiary - Lighter Blue */
+  --tertiary: oklch(75% 0.14 245.51);              /* lighter blue */
+  --tertiary-foreground: oklch(100% 0 0);          /* white */
+  --tertiary-container: oklch(28% 0.10 245.51);    /* dark blue bg */
+  
+  /* Semantic Colors - Dark Mode */
+  --error: oklch(75% 0.20 27.33);                  /* lighter red */
+  --error-foreground: oklch(100% 0 0);             /* white */
+  --warning: oklch(85% 0.13 85.87);                /* lighter amber */
+  --warning-foreground: oklch(15% 0 0);            /* dark */
+  --success: oklch(85% 0.20 145.35);               /* lighter green */
+  --success-foreground: oklch(12% 0 0);            /* dark */
+  --info: oklch(75% 0.14 245.51);                  /* lighter blue */
+  
+  /* Card & Popover - Dark */
+  --card: oklch(15% 0 0);                          /* dark card */
+  --card-foreground: oklch(100% 0 0);              /* white text */
+  --popover: oklch(15% 0 0);                       /* dark popover */
+  --popover-foreground: oklch(100% 0 0);           /* white text */
+  
+  /* Muted & Accent - Dark */
+  --muted: oklch(20% 0 0);                         /* dark muted */
+  --muted-foreground: oklch(65% 0 0);              /* gray text */
+  --accent: oklch(30% 0.15 283.75);                /* dark violet accent */
+  --accent-foreground: oklch(85% 0.15 283.75);     /* light text */
+  
+  /* Destructive - Dark */
+  --destructive: oklch(75% 0.20 27.33);            /* lighter red */
+  
+  /* Borders & Inputs - Dark */
+  --border: oklch(100% 0 0 / 10%);                 /* subtle white border */
+  --input: oklch(100% 0 0 / 15%);                  /* subtle white input */
+  --ring: oklch(72% 0.20 283.75);                  /* lighter violet ring */
+  
+  /* Outline - Dark */
+  --outline: oklch(60% 0 0);                       /* gray outline */
+  --outline-variant: oklch(40% 0 0);               /* darker outline */
+  
+  /* Charts - Dark Mode */
+  --chart-1: oklch(72% 0.20 283.75);               /* lighter violet */
+  --chart-2: oklch(85% 0.20 145.35);               /* lighter green */
+  --chart-3: oklch(75% 0.14 245.51);               /* lighter blue */
+  --chart-4: oklch(85% 0.13 85.87);                /* lighter amber */
+  --chart-5: oklch(60% 0 0);                       /* gray */
+  
+  /* Sidebar - Dark */
+  --sidebar: oklch(15% 0 0);                       /* dark sidebar */
+  --sidebar-foreground: oklch(100% 0 0);           /* white text */
+  --sidebar-primary: oklch(72% 0.20 283.75);       /* lighter violet */
+  --sidebar-primary-foreground: oklch(12% 0 0);    /* dark text */
+  --sidebar-accent: oklch(30% 0.15 283.75);        /* dark violet accent */
+  --sidebar-accent-foreground: oklch(85% 0.15 283.75); /* light text */
+  --sidebar-border: oklch(100% 0 0 / 10%);         /* subtle border */
+  --sidebar-ring: oklch(72% 0.20 283.75);          /* lighter violet */
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1, "kern" 1;
   }
+  
   html {
-    @apply font-sans;
+    @apply font-sans antialiased;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Typography Scale - FundedNext Inspired */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+  
+  h1 {
+    @apply text-4xl sm:text-5xl lg:text-6xl;
+    letter-spacing: -0.025em;
+  }
+  
+  h2 {
+    @apply text-3xl sm:text-4xl;
+    letter-spacing: -0.025em;
+  }
+  
+  h3 {
+    @apply text-2xl sm:text-3xl;
+    letter-spacing: -0.02em;
+  }
+  
+  /* Smooth Transitions */
+  * {
+    transition-property: color, background-color, border-color, opacity, transform;
+    transition-duration: 200ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  button, a {
+    transition-duration: 150ms;
+  }
+}
+
+/* Custom Utility Classes - FundedNext Component Patterns */
+@layer components {
+  /* Button Primary (56px height, VIOLET CTA) */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-4 text-base font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    height: 56px;
+  }
+  
+  /* Button Secondary (Ghost style) */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border-2 border-primary bg-transparent px-8 py-4 text-base font-semibold text-primary transition-all hover:bg-primary/5 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    height: 56px;
+  }
+  
+  /* Button Tertiary (Blue accent) */
+  .btn-tertiary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-tertiary px-8 py-4 text-base font-semibold text-white transition-all hover:bg-tertiary/90 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    height: 56px;
+  }
+  
+  /* Card - Elevated Surface */
+  .card-elevated {
+    @apply rounded-2xl border border-border bg-card p-8 shadow-md transition-all hover:shadow-lg hover:border-primary/30;
+  }
+  
+  /* Input Field - Clear & Accessible */
+  .input-field {
+    @apply w-full rounded-xl border border-border bg-input px-4 py-3 text-base text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  
+  /* Badge - Pill Style */
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors;
+  }
+  
+  /* Section Spacing - Generous Breathing Room */
+  .section-spacing {
+    @apply py-16 md:py-20 lg:py-24;
+  }
+  
+  /* Container - 1440px Max Width */
+  .container-custom {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+    max-width: 1440px;
+  }
+}
+
+/* Gradient Utilities - FundedNext Style */
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, oklch(56.89% 0.238 283.75) 0%, oklch(46.15% 0.208 283.75) 100%);
+  }
+  
+  .gradient-surface {
+    background: linear-gradient(135deg, oklch(100% 0 0) 0%, oklch(97.25% 0.004 260.91) 50%, oklch(96.08% 0.028 283.75) 100%);
+  }
+  
+  .gradient-violet-to-blue {
+    background: linear-gradient(135deg, oklch(56.89% 0.238 283.75) 0%, oklch(66.67% 0.158 245.51) 100%);
   }
 }

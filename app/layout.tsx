@@ -18,9 +18,56 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FloraHub - Marketplace Florist & B2B Bunga",
+  title: "FloraHub - Platform E-Commerce & Supply Chain untuk Bisnis Florikultura",
   description:
-    "Platform e-commerce bunga segar langsung dari petani dan florist terpercaya",
+    "Platform digital yang menghubungkan supplier, florist, dan customer dalam satu ekosistem. Kelola pre-order, inventory real-time, pembayaran online, dan tracking pengiriman untuk bisnis bunga yang lebih efisien.",
+  keywords: [
+    "E-Commerce Bunga",
+    "Platform Florist",
+    "Supply Chain Florikultura",
+    "Pre-Order Bunga Online",
+    "Manajemen Stok Bunga",
+    "Marketplace Florist",
+    "B2B Florikultura",
+    "Sistem Inventory Bunga",
+    "Payment Gateway Midtrans",
+    "Real-Time Tracking"
+  ],
+  authors: [{ name: "Bambang Wijanarko" }],
+  creator: "Bambang Wijanarko",
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    url: "https://florahub.com",
+    title: "FloraHub - Platform E-Commerce & Supply Chain untuk Bisnis Florikultura",
+    description: "Solusi digital untuk menghubungkan supplier, florist, dan customer. Pre-order, inventory management, dan e-commerce terintegrasi dalam satu platform.",
+    siteName: "FloraHub",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "FloraHub - Platform E-Commerce Florikultura"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FloraHub - Platform E-Commerce & Supply Chain untuk Bisnis Florikultura",
+    description: "Solusi digital untuk menghubungkan supplier, florist, dan customer dalam ekosistem florikultura.",
+    images: ["/og-image.png"]
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1
+    }
+  }
 };
 
 export default function RootLayout({
