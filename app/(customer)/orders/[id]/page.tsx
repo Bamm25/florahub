@@ -215,6 +215,17 @@ export default function OrderDetailPage({
             minute: "2-digit",
           })}
         </p>
+
+        {/* Tombol Menuju Halaman Tracking */}
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={() => router.push(`/orders/${order.id}/tracking`)}
+            className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+          >
+            <Truck className="h-4 w-4" />
+            <span>Lacak Pengiriman Pesanan</span>
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6">
