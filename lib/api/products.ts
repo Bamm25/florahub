@@ -42,6 +42,20 @@ export interface Review {
   };
 }
 
+export interface CreateReviewInput {
+  rating: number;
+  comment: string;
+  images?: string[];
+}
+
+export interface CreateReviewResponse {
+  success: boolean;
+  message: string;
+  data: {
+    review: Review;
+  };
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 //  Get semua products
@@ -197,4 +211,30 @@ export async function getProductReviews(productId: string) {
       totalReviews: result.data.stats.totalReview,
     },
   };
+}
+
+// Fecth ulasan produk
+export async function createProductReview(
+  productId: string,
+  data: CreateReviewInput,
+): Promise<CreateReviewResponse> {
+  const response = await fetch(`/api/products/${productId}/reviews`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    const detailedMessage =
+      errorData?.errors?.[0]?.message ||
+      errorData?.message ||
+      "Gagal mengirim ulasan";
+    throw new Error(detailedMessage);
+  }
+
+  return response.json();
 }

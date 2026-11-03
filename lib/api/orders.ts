@@ -1,0 +1,160 @@
+interface OrderDetail {
+  id: string;
+  orderNumber: string;
+  status: string;
+  notes: string | null;
+  subtotal: number;
+  shippingCost: number;
+  discount: number;
+  totalAmount: number;
+  createdAt: string;
+  items: Array<{
+    id: string;
+    quantity: number;
+    price: number;
+    subtotal: number;
+    product: {
+      id: string;
+      name: string;
+      image: string;
+      currentPrice: number;
+    };
+  }>;
+  address: {
+    id: string;
+    label: string;
+    recipientName: string;
+    phone: string;
+    fullAddress: string;
+    city: string;
+    province: string;
+    postalCode: string;
+  } | null;
+  payment: {
+    id: string;
+    amount: number;
+    method: string;
+    status: string;
+    transactionId: string | null;
+    paidAt: string | null;
+  } | null;
+  user: {
+    name: string;
+    email: string;
+    phone: string | null;
+  };
+}
+
+interface OrderDetailResponse {
+  success: boolean;
+  message: string;
+  data: {
+    order: OrderDetail;
+  };
+}
+
+interface OrderSummary {
+  id: string;
+  orderNumber: string;
+  totalAmount: number;
+  status: string;
+  itemCount: number;
+  createdAt: string;
+  payment: {
+    status: string;
+  };
+}
+interface OrderHistoryResponse {
+  success: boolean;
+  message: string;
+  data: {
+    orders: OrderSummary[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  };
+}
+
+export interface Shipment {
+  id: string;
+  courier: string;
+  service: string | null;
+  trackingNumber: string | null;
+  status: string;
+  estimatedDays: number | null;
+  shippingCost: number;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+}
+
+interface ShipmentResponse {
+  success: boolean;
+  message: string;
+  data: {
+    shipment: Shipment;
+  };
+}
+
+// fetch detail order by ID
+export async function getOrderDetail(
+  orderId: string,
+): Promise<OrderDetailResponse> {
+  const response = await fetch(`/api/customer/orders/${orderId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Gagal memuat detail pesanan");
+  }
+  return response.json();
+}
+
+// order history pagination & filter
+export async function getOrderHistory(params?: {
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<OrderHistoryResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.status) searchParams.append("status", params.status);
+  if (params?.page) searchParams.append("page", params.page.toString());
+  if (params?.limit) searchParams.append("limit", params.limit.toString());
+  const url = `/api/customer/orders${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Gagal memuat riwayat pesanan");
+  }
+  return response.json();
+}
+
+// Fetch pengiriman berdasarkan orderId
+export async function getOrderShipment(
+  orderId: string,
+): Promise<ShipmentResponse> {
+  const response = await fetch(`/api/customer/shipments/order/${orderId}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message || "Shipment tidak ditemukan");
+  }
+
+  return response.json();
+}

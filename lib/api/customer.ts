@@ -78,6 +78,28 @@ interface PaymentTokenResponse {
   };
 }
 
+export interface ValidateCouponResponse {
+  success: boolean;
+  message: string;
+  data: {
+    coupon: {
+      id: string;
+      code: string;
+      name: string;
+      description: string | null;
+      type: "PERCENTAGE" | "FIXED" | "FREE_SHIPPING";
+      value: number;
+    };
+    calculation: {
+      subtotal: number;
+      shippingCost: number;
+      totalBeforeDiscount: number;
+      discountAmount: number;
+      finalAmount: number;
+    };
+  };
+}
+
 // fetch alamat customer
 export async function getCustomerAddresses(): Promise<AddressesResponse> {
   const response = await fetch("/api/customer/addresses", {
@@ -135,6 +157,29 @@ export async function createPaymentToken(
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || "Gagal membuat link pembayaran");
+  }
+
+  return response.json();
+}
+
+// kupon discount
+export async function validateCoupon(data: {
+  code: string;
+  subtotal: number;
+  shippingCost?: number;
+}): Promise<ValidateCouponResponse> {
+  const response = await fetch("/api/customer/coupons/validate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || "Kupon tidak valid");
   }
 
   return response.json();

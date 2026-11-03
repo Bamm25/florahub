@@ -236,6 +236,7 @@ export default function ProductDetailPage() {
 
       <div className="mt-12">
         <ProductReviews
+          productId={product.id}
           reviews={reviews}
           averageRating={product.averageRating}
           totalReviews={product.totalReviews}

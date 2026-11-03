@@ -92,6 +92,17 @@ export async function POST(request: Request) {
       });
     }
 
+    // Midtrans wajib: jumlah item_details == gross_amount
+    // Jika ada diskon kupon, tambahkan sebagai item dengan harga negatif
+    if (order.discount > 0) {
+      itemDetails.push({
+        id: "DISCOUNT",
+        price: -order.discount,
+        quantity: 1,
+        name: "Diskon Kupon",
+      });
+    }
+
     const transaction = await snap.createTransaction({
       transaction_details: {
         order_id: order.orderNumber,

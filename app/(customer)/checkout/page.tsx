@@ -9,8 +9,17 @@ import {
   getCustomerAddresses,
   createCheckoutOrder,
   createPaymentToken,
+  validateCoupon,
 } from "@/lib/api/customer";
-import { ShoppingBag, Truck, CreditCard, Tag, AlertCircle } from "lucide-react";
+import {
+  ShoppingBag,
+  Truck,
+  CreditCard,
+  Tag,
+  AlertCircle,
+  CheckCircle,
+  Trash2,
+} from "lucide-react";
 
 interface Address {
   id: string;
@@ -36,32 +45,68 @@ export default function CheckoutPage() {
     null,
   );
   const [couponCode, setCouponCode] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountAmount: number;
+  } | null>(null);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const shippingCost = 15000;
 
-  useEffect(() => {
-    console.log("[Checkout] Status:", status, "Items:", items.length);
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("Masukkan kode kupon terlebih dahulu.");
+      return;
+    }
 
+    try {
+      setIsValidatingCoupon(true);
+      setCouponError(null);
+
+      const res = await validateCoupon({
+        code: couponCode.trim(),
+        subtotal: total,
+        shippingCost,
+      });
+
+      setAppliedCoupon({
+        code: res.data.coupon.code,
+        discountAmount: res.data.calculation.discountAmount,
+      });
+    } catch (error) {
+      setCouponError(
+        error instanceof Error ? error.message : "Kupon tidak valid",
+      );
+      setAppliedCoupon(null);
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError(null);
+  };
+
+  useEffect(() => {
     if (status === "unauthenticated") {
-      console.log("[Checkout] Redirecting to login...");
       router.push("/auth/login?callbackUrl=/checkout");
       return;
     }
 
     if (items.length === 0) {
-      console.log("[Checkout] Cart is empty, redirecting to /cart...");
       router.push("/cart");
       return;
     }
 
     async function loadAddresses() {
       try {
-        console.log("[Checkout] Loading addresses...");
         const response = await getCustomerAddresses();
         const addressList = response.data.items;
-        console.log("[Checkout] Loaded addresses:", addressList.length);
         setAddresses(addressList);
 
         const defaultAddress = addressList.find((a: Address) => a.isDefault);
@@ -71,7 +116,6 @@ export default function CheckoutPage() {
           setSelectedAddressId(addressList[0].id);
         }
       } catch (error) {
-        console.error("[Checkout] Failed to load addresses:", error);
         setErrorMessage(
           error instanceof Error ? error.message : "Gagal memuat alamat",
         );
@@ -96,7 +140,7 @@ export default function CheckoutPage() {
       const checkoutResponse = await createCheckoutOrder({
         addressId: selectedAddressId,
         shippingCost,
-        couponCode: couponCode.trim() || undefined,
+        couponCode: appliedCoupon ? appliedCoupon.code : undefined,
         notes: notes.trim() || undefined,
         items: items.map((item) => ({
           productId: item.productId,
@@ -113,15 +157,16 @@ export default function CheckoutPage() {
       // midtrans pop up
       if (typeof window !== "undefined" && window.snap) {
         window.snap.pay(snapToken, {
-          onSuccess: function () {
+          onSuccess: function (result: any) {
             clearCart();
-            router.push(`/orders/${orderId}`);
+            // Gunakan window.location.href untuk hard navigation
+            window.location.href = `/orders/${orderId}`;
           },
-          onPending: function () {
+          onPending: function (result: any) {
             clearCart();
-            router.push(`/orders/${orderId}`);
+            window.location.href = `/orders/${orderId}`;
           },
-          onError: function () {
+          onError: function (result: any) {
             setErrorMessage("Pembayaran gagal. Silakan coba lagi.");
             setIsLoading(false);
           },
@@ -154,145 +199,191 @@ export default function CheckoutPage() {
     );
   }
 
-    const discount = 0;
-    const finalTotal = total + shippingCost - discount;
+  const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const finalTotal = Math.max(0, total + shippingCost - discount);
 
-    return (
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">
-          Checkout Pembayaran
-        </h1>
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            {errorMessage && (
-              <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                <AlertCircle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-            <div className="rounded-lg border border-gray-200 bg-white p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <Truck className="h-5 w-5 text-emerald-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Alamat Pengiriman
-                </h2>
-              </div>
-              <AddressSelector
-                addresses={addresses}
-                selectedId={selectedAddressId}
-                onSelect={setSelectedAddressId}
-              />
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <h1 className="mb-6 text-2xl font-bold text-gray-900">
+        Checkout Pembayaran
+      </h1>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          {errorMessage && (
+            <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <AlertCircle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
+              <span>{errorMessage}</span>
             </div>
-            <div className="rounded-lg border border-gray-200 bg-white p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <ShoppingBag className="h-5 w-5 text-emerald-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Produk Dipesan ({items.length} item)
-                </h2>
-              </div>
-              <div className="space-y-3">
-                {items.map((item) => (
-                  <div
-                    key={item.productId}
-                    className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-0 last:pb-0"
-                  >
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">
-                        {item.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">
-                        {item.quantity}x @ Rp{" "}
-                        {item.price.toLocaleString("id-ID")}
-                      </p>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+          )}
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Truck className="h-5 w-5 text-emerald-600" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Alamat Pengiriman
+              </h2>
+            </div>
+            <AddressSelector
+              addresses={addresses}
+              selectedId={selectedAddressId}
+              onSelect={setSelectedAddressId}
+            />
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5 text-emerald-600" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Produk Dipesan ({items.length} item)
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {items.map((item) => (
+                <div
+                  key={item.productId}
+                  className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-0 last:pb-0"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">
+                      {item.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {item.quantity}x @ Rp {item.price.toLocaleString("id-ID")}
                     </p>
                   </div>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-white p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <Tag className="h-5 w-5 text-emerald-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Kode Promo (Opsional)
-                </h2>
-              </div>
-              <input
-                type="text"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                placeholder="Masukkan kode kupon"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-white p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Catatan untuk Penjual (Opsional)
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Contoh: Tolong kirim pagi hari"
-                rows={3}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
+                  <p className="text-sm font-semibold text-gray-900">
+                    Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="lg:col-span-1">
-            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm sticky top-4">
-              <div className="mb-4 flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-emerald-600" />
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Ringkasan Pembayaran
-                </h2>
+          {/* Kupon Promo */}
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Tag className="h-5 w-5 text-emerald-600" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Kode Promo (Opsional)
+              </h2>
+            </div>
+
+            {couponError && (
+              <div className="mb-3 flex items-center gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700 border border-red-200">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{couponError}</span>
               </div>
-              <div className="space-y-3 border-b border-gray-200 pb-4">
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Subtotal Produk</span>
-                  <span className="font-medium text-gray-900">
-                    Rp {total.toLocaleString("id-ID")}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Ongkos Kirim</span>
-                  <span className="font-medium text-gray-900">
-                    Rp {shippingCost.toLocaleString("id-ID")}
-                  </span>
-                </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm text-emerald-600">
-                    <span>Diskon Kupon</span>
-                    <span className="font-medium">
-                      -Rp {discount.toLocaleString("id-ID")}
-                    </span>
+            )}
+
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                  <div>
+                    <p className="text-sm font-bold text-emerald-800">
+                      {appliedCoupon.code}
+                    </p>
+                    <p className="text-xs text-emerald-600">
+                      Hemat Rp{" "}
+                      {appliedCoupon.discountAmount.toLocaleString("id-ID")}
+                    </p>
                   </div>
-                )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Hapus
+                </button>
               </div>
-              <div className="mt-4 flex justify-between text-base font-bold text-gray-900">
-                <span>Total Pembayaran</span>
-                <span className="text-emerald-600">
-                  Rp {finalTotal.toLocaleString("id-ID")}
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value.toUpperCase());
+                    setCouponError(null);
+                  }}
+                  placeholder="Contoh: FLORA10"
+                  className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={isValidatingCoupon || !couponCode.trim()}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                >
+                  {isValidatingCoupon ? "Mengecek..." : "Terapkan"}
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="rounded-lg border border-gray-200 bg-white p-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Catatan untuk Penjual (Opsional)
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Contoh: Tolong kirim pagi hari"
+              rows={3}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+        </div>
+        <div className="lg:col-span-1">
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm sticky top-4">
+            <div className="mb-4 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-emerald-600" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Ringkasan Pembayaran
+              </h2>
+            </div>
+            <div className="space-y-3 border-b border-gray-200 pb-4">
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Subtotal Produk</span>
+                <span className="font-medium text-gray-900">
+                  Rp {total.toLocaleString("id-ID")}
                 </span>
               </div>
-              <button
-                onClick={handleCheckout}
-                disabled={isLoading || !selectedAddressId}
-                className="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-              >
-                {isLoading ? (
-                  <span>Memproses...</span>
-                ) : (
-                  <>
-                    <CreditCard className="h-5 w-5" />
-                    <span>Bayar Sekarang</span>
-                  </>
-                )}
-              </button>
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Ongkos Kirim</span>
+                <span className="font-medium text-gray-900">
+                  Rp {shippingCost.toLocaleString("id-ID")}
+                </span>
+              </div>
+              {discount > 0 && appliedCoupon && (
+                <div className="flex justify-between text-sm text-emerald-600">
+                  <span>Diskon Kupon ({appliedCoupon.code})</span>
+                  <span className="font-medium">
+                    -Rp {discount.toLocaleString("id-ID")}
+                  </span>
+                </div>
+              )}
             </div>
+            <div className="mt-4 flex justify-between text-base font-bold text-gray-900">
+              <span>Total Pembayaran</span>
+              <span className="text-emerald-600">
+                Rp {finalTotal.toLocaleString("id-ID")}
+              </span>
+            </div>
+            <button
+              onClick={handleCheckout}
+              disabled={isLoading || !selectedAddressId}
+              className="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
+              {isLoading ? (
+                <span>Memproses...</span>
+              ) : (
+                <>
+                  <CreditCard className="h-5 w-5" />
+                  <span>Bayar Sekarang</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
-    );
+    </div>
+  );
 }

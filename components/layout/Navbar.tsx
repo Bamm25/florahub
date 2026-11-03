@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useCartStore } from "@/lib/stores/cartStore";
-import { ShoppingCart, User, Flower2, LogOut, Package } from "lucide-react";
 import { useEffect, useState } from "react";
+import {
+  ShoppingCart,
+  User,
+  Flower2,
+  LogOut,
+  Package,
+  MapPin,
+} from "lucide-react";
 
 export default function Navbar() {
   const { data: session, status } = useSession();
@@ -86,6 +93,16 @@ export default function Navbar() {
                     <Package className="h-4 w-4 text-gray-500" />
                     Pesanan Saya
                   </Link>
+
+                  <Link
+                    href="/profile/addresses"
+                    onClick={() => setIsDropdownOpen(false)}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <MapPin className="h-4 w-4 text-gray-500" />
+                    Alamat Saya
+                  </Link>
+
                   <button
                     onClick={() => {
                       setIsDropdownOpen(false);
