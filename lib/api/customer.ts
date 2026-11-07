@@ -1,3 +1,4 @@
+// Interface untuk data alamat pengiriman customer
 interface Address {
   id: string;
   label: string;
@@ -12,6 +13,7 @@ interface Address {
   updatedAt: string;
 }
 
+// Response type dari API GET customer addresses
 interface AddressesResponse {
   success: boolean;
   message: string;
@@ -26,6 +28,7 @@ interface AddressesResponse {
   };
 }
 
+// Response type dari API POST checkout order
 interface CheckoutOrderResponse {
   success: boolean;
   message: string;
@@ -69,6 +72,7 @@ interface CheckoutOrderResponse {
   };
 }
 
+// Response type dari API POST payment token Midtrans
 interface PaymentTokenResponse {
   success: boolean;
   message: string;

@@ -2,6 +2,7 @@
 
 import { MapPin, Check } from "lucide-react";
 
+// Interface untuk data alamat pengiriman
 interface Address {
   id: string;
   label: string;
@@ -14,6 +15,7 @@ interface Address {
   isDefault: boolean;
 }
 
+// Props interface untuk komponen selector alamat pengiriman
 interface AddressSelectorProps {
   addresses: Address[];
   selectedId: string | null;

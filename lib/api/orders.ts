@@ -1,3 +1,4 @@
+// Interface untuk data detail order lengkap dengan relasi
 interface OrderDetail {
   id: string;
   orderNumber: string;
@@ -45,6 +46,7 @@ interface OrderDetail {
   };
 }
 
+// Response type dari API GET order detail
 interface OrderDetailResponse {
   success: boolean;
   message: string;
@@ -53,6 +55,7 @@ interface OrderDetailResponse {
   };
 }
 
+// Interface untuk data order summary di list riwayat
 interface OrderSummary {
   id: string;
   orderNumber: string;
@@ -73,6 +76,8 @@ interface OrderSummary {
     status: string;
   };
 }
+
+// Response type dari API GET order history dengan pagination
 interface OrderHistoryResponse {
   success: boolean;
   message: string;
@@ -89,6 +94,7 @@ interface OrderHistoryResponse {
   };
 }
 
+// Interface untuk data shipment tracking order
 export interface Shipment {
   id: string;
   courier: string;
@@ -101,6 +107,7 @@ export interface Shipment {
   deliveredAt: string | null;
 }
 
+// Response type dari API GET shipment by order
 interface ShipmentResponse {
   success: boolean;
   message: string;

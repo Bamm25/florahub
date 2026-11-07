@@ -4,6 +4,7 @@ import { useState } from "react";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
 
+// Interface untuk data alamat yang sudah tersimpan
 interface Address {
   id: string;
   label: string;
@@ -16,6 +17,7 @@ interface Address {
   isDefault: boolean;
 }
 
+// Interface untuk form data create/update alamat
 interface AddressFormData {
   label: string;
   recipientName: string;
@@ -27,6 +29,7 @@ interface AddressFormData {
   isDefault: boolean;
 }
 
+// Props interface untuk modal form alamat
 interface AddressFormProps {
   address?: Address | null;
   onSubmit: (data: AddressFormData) => Promise<void>;

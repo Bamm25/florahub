@@ -13,6 +13,7 @@ import { ShoppingCart, Store, Star, Minus, Plus, ArrowLeft, Tag } from "lucide-r
 import ProductReviews from "@/components/customer/ProductReviews";
 import Link from "next/link";
 
+// Interface untuk data detail produk dengan relasi florist dan category
 interface ProductDetail {
   id: string;
   name: string;

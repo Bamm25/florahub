@@ -8,6 +8,7 @@ import ReviewForm from "./ReviewForm";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+// Props interface untuk komponen list reviews produk
 interface ProductReviewsProps {
   productId: string;
   reviews: Review[];

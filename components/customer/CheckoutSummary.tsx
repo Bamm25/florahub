@@ -1,5 +1,6 @@
 import { CreditCard } from "lucide-react";
 
+// Props interface untuk komponen ringkasan pembayaran checkout
 interface CheckoutSummaryProps {
   items: Array<{
     productId: string;

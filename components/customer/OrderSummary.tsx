@@ -2,11 +2,13 @@
 
 import { CreditCard } from "lucide-react";
 
+// Interface untuk data kupon yang sudah diapply
 interface AppliedCoupon {
   code: string;
   discountAmount: number;
 }
 
+// Props interface untuk komponen ringkasan order dan checkout
 interface OrderSummaryProps {
   subtotal: number;
   shippingCost: number;

@@ -6,11 +6,13 @@ import { createProductReview } from "@/lib/api/products";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 
+// Props interface untuk komponen form review produk
 interface ReviewFormProps {
   productId: string;
   onReviewSubmitted: () => void;
 }
 
+// Interface untuk status pembelian produk user
 interface PurchaseStatus {
   canReview: boolean;
   status: "DELIVERED" | "PENDING" | "NOT_PURCHASED";

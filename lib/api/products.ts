@@ -5,6 +5,7 @@ import type {
   ProductFormData,
 } from "@/types";
 
+// Response type dari API GET product by slug
 interface ProductDetailResponse {
   success: boolean;
   data: {

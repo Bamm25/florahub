@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+// Interface untuk data order summary di halaman riwayat pesanan
 interface OrderSummary {
   id: string;
   orderNumber: string;

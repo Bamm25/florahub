@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// Interface untuk data detail order lengkap dengan items, address, dan payment
 interface OrderDetail {
   id: string;
   orderNumber: string;

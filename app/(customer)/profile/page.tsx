@@ -7,6 +7,7 @@ import { User, Mail, Phone, Calendar, Edit2, CheckCircle } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
 
+// Interface untuk data profil user dengan statistik orders
 interface UserProfile {
   name: string;
   email: string;
@@ -232,6 +233,7 @@ export default function ProfilePage() {
   );
 }
 
+// Props interface untuk modal edit profil user
 interface EditProfileModalProps {
   profile: UserProfile;
   onSuccess: (updatedName?: string) => void;

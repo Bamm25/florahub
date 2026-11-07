@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ShoppingCart, Star } from "lucide-react";
 import Link from "next/link";
 
+// Props interface untuk komponen card display produk
 interface ProductCardProps {
   product: Product;
 }

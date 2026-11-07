@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Filter, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 import type { Product } from "@/types";
 
+// Interface untuk data kategori produk di filter
 interface Category {
   id: string;
   name: string;

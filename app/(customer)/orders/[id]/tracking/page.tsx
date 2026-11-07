@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+// Interface untuk data order di halaman tracking pengiriman
 interface OrderDetail {
   id: string;
   orderNumber: string;
@@ -46,6 +47,7 @@ interface OrderDetail {
   } | null;
 }
 
+// Interface untuk timeline event shipment status tracking
 interface TimelineEvent {
   id: string;
   dateStr: string;

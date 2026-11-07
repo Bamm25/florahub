@@ -1,6 +1,7 @@
 import type { Product } from "@/types";
 import ProductCard from "./ProductCard";
 
+// Props interface untuk komponen grid layout produk
 interface ProductGridProps {
   products: Product[];
 }

@@ -2,6 +2,7 @@
 
 import { ShoppingBag } from "lucide-react";
 
+// Interface untuk item produk di keranjang checkout
 interface CartItem {
   productId: string;
   name: string;
@@ -9,6 +10,7 @@ interface CartItem {
   price: number;
 }
 
+// Props interface untuk komponen list produk yang dipesan
 interface OrderItemsProps {
   items: CartItem[];
 }

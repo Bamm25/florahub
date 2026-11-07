@@ -1,3 +1,4 @@
+// Interface untuk data alamat pengiriman customer
 interface Address {
   id: string;
   label: string;
@@ -12,6 +13,7 @@ interface Address {
   updatedAt: string;
 }
 
+// Response type dari API GET addresses dengan pagination
 interface AddressesResponse {
   success: boolean;
   message: string;
@@ -26,6 +28,7 @@ interface AddressesResponse {
   };
 }
 
+// Response type dari API single address operations
 interface AddressResponse {
   success: boolean;
   message: string;

@@ -1,5 +1,6 @@
 import { MapPin, Edit, Trash2, Star } from "lucide-react";
 
+// Props interface untuk komponen card display alamat
 interface AddressCardProps {
   address: {
     id: string;

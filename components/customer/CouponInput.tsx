@@ -2,11 +2,13 @@
 
 import { Tag, AlertCircle, CheckCircle, Trash2 } from "lucide-react";
 
+// Interface untuk data kupon yang sudah diapply
 interface AppliedCoupon {
   code: string;
   discountAmount: number;
 }
 
+// Props interface untuk komponen input kupon diskon
 interface CouponInputProps {
   couponCode: string;
   isValidatingCoupon: boolean;
