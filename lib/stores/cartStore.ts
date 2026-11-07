@@ -79,7 +79,7 @@ export const useCartStore = create<CartStore>()(
       },
       getItemCount: () => {
         const { items } = get();
-        return items.reduce((sum, item) => sum + item.quantity, 0);
+        return items.length; // Menghitung jumlah item unik, bukan total quantity
       },
     }),
     {

@@ -7,9 +7,6 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  // pages: {
-  //   signIn: "/auth/login",
-  // },
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -48,18 +45,23 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
         token.role = (user as any).role;
       }
+      // Handle session updates from update() calls
+      if (trigger === "update" && session?.name) {
+        token.name = session.name;
+      }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
+        session.user.name = token.name as string;
         (session.user as any).role = token.role;
       }
       return session;

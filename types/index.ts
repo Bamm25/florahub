@@ -46,6 +46,8 @@ export interface Product {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  averageRating?: number;
+  reviewCount?: number;
 }
 
 // Product dengan relasi florist (untuk display dengan info toko)

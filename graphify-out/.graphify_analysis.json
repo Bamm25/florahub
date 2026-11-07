@@ -1,40 +1,114 @@
 {
   "communities": {
     "0": [
+      "app_auth_login_page",
+      "app_auth_login_page_loginpage",
+      "app_auth_register_page",
+      "app_auth_register_page_registerpage",
+      "app_customer_cart_page",
+      "app_customer_cart_page_cartpage",
+      "app_customer_checkout_page",
+      "app_customer_checkout_page_address",
+      "app_customer_checkout_page_checkoutpage",
+      "app_customer_checkout_page_checkoutpage_loadaddresses",
+      "app_customer_layout",
+      "app_customer_layout_customerlayout",
+      "app_customer_profile_addresses_page",
+      "app_customer_profile_addresses_page_address",
+      "app_customer_profile_addresses_page_addressmanagementpage",
+      "app_customer_profile_addresses_page_addressmanagementpage_loadaddresses",
+      "app_florist_dashboard_page",
+      "app_florist_dashboard_page_dashboarddata",
+      "app_florist_dashboard_page_floristdashboardpage",
+      "app_florist_dashboard_page_floristdashboardpage_fetchdashboard",
+      "app_florist_layout",
+      "app_florist_layout_floristlayout",
+      "app_florist_layout_navigation",
+      "components_customer_addressform",
+      "components_customer_addressform_address",
+      "components_customer_addressform_addressform",
+      "components_customer_addressform_addressformprops",
+      "components_customer_addressselector",
+      "components_customer_addressselector_address",
+      "components_customer_addressselector_addressselector",
+      "components_customer_addressselector_addressselectorprops",
+      "components_customer_carttable",
+      "components_customer_carttable_carttable",
+      "components_layout_footer",
+      "components_layout_footer_footer",
+      "components_layout_navbar",
+      "components_layout_navbar_navbar",
+      "lib_api_addresses",
+      "lib_api_addresses_address",
+      "lib_api_addresses_addressesresponse",
+      "lib_api_addresses_addressresponse",
+      "lib_api_addresses_createaddress",
+      "lib_api_addresses_deleteaddress",
+      "lib_api_addresses_getaddresses",
+      "lib_api_addresses_updateaddress",
+      "lib_api_customer",
+      "lib_api_customer_address",
+      "lib_api_customer_addressesresponse",
+      "lib_api_customer_checkoutorderresponse",
+      "lib_api_customer_createcheckoutorder",
+      "lib_api_customer_createpaymenttoken",
+      "lib_api_customer_getcustomeraddresses",
+      "lib_api_customer_paymenttokenresponse",
+      "lib_api_customer_validatecoupon",
+      "lib_api_customer_validatecouponresponse",
+      "lib_stores_cartstore",
+      "lib_stores_cartstore_addtocartproduct",
+      "lib_stores_cartstore_cartstore",
+      "lib_stores_cartstore_usecartstore",
+      "ref_lucide_react",
+      "ref_react",
+      "types_index_cartitem"
+    ],
+    "1": [
+      "app_api_customer_products_route",
+      "app_api_customer_products_route_get",
+      "app_api_webhook_midtrans_route",
+      "app_api_webhook_midtrans_route_post",
       "app_customer_page",
       "app_customer_page_homepage",
       "app_customer_page_homepage_fetchproducts",
+      "app_customer_products_slug_page",
+      "app_customer_products_slug_page_productdetail",
+      "app_customer_products_slug_page_productdetailpage",
+      "app_customer_products_slug_page_productdetailpage_fetchdata",
       "components_customer_productcard",
       "components_customer_productcard_productcard",
       "components_customer_productcard_productcardprops",
       "components_customer_productgrid",
       "components_customer_productgrid_productgrid",
       "components_customer_productgrid_productgridprops",
-      "components_ui_badge",
-      "components_ui_badge_badge",
-      "components_ui_badge_badgevariants",
-      "components_ui_card",
-      "components_ui_card_card",
-      "components_ui_card_cardaction",
-      "components_ui_card_cardcontent",
-      "components_ui_card_carddescription",
-      "components_ui_card_cardfooter",
-      "components_ui_card_cardheader",
-      "components_ui_card_cardtitle",
+      "components_customer_productreviews",
+      "components_customer_productreviews_productreviews",
+      "components_customer_productreviews_productreviewsprops",
+      "components_customer_reviewform",
+      "components_customer_reviewform_reviewform",
+      "components_customer_reviewform_reviewformprops",
       "lib_api_products",
       "lib_api_products_createproduct",
+      "lib_api_products_createproductreview",
+      "lib_api_products_createreviewinput",
+      "lib_api_products_createreviewresponse",
       "lib_api_products_deleteproduct",
       "lib_api_products_getproductbyid",
+      "lib_api_products_getproductbyslug",
+      "lib_api_products_getproductreviews",
       "lib_api_products_getproducts",
+      "lib_api_products_productdetailresponse",
+      "lib_api_products_review",
       "lib_api_products_updateproduct",
-      "lib_stores_cartstore",
-      "lib_stores_cartstore_cartstore",
-      "lib_stores_cartstore_usecartstore",
+      "next_config",
+      "next_config_nextconfig",
+      "ref_crypto",
+      "ref_next",
       "types_index",
       "types_index_apierror",
       "types_index_apiresponse",
       "types_index_authstate",
-      "types_index_cartitem",
       "types_index_cartstate",
       "types_index_order",
       "types_index_orderitem",
@@ -47,37 +121,117 @@
       "types_index_user",
       "types_index_userrole"
     ],
-    "1": [
-      "app_api_admin_coupons_route",
-      "app_api_admin_coupons_route_get",
-      "app_api_admin_coupons_route_post",
+    "2": [
+      "app_api_admin_audit_logs_route",
+      "app_api_admin_audit_logs_route_get",
+      "app_api_admin_orders_route",
+      "app_api_admin_orders_route_get",
+      "app_api_admin_stats_route",
+      "app_api_admin_stats_route_get",
+      "app_api_admin_users_route",
+      "app_api_admin_users_route_get",
+      "app_api_customer_addresses_id_route",
+      "app_api_customer_addresses_id_route_delete",
+      "app_api_customer_addresses_id_route_get",
+      "app_api_customer_addresses_id_route_put",
+      "app_api_customer_addresses_id_route_routeparms",
+      "app_api_customer_cart_route",
+      "app_api_customer_cart_route_get",
+      "app_api_customer_orders_id_route",
+      "app_api_customer_orders_id_route_get",
+      "app_api_customer_orders_route",
+      "app_api_customer_orders_route_get",
+      "app_api_customer_shipments_order_orderid_route",
+      "app_api_customer_shipments_order_orderid_route_get",
+      "app_api_florist_dashboard_route",
+      "app_api_florist_dashboard_route_get",
+      "app_api_florist_orders_route",
+      "app_api_florist_orders_route_get",
+      "app_api_florist_products_route",
+      "app_api_florist_products_route_get",
+      "app_api_notifications_id_route",
+      "app_api_notifications_id_route_delete",
+      "app_api_notifications_id_route_patch",
+      "app_api_notifications_id_route_routeparams",
+      "app_api_notifications_route",
+      "app_api_notifications_route_get",
+      "app_api_notifications_route_patch",
+      "app_api_supplier_dashboard_route",
+      "app_api_supplier_dashboard_route_get",
+      "app_api_supplier_sales_route",
+      "app_api_supplier_sales_route_get",
+      "lib_middleware_requireauth_requireauth",
+      "lib_prisma",
+      "lib_prisma_adapter",
+      "lib_prisma_globalforprisma",
+      "lib_validations_schemas_updateaddressschema"
+    ],
+    "3": [
+      "app_api_auth_register_route",
+      "app_api_auth_register_route_post",
+      "app_api_categories_route",
+      "app_api_categories_route_get",
+      "app_api_categories_route_post",
       "app_api_customer_cart_items_id_route",
       "app_api_customer_cart_items_id_route_delete",
       "app_api_customer_cart_items_id_route_patch",
-      "app_api_florist_inventory_id_route",
-      "app_api_florist_inventory_id_route_delete",
-      "app_api_florist_inventory_id_route_get",
-      "app_api_florist_inventory_id_route_put",
-      "app_api_florist_preorders_route",
-      "app_api_florist_preorders_route_get",
-      "app_api_florist_preorders_route_post",
+      "app_api_customer_cart_items_route",
+      "app_api_customer_cart_items_route_post",
+      "app_api_customer_coupons_validate_route",
+      "app_api_customer_coupons_validate_route_post",
       "app_api_florist_products_productid_components_id_route",
       "app_api_florist_products_productid_components_id_route_delete",
       "app_api_florist_products_productid_components_id_route_put",
-      "app_api_florist_products_route",
-      "app_api_florist_products_route_get",
-      "app_api_florist_purchase_id_route",
-      "app_api_florist_purchase_id_route_get",
-      "app_api_florist_purchase_id_route_put",
-      "app_api_florist_purchase_route",
-      "app_api_florist_purchase_route_get",
-      "app_api_florist_purchase_route_post",
+      "app_api_products_route",
+      "app_api_products_route_get",
+      "app_api_products_route_post",
+      "app_api_supplier_harvest_announcements_route",
+      "app_api_supplier_harvest_announcements_route_get",
+      "app_api_supplier_harvest_announcements_route_post",
       "app_api_supplier_sales_id_route",
       "app_api_supplier_sales_id_route_get",
       "app_api_supplier_sales_id_route_put",
-      "lib_middleware_requireauth_requireauth"
+      "lib_validations_schemas",
+      "lib_validations_schemas_createcartitemschema",
+      "lib_validations_schemas_createcategoryschema",
+      "lib_validations_schemas_createharvestannouncementschema",
+      "lib_validations_schemas_createnotificationschema",
+      "lib_validations_schemas_createproductschema",
+      "lib_validations_schemas_registerschema",
+      "lib_validations_schemas_updatecartitemschema",
+      "lib_validations_schemas_updatenotificationschema",
+      "lib_validations_schemas_updateproductcomponentschema",
+      "lib_validations_schemas_updatesaleschema",
+      "lib_validations_schemas_updateshipmentstatusschema",
+      "lib_validations_schemas_validatecouponschema",
+      "ref_zod"
     ],
-    "2": [
+    "4": [
+      "app_customer_orders_id_page",
+      "app_customer_orders_id_page_orderdetail",
+      "app_customer_orders_id_page_orderdetailpage",
+      "app_customer_orders_id_page_orderdetailpage_loadorder",
+      "app_customer_orders_id_tracking_page",
+      "app_customer_orders_id_tracking_page_orderdetail",
+      "app_customer_orders_id_tracking_page_ordertrackingpage",
+      "app_customer_orders_id_tracking_page_ordertrackingpage_loadtrackingdata",
+      "app_customer_orders_id_tracking_page_timelineevent",
+      "app_customer_orders_page",
+      "app_customer_orders_page_orderhistorypage",
+      "app_customer_orders_page_orderhistorypage_loadorders",
+      "app_customer_orders_page_ordersummary",
+      "lib_api_orders",
+      "lib_api_orders_getorderdetail",
+      "lib_api_orders_getorderhistory",
+      "lib_api_orders_getordershipment",
+      "lib_api_orders_orderdetail",
+      "lib_api_orders_orderdetailresponse",
+      "lib_api_orders_orderhistoryresponse",
+      "lib_api_orders_ordersummary",
+      "lib_api_orders_shipment",
+      "lib_api_orders_shipmentresponse"
+    ],
+    "5": [
       "components",
       "components_aliases",
       "components_aliases_components",
@@ -101,72 +255,50 @@
       "components_tailwind_prefix",
       "components_tsx"
     ],
-    "3": [
+    "6": [
       "package_dependencies",
       "package_dependencies_date_fns",
-      "package_dependencies_hookform_resolvers",
+      "package_dependencies_lucide_react",
       "package_dependencies_next",
       "package_dependencies_next_auth",
       "package_dependencies_pg",
       "package_dependencies_prisma_adapter_pg",
-      "package_dependencies_react_dom",
+      "package_dependencies_react",
+      "package_dependencies_react_hook_form",
       "package_dependencies_shadcn",
       "package_dependencies_tanstack_react_query",
-      "package_dependencies_tw_animate_css",
+      "package_dependencies_zod",
       "package_dependencies_zustand",
       "ref_date_fns",
-      "ref_hookform_resolvers",
       "ref_pg",
       "ref_prisma_adapter_pg",
-      "ref_react_dom",
+      "ref_react_hook_form",
       "ref_shadcn",
       "ref_tanstack_react_query",
-      "ref_tw_animate_css",
       "ref_zustand"
     ],
-    "4": [
-      "app_api_admin_audit_logs_route",
-      "app_api_admin_audit_logs_route_get",
-      "app_api_customer_coupons_validate_route",
-      "app_api_customer_coupons_validate_route_post",
-      "app_api_customer_orders_route",
-      "app_api_customer_orders_route_get",
-      "app_api_florist_orders_route",
-      "app_api_florist_orders_route_get",
-      "app_api_products_id_reviews_route",
-      "app_api_products_id_reviews_route_get",
-      "app_api_products_id_reviews_route_post",
-      "app_api_products_id_reviews_route_routeparams",
-      "app_api_supplier_dashboard_route",
-      "app_api_supplier_dashboard_route_get",
-      "app_api_supplier_sales_route",
-      "app_api_supplier_sales_route_get",
-      "next_config",
-      "next_config_nextconfig",
-      "ref_next"
-    ],
-    "5": [
+    "7": [
       "package_devdependencies",
       "package_devdependencies_mermaid_js_mermaid_cli",
-      "package_devdependencies_prisma_erd_generator",
+      "package_devdependencies_puppeteer",
+      "package_devdependencies_tailwindcss",
       "package_devdependencies_tailwindcss_postcss",
       "package_devdependencies_tsx",
       "package_devdependencies_types_bcryptjs",
       "package_devdependencies_types_node",
       "package_devdependencies_types_pg",
       "package_devdependencies_types_react",
-      "package_devdependencies_typescript",
       "ref_mermaid_js_mermaid_cli",
-      "ref_prisma_erd_generator",
+      "ref_puppeteer",
+      "ref_tailwindcss",
       "ref_tailwindcss_postcss",
       "ref_tsx",
       "ref_types_bcryptjs",
       "ref_types_node",
       "ref_types_pg",
-      "ref_types_react",
-      "ref_typescript"
+      "ref_types_react"
     ],
-    "6": [
+    "8": [
       "tsconfig",
       "tsconfig_compileroptions",
       "tsconfig_compileroptions_allowjs",
@@ -187,44 +319,25 @@
       "tsconfig_exclude",
       "tsconfig_include"
     ],
-    "7": [
-      "app_api_admin_orders_route",
-      "app_api_admin_orders_route_get",
-      "app_api_admin_users_id_route",
-      "app_api_admin_users_id_route_patch",
-      "app_api_customer_cart_route",
-      "app_api_customer_cart_route_get",
-      "app_api_customer_checkout_route",
-      "app_api_customer_checkout_route_post",
-      "app_api_customer_products_route",
-      "app_api_customer_products_route_get",
-      "app_api_florist_dashboard_route",
-      "app_api_florist_dashboard_route_get",
-      "app_api_products_route",
-      "app_api_products_route_get",
-      "app_api_products_route_post",
-      "lib_prisma",
-      "lib_prisma_adapter",
-      "lib_prisma_globalforprisma"
-    ],
-    "8": [
-      "app_api_auth_nextauth_route",
-      "app_api_auth_nextauth_route_handler",
-      "app_api_customer_cart_items_route",
-      "app_api_customer_cart_items_route_post",
-      "app_api_customer_orders_id_route",
-      "app_api_customer_orders_id_route_get",
-      "app_api_customer_shipments_order_orderid_route",
-      "app_api_customer_shipments_order_orderid_route_get",
-      "app_api_florist_shipments_id_route",
-      "app_api_florist_shipments_id_route_get",
-      "lib_auth",
-      "lib_auth_authoptions",
-      "lib_middleware_requireauth",
-      "lib_middleware_requireauth_authresult",
-      "ref_next_auth"
-    ],
     "9": [
+      "app_api_florist_shipments_id_route_put",
+      "app_api_florist_shipments_route",
+      "app_api_florist_shipments_route_get",
+      "app_api_florist_shipments_route_post",
+      "app_api_supplier_stocks_id_route",
+      "app_api_supplier_stocks_id_route_delete",
+      "app_api_supplier_stocks_id_route_get",
+      "app_api_supplier_stocks_id_route_put",
+      "app_api_supplier_stocks_route",
+      "app_api_supplier_stocks_route_get",
+      "app_api_supplier_stocks_route_post",
+      "lib_auditlog",
+      "lib_auditlog_createauditlog",
+      "lib_validations_schemas_createshipmentschema",
+      "lib_validations_schemas_createstockschema",
+      "lib_validations_schemas_updatestockschema"
+    ],
+    "10": [
       "components_ui_button",
       "components_ui_button_button",
       "components_ui_button_buttonvariants",
@@ -240,22 +353,63 @@
       "components_ui_dialog_dialogtitle",
       "components_ui_dialog_dialogtrigger"
     ],
-    "10": [
-      "app_api_florist_shipments_id_route_put",
-      "app_api_florist_shipments_route",
-      "app_api_florist_shipments_route_get",
-      "app_api_florist_shipments_route_post",
-      "app_api_supplier_stocks_id_route",
-      "app_api_supplier_stocks_id_route_delete",
-      "app_api_supplier_stocks_id_route_get",
-      "app_api_supplier_stocks_id_route_put",
-      "app_api_supplier_stocks_route",
-      "app_api_supplier_stocks_route_get",
-      "app_api_supplier_stocks_route_post",
-      "lib_auditlog",
-      "lib_auditlog_createauditlog"
-    ],
     "11": [
+      "app_api_admin_coupons_route",
+      "app_api_admin_coupons_route_get",
+      "app_api_admin_coupons_route_post",
+      "app_api_admin_users_id_route",
+      "app_api_admin_users_id_route_patch",
+      "app_api_supplier_preorders_id_route",
+      "app_api_supplier_preorders_id_route_patch",
+      "app_api_supplier_preorders_id_route_routeparams",
+      "lib_validations_schemas_createcouponschema",
+      "lib_validations_schemas_updatepreorderschema",
+      "lib_validations_schemas_updateuserschema",
+      "package_dependencies_prisma_client",
+      "ref_prisma_client"
+    ],
+    "12": [
+      "app_api_auth_nextauth_route",
+      "app_api_auth_nextauth_route_handler",
+      "app_api_customer_checkout_route",
+      "app_api_customer_checkout_route_post",
+      "app_api_florist_shipments_id_route",
+      "app_api_florist_shipments_id_route_get",
+      "lib_auth",
+      "lib_auth_authoptions",
+      "lib_middleware_requireauth",
+      "lib_middleware_requireauth_authresult",
+      "lib_validations_schemas_checkoutschema",
+      "ref_next_auth"
+    ],
+    "13": [
+      "package",
+      "package_dependencies_bcryptjs",
+      "package_dependencies_hookform_resolvers",
+      "package_dependencies_tw_animate_css",
+      "package_name",
+      "package_prisma",
+      "package_prisma_seed",
+      "package_private",
+      "package_version",
+      "ref_bcryptjs",
+      "ref_hookform_resolvers",
+      "ref_tw_animate_css"
+    ],
+    "14": [
+      "app_globals",
+      "app_layout",
+      "app_layout_geistmono",
+      "app_layout_geistsans",
+      "app_layout_inter",
+      "app_layout_metadata",
+      "app_layout_rootlayout",
+      "components_providers_authprovider",
+      "components_providers_authprovider_authprovider",
+      "components_providers_authprovider_authproviderprops",
+      "lib_utils_cn"
+    ],
+    "15": [
       "components_ui_select",
       "components_ui_select_selectcontent",
       "components_ui_select_selectgroup",
@@ -265,48 +419,9 @@
       "components_ui_select_selectscrollupbutton",
       "components_ui_select_selectseparator",
       "components_ui_select_selecttrigger",
-      "components_ui_select_selectvalue",
-      "package_dependencies_lucide_react",
-      "ref_lucide_react"
+      "components_ui_select_selectvalue"
     ],
-    "12": [
-      "package",
-      "package_dependencies_react_hook_form",
-      "package_dependencies_zod",
-      "package_devdependencies_tailwindcss",
-      "package_name",
-      "package_prisma",
-      "package_prisma_seed",
-      "package_private",
-      "package_version",
-      "ref_react_hook_form",
-      "ref_tailwindcss",
-      "ref_zod"
-    ],
-    "13": [
-      "app_api_admin_coupons_id_route",
-      "app_api_admin_coupons_id_route_delete",
-      "app_api_admin_coupons_id_route_get",
-      "app_api_admin_coupons_id_route_put",
-      "app_api_admin_coupons_id_route_routeparams",
-      "app_api_supplier_preorders_id_route",
-      "app_api_supplier_preorders_id_route_patch",
-      "app_api_supplier_preorders_id_route_routeparams",
-      "package_dependencies_prisma_client",
-      "ref_prisma_client"
-    ],
-    "14": [
-      "components_ui_avatar",
-      "components_ui_avatar_avatar",
-      "components_ui_avatar_avatarbadge",
-      "components_ui_avatar_avatarfallback",
-      "components_ui_avatar_avatargroup",
-      "components_ui_avatar_avatargroupcount",
-      "components_ui_avatar_avatarimage",
-      "package_dependencies_react",
-      "ref_react"
-    ],
-    "15": [
+    "16": [
       "components_ui_input",
       "components_ui_input_input",
       "components_ui_separator",
@@ -317,35 +432,59 @@
       "ref_base_ui_react",
       "ref_cn"
     ],
-    "16": [
-      "app_globals",
-      "app_layout",
-      "app_layout_geistmono",
-      "app_layout_geistsans",
-      "app_layout_inter",
-      "app_layout_metadata",
-      "app_layout_rootlayout",
-      "lib_utils_cn"
-    ],
     "17": [
-      "components_ui_tabs",
-      "components_ui_tabs_tabs",
-      "components_ui_tabs_tabscontent",
-      "components_ui_tabs_tabslist",
-      "components_ui_tabs_tabslistvariants",
-      "components_ui_tabs_tabstrigger",
-      "package_dependencies_class_variance_authority",
-      "ref_class_variance_authority"
+      "components_ui_card",
+      "components_ui_card_card",
+      "components_ui_card_cardaction",
+      "components_ui_card_cardcontent",
+      "components_ui_card_carddescription",
+      "components_ui_card_cardfooter",
+      "components_ui_card_cardheader",
+      "components_ui_card_cardtitle"
     ],
     "18": [
       "app_api_customer_payment_route",
       "app_api_customer_payment_route_post",
       "lib_midtrans",
       "lib_midtrans_snap",
+      "lib_validations_schemas_createpaymentschema",
       "package_dependencies_midtrans_client",
       "ref_midtrans_client"
     ],
     "19": [
+      "components_ui_avatar",
+      "components_ui_avatar_avatar",
+      "components_ui_avatar_avatarbadge",
+      "components_ui_avatar_avatarfallback",
+      "components_ui_avatar_avatargroup",
+      "components_ui_avatar_avatargroupcount",
+      "components_ui_avatar_avatarimage"
+    ],
+    "20": [
+      "app_api_admin_coupons_id_route",
+      "app_api_admin_coupons_id_route_delete",
+      "app_api_admin_coupons_id_route_get",
+      "app_api_admin_coupons_id_route_put",
+      "app_api_admin_coupons_id_route_routeparams",
+      "lib_validations_schemas_updatecouponschema"
+    ],
+    "21": [
+      "app_api_supplier_harvest_announcements_id_route",
+      "app_api_supplier_harvest_announcements_id_route_delete",
+      "app_api_supplier_harvest_announcements_id_route_get",
+      "app_api_supplier_harvest_announcements_id_route_put",
+      "app_api_supplier_harvest_announcements_id_route_routeparams",
+      "lib_validations_schemas_updateharvestannouncementschema"
+    ],
+    "22": [
+      "components_ui_tabs",
+      "components_ui_tabs_tabs",
+      "components_ui_tabs_tabscontent",
+      "components_ui_tabs_tabslist",
+      "components_ui_tabs_tabslistvariants",
+      "components_ui_tabs_tabstrigger"
+    ],
+    "23": [
       "eslint_config",
       "eslint_config_eslintconfig",
       "package_devdependencies_eslint",
@@ -353,175 +492,181 @@
       "ref_eslint",
       "ref_eslint_config_next"
     ],
-    "20": [
-      "app_api_customer_addresses_id_route",
-      "app_api_customer_addresses_id_route_delete",
-      "app_api_customer_addresses_id_route_get",
-      "app_api_customer_addresses_id_route_put",
-      "app_api_customer_addresses_id_route_routeparms"
+    "24": [
+      "app_api_categories_id_route",
+      "app_api_categories_id_route_delete",
+      "app_api_categories_id_route_get",
+      "app_api_categories_id_route_put",
+      "lib_validations_schemas_updatecategoryschema"
     ],
-    "21": [
-      "app_api_supplier_harvest_announcements_id_route",
-      "app_api_supplier_harvest_announcements_id_route_delete",
-      "app_api_supplier_harvest_announcements_id_route_get",
-      "app_api_supplier_harvest_announcements_id_route_put",
-      "app_api_supplier_harvest_announcements_id_route_routeparams"
+    "25": [
+      "app_api_customer_reviews_id_route",
+      "app_api_customer_reviews_id_route_delete",
+      "app_api_customer_reviews_id_route_put",
+      "app_api_customer_reviews_id_route_routeparams",
+      "lib_validations_schemas_updatereviewschema"
     ],
-    "22": [
+    "26": [
+      "app_api_florist_inventory_id_route",
+      "app_api_florist_inventory_id_route_delete",
+      "app_api_florist_inventory_id_route_get",
+      "app_api_florist_inventory_id_route_put",
+      "lib_validations_schemas_updateinventoryschema"
+    ],
+    "27": [
+      "app_api_products_id_reviews_route",
+      "app_api_products_id_reviews_route_get",
+      "app_api_products_id_reviews_route_post",
+      "app_api_products_id_reviews_route_routeparams",
+      "lib_validations_schemas_createreviewschema"
+    ],
+    "28": [
+      "app_api_products_id_route",
+      "app_api_products_id_route_delete",
+      "app_api_products_id_route_get",
+      "app_api_products_id_route_put",
+      "lib_validations_schemas_updateproductschema"
+    ],
+    "29": [
+      "components_ui_badge",
+      "components_ui_badge_badge",
+      "components_ui_badge_badgevariants",
+      "package_dependencies_class_variance_authority",
+      "ref_class_variance_authority"
+    ],
+    "30": [
       "package_scripts",
       "package_scripts_build",
       "package_scripts_dev",
       "package_scripts_lint",
       "package_scripts_start"
     ],
-    "23": [
+    "31": [
       "types_midtrans_client_d",
       "types_midtrans_client_d_midtrans_client",
       "types_midtrans_client_d_snap",
       "types_midtrans_client_d_snap_constructor",
       "types_midtrans_client_d_snap_createtransaction"
     ],
-    "24": [
-      "app_api_auth_register_route",
-      "app_api_auth_register_route_post",
-      "package_dependencies_bcryptjs",
-      "ref_bcryptjs"
+    "32": [
+      "app_api_customer_addresses_route",
+      "app_api_customer_addresses_route_get",
+      "app_api_customer_addresses_route_post",
+      "lib_validations_schemas_createaddressschema"
     ],
-    "25": [
-      "app_api_categories_id_route",
-      "app_api_categories_id_route_delete",
-      "app_api_categories_id_route_get",
-      "app_api_categories_id_route_put"
+    "33": [
+      "app_api_florist_inventory_route",
+      "app_api_florist_inventory_route_get",
+      "app_api_florist_inventory_route_post",
+      "lib_validations_schemas_createinventoryschema"
     ],
-    "26": [
-      "app_api_customer_reviews_id_route",
-      "app_api_customer_reviews_id_route_delete",
-      "app_api_customer_reviews_id_route_put",
-      "app_api_customer_reviews_id_route_routeparams"
+    "34": [
+      "app_api_florist_preorders_route",
+      "app_api_florist_preorders_route_get",
+      "app_api_florist_preorders_route_post",
+      "lib_validations_schemas_createpreorderschema"
     ],
-    "27": [
-      "app_api_notifications_id_route",
-      "app_api_notifications_id_route_delete",
-      "app_api_notifications_id_route_patch",
-      "app_api_notifications_id_route_routeparams"
+    "35": [
+      "app_api_florist_products_productid_components_route",
+      "app_api_florist_products_productid_components_route_get",
+      "app_api_florist_products_productid_components_route_post",
+      "lib_validations_schemas_createproductcomponentschema"
     ],
-    "28": [
-      "app_api_products_id_route",
-      "app_api_products_id_route_delete",
-      "app_api_products_id_route_get",
-      "app_api_products_id_route_put"
+    "36": [
+      "app_api_florist_purchase_id_route",
+      "app_api_florist_purchase_id_route_get",
+      "app_api_florist_purchase_id_route_put",
+      "lib_validations_schemas_updatepurchaseschema"
     ],
-    "29": [
+    "37": [
+      "app_api_florist_purchase_route",
+      "app_api_florist_purchase_route_get",
+      "app_api_florist_purchase_route_post",
+      "lib_validations_schemas_createpurchaseschema"
+    ],
+    "38": [
       "package_dependencies_prisma",
       "prisma_config",
       "ref_dotenv",
       "ref_prisma"
     ],
-    "30": [
-      "app_api_categories_route",
-      "app_api_categories_route_get",
-      "app_api_categories_route_post"
-    ],
-    "31": [
-      "app_api_customer_addresses_route",
-      "app_api_customer_addresses_route_get",
-      "app_api_customer_addresses_route_post"
-    ],
-    "32": [
-      "app_api_florist_inventory_route",
-      "app_api_florist_inventory_route_get",
-      "app_api_florist_inventory_route_post"
-    ],
-    "33": [
-      "app_api_florist_products_productid_components_route",
-      "app_api_florist_products_productid_components_route_get",
-      "app_api_florist_products_productid_components_route_post"
-    ],
-    "34": [
-      "app_api_notifications_route",
-      "app_api_notifications_route_get",
-      "app_api_notifications_route_patch"
-    ],
-    "35": [
-      "app_api_supplier_harvest_announcements_route",
-      "app_api_supplier_harvest_announcements_route_get",
-      "app_api_supplier_harvest_announcements_route_post"
-    ],
-    "36": [
-      "app_api_webhook_midtrans_route",
-      "app_api_webhook_midtrans_route_post",
-      "ref_crypto"
-    ],
-    "37": [
+    "39": [
       "postman_resources",
       "postman_resources_workspace",
       "postman_resources_workspace_id"
     ],
-    "38": [
-      "app_api_admin_stats_route",
-      "app_api_admin_stats_route_get"
-    ],
-    "39": [
-      "app_api_admin_users_route",
-      "app_api_admin_users_route_get"
-    ],
     "40": [
-      "package_devdependencies_puppeteer",
-      "ref_puppeteer"
+      "package_dependencies_react_dom",
+      "ref_react_dom"
     ],
     "41": [
+      "package_devdependencies_prisma_erd_generator",
+      "ref_prisma_erd_generator"
+    ],
+    "42": [
       "package_devdependencies_types_react_dom",
       "ref_types_react_dom"
     ],
-    "42": [
+    "43": [
+      "package_devdependencies_typescript",
+      "ref_typescript"
+    ],
+    "44": [
       "postcss_config",
       "postcss_config_config"
+    ],
+    "45": [
+      "types_midtrans_d",
+      "types_midtrans_d_window"
     ]
   },
   "cohesion": {
-    "0": 0.08181818181818182,
-    "1": 0.11904761904761904,
-    "2": 0.09090909090909091,
-    "3": 0.09523809523809523,
-    "4": 0.10526315789473684,
-    "5": 0.10526315789473684,
-    "6": 0.10526315789473684,
-    "7": 0.1111111111111111,
-    "8": 0.2,
-    "9": 0.2087912087912088,
-    "10": 0.24358974358974358,
-    "11": 0.19696969696969696,
-    "12": 0.16666666666666666,
-    "13": 0.2,
-    "14": 0.2222222222222222,
-    "15": 0.25,
+    "0": 0.0597567424643046,
+    "1": 0.06464646464646465,
+    "2": 0.08527131782945736,
+    "3": 0.07823613086770982,
+    "4": 0.1541501976284585,
+    "5": 0.09090909090909091,
+    "6": 0.1,
+    "7": 0.10526315789473684,
+    "8": 0.10526315789473684,
+    "9": 0.18333333333333332,
+    "10": 0.2087912087912088,
+    "11": 0.15384615384615385,
+    "12": 0.2727272727272727,
+    "13": 0.16666666666666666,
+    "14": 0.21818181818181817,
+    "15": 0.24444444444444444,
     "16": 0.25,
-    "17": 0.2857142857142857,
-    "18": 0.4,
-    "19": 0.3333333333333333,
-    "20": 0.4,
-    "21": 0.4,
+    "17": 0.25,
+    "18": 0.3333333333333333,
+    "19": 0.2857142857142857,
+    "20": 0.3333333333333333,
+    "21": 0.3333333333333333,
     "22": 0.4,
-    "23": 0.4,
-    "24": 0.5,
-    "25": 0.5,
-    "26": 0.5,
-    "27": 0.5,
-    "28": 0.5,
+    "23": 0.3333333333333333,
+    "24": 0.4,
+    "25": 0.4,
+    "26": 0.4,
+    "27": 0.4,
+    "28": 0.4,
     "29": 0.5,
-    "30": 0.6666666666666666,
-    "31": 0.6666666666666666,
-    "32": 0.6666666666666666,
-    "33": 0.6666666666666666,
-    "34": 0.6666666666666666,
-    "35": 0.6666666666666666,
-    "36": 0.6666666666666666,
-    "37": 0.6666666666666666,
-    "38": 1.0,
-    "39": 1.0,
+    "30": 0.4,
+    "31": 0.4,
+    "32": 0.5,
+    "33": 0.5,
+    "34": 0.5,
+    "35": 0.5,
+    "36": 0.5,
+    "37": 0.5,
+    "38": 0.5,
+    "39": 0.6666666666666666,
     "40": 1.0,
     "41": 1.0,
-    "42": 1.0
+    "42": 1.0,
+    "43": 1.0,
+    "44": 1.0,
+    "45": 1.0
   },
   "gods": [
     {
@@ -532,12 +677,37 @@
     {
       "id": "ref_next",
       "label": "next",
-      "degree": 55
+      "degree": 71
+    },
+    {
+      "id": "ref_zod",
+      "label": "zod",
+      "degree": 34
+    },
+    {
+      "id": "ref_react",
+      "label": "react",
+      "degree": 24
+    },
+    {
+      "id": "ref_lucide_react",
+      "label": "lucide-react",
+      "degree": 23
+    },
+    {
+      "id": "ref_next_auth",
+      "label": "next-auth",
+      "degree": 17
     },
     {
       "id": "tsconfig_compileroptions",
       "label": "compilerOptions",
       "degree": 16
+    },
+    {
+      "id": "lib_stores_cartstore_usecartstore",
+      "label": "useCartStore",
+      "degree": 13
     },
     {
       "id": "ref_cn",
@@ -548,31 +718,6 @@
       "id": "lib_auditlog_createauditlog",
       "label": "createAuditLog()",
       "degree": 10
-    },
-    {
-      "id": "ref_base_ui_react",
-      "label": "@base-ui/react",
-      "degree": 10
-    },
-    {
-      "id": "ref_prisma_client",
-      "label": "@prisma/client",
-      "degree": 10
-    },
-    {
-      "id": "types_index_product",
-      "label": "Product",
-      "degree": 10
-    },
-    {
-      "id": "components_customer_productcard_productcard",
-      "label": "ProductCard()",
-      "degree": 9
-    },
-    {
-      "id": "ref_react",
-      "label": "react",
-      "degree": 8
     }
   ],
   "surprises": [
@@ -580,7 +725,7 @@
       "source": "GET()",
       "target": "requireAuth()",
       "source_files": [
-        "app/api/admin/audit-logs/route.ts",
+        "app/api/admin/coupons/route.ts",
         "lib/middleware/requireAuth.ts"
       ],
       "confidence": "EXTRACTED",
@@ -588,52 +733,85 @@
       "why": "connects across different repos/directories; bridges separate communities; peripheral node `GET()` unexpectedly reaches hub `requireAuth()`"
     },
     {
-      "source": "GET()",
+      "source": "POST()",
       "target": "requireAuth()",
       "source_files": [
-        "app/api/admin/coupons/[id]/route.ts",
+        "app/api/admin/coupons/route.ts",
         "lib/middleware/requireAuth.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
-      "why": "connects across different repos/directories; bridges separate communities; peripheral node `GET()` unexpectedly reaches hub `requireAuth()`"
+      "why": "connects across different repos/directories; bridges separate communities; peripheral node `POST()` unexpectedly reaches hub `requireAuth()`"
     },
     {
-      "source": "PUT()",
+      "source": "PATCH()",
       "target": "requireAuth()",
       "source_files": [
-        "app/api/admin/coupons/[id]/route.ts",
+        "app/api/admin/users/[id]/route.ts",
         "lib/middleware/requireAuth.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
-      "why": "connects across different repos/directories; bridges separate communities; peripheral node `PUT()` unexpectedly reaches hub `requireAuth()`"
+      "why": "connects across different repos/directories; bridges separate communities; peripheral node `PATCH()` unexpectedly reaches hub `requireAuth()`"
     },
     {
-      "source": "DELETE()",
+      "source": "PATCH()",
       "target": "requireAuth()",
       "source_files": [
-        "app/api/admin/coupons/[id]/route.ts",
+        "app/api/supplier/preorders/[id]/route.ts",
         "lib/middleware/requireAuth.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
-      "why": "connects across different repos/directories; bridges separate communities; peripheral node `DELETE()` unexpectedly reaches hub `requireAuth()`"
+      "why": "connects across different repos/directories; bridges separate communities; peripheral node `PATCH()` unexpectedly reaches hub `requireAuth()`"
     },
     {
-      "source": "GET()",
+      "source": "POST()",
       "target": "requireAuth()",
       "source_files": [
-        "app/api/admin/orders/route.ts",
+        "app/api/customer/checkout/route.ts",
         "lib/middleware/requireAuth.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
-      "why": "connects across different repos/directories; bridges separate communities; peripheral node `GET()` unexpectedly reaches hub `requireAuth()`"
+      "why": "connects across different repos/directories; bridges separate communities; peripheral node `POST()` unexpectedly reaches hub `requireAuth()`"
     }
   ],
-  "tokens": {
-    "input": 0,
-    "output": 0
-  }
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `next` connect `Product & Reviews` to `Customer UI & Pages`, `Admin Management`, `API Routes Core`, `Order Management`, `Dependencies`, `Florist & Supplier`, `Utilities 11`, `Utilities 12`, `Utilities 13`, `Utilities 14`, `Utilities 18`, `Utilities 20`, `Utilities 21`, `Utilities 24`, `Utilities 25`, `Utilities 26`, `Utilities 27`, `Utilities 28`, `Utilities 32`, `Utilities 33`, `Utilities 34`, `Utilities 35`, `Utilities 36`, `Utilities 37`?",
+      "why": "High betweenness centrality (0.361) - this node is a cross-community bridge."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Customer UI & Pages` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.0597567424643046 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `react` connect `Customer UI & Pages` to `Product & Reviews`, `Order Management`, `Dependencies`, `Utilities 10`, `Utilities 13`, `Utilities 14`, `Utilities 15`, `Utilities 16`, `Utilities 17`, `Utilities 19`?",
+      "why": "High betweenness centrality (0.110) - this node is a cross-community bridge."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Product & Reviews` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.06464646464646465 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `lucide-react` connect `Customer UI & Pages` to `Product & Reviews`, `Order Management`, `Dependencies`, `Utilities 10`, `Utilities 13`, `Utilities 15`?",
+      "why": "High betweenness centrality (0.073) - this node is a cross-community bridge."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Admin Management` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.08527131782945736 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `API Routes Core` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.07823613086770982 - nodes in this community are weakly interconnected."
+    }
+  ]
 }

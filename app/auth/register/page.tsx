@@ -24,12 +24,50 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const handleSubmit = async (e: React.SyntheticEvent) => {
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!name.trim()) {
+      errors.name = "Nama tidak boleh kosong";
+    } else if (name.trim().length < 3) {
+      errors.name = "Nama minimal 3 karakter";
+    }
+
+    if (!email.trim()) {
+      errors.email = "Email tidak boleh kosong";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = "Format email tidak valid";
+    }
+
+    if (!phone.trim()) {
+      errors.phone = "Nomor telepon tidak boleh kosong";
+    } else if (!/^0\d{9,12}$/.test(phone.trim())) {
+      errors.phone = "Format nomor telepon tidak valid (08xxxxxxxxx)";
+    }
+
+    if (!password) {
+      errors.password = "Kata sandi tidak boleh kosong";
+    } else if (password.length < 6) {
+      errors.password = "Kata sandi minimal 6 karakter";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setFormErrors({});
 
     try {
       const response = await fetch("/api/auth/register", {
@@ -122,11 +160,17 @@ export default function RegisterPage() {
                   type="text"
                   required
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setFormErrors({ ...formErrors, name: "" });
+                  }}
                   placeholder="Nama lengkap Anda"
-                  className="input-field pl-12"
+                  className={`input-field pl-12 ${formErrors.name ? "border-error" : ""}`}
                 />
               </div>
+              {formErrors.name && (
+                <p className="mt-1 text-sm text-error">{formErrors.name}</p>
+              )}
             </div>
 
             <div>
@@ -145,11 +189,17 @@ export default function RegisterPage() {
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFormErrors({ ...formErrors, email: "" });
+                  }}
                   placeholder="nama@email.com"
-                  className="input-field pl-12"
+                  className={`input-field pl-12 ${formErrors.email ? "border-error" : ""}`}
                 />
               </div>
+              {formErrors.email && (
+                <p className="mt-1 text-sm text-error">{formErrors.email}</p>
+              )}
             </div>
 
             <div>
@@ -168,11 +218,17 @@ export default function RegisterPage() {
                   type="tel"
                   required
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setFormErrors({ ...formErrors, phone: "" });
+                  }}
                   placeholder="08123456789"
-                  className="input-field pl-12"
+                  className={`input-field pl-12 ${formErrors.phone ? "border-error" : ""}`}
                 />
               </div>
+              {formErrors.phone && (
+                <p className="mt-1 text-sm text-error">{formErrors.phone}</p>
+              )}
             </div>
 
             <div>
@@ -192,11 +248,17 @@ export default function RegisterPage() {
                   required
                   minLength={6}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setFormErrors({ ...formErrors, password: "" });
+                  }}
                   placeholder="Minimal 6 karakter"
-                  className="input-field pl-12"
+                  className={`input-field pl-12 ${formErrors.password ? "border-error" : ""}`}
                 />
               </div>
+              {formErrors.password && (
+                <p className="mt-1 text-sm text-error">{formErrors.password}</p>
+              )}
             </div>
 
             <button

@@ -120,6 +120,28 @@ export async function POST(request: Request, { params }: RouteParams) {
     const validatedData = createReviewSchema.parse(body);
     const { rating, comment, images } = validatedData;
 
+    // Check if user has purchased and received the product
+    const hasPurchased = await prisma.orderItem.findFirst({
+      where: {
+        order: {
+          userId,
+          status: { in: ["DELIVERED"] },
+        },
+        productId,
+      },
+    });
+
+    if (!hasPurchased) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Anda harus membeli dan menerima produk ini untuk memberikan ulasan",
+        },
+        { status: 403 },
+      );
+    }
+
     const existingReview = await prisma.review.findFirst({
       where: {
         productId,
@@ -138,25 +160,9 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const verifiedOrder = await prisma.order.findFirst({
-      where: {
-        userId,
-        status: {
-          in: ["PAID", "PROCESSING", "READY_TO_SHIP", "SHIPPED", "DELIVERED"],
-        },
-        items: {
-          some: {
-            productId,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    const isVerified = Boolean(verifiedOrder);
-    const orderId = verifiedOrder ? verifiedOrder.id : null;
+    // Use the hasPurchased order for verified review
+    const orderId = hasPurchased.orderId;
+    const isVerified = true; // Always true since we validated purchase above
 
     const newReview = await prisma.review.create({
       data: {

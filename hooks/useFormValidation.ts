@@ -8,7 +8,7 @@ interface UseFormValidationReturn<T> {
   formData: T;
   errors: Record<string, string>;
   isSubmitting: boolean;
-  setField: (field: keyof T, value: any) => void;
+  setField: <K extends keyof T>(field: K, value: T[K]) => void;
   setFormData: (data: T) => void;
   validate: (rules: ValidationRule<T>) => boolean;
   handleSubmit: (onSubmit: (data: T) => Promise<void>) => (e: FormEvent) => Promise<void>;
@@ -21,14 +21,14 @@ interface UseFormValidationReturn<T> {
  * useFormValidation hook
  * Reusable form state management with validation
  */
-export function useFormValidation<T extends Record<string, any>>(
+export function useFormValidation<T extends Record<string, unknown>>(
   initialData: T
 ): UseFormValidationReturn<T> {
   const [formData, setFormDataState] = useState<T>(initialData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const setField = useCallback((field: keyof T, value: any) => {
+  const setField = useCallback(<K extends keyof T>(field: K, value: T[K]) => {
     setFormDataState((prev) => ({ ...prev, [field]: value }));
     // Clear error when field changes
     setErrors((prev) => {

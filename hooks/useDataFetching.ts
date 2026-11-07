@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import type React from "react";
 
 interface UseDataFetchingReturn<T> {
   data: T | null;
@@ -13,7 +14,7 @@ interface UseDataFetchingReturn<T> {
  */
 export function useDataFetching<T>(
   fetchFn: () => Promise<T>,
-  deps: any[] = []
+  deps: React.DependencyList = []
 ): UseDataFetchingReturn<T> {
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);

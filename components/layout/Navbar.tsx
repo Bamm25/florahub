@@ -11,6 +11,9 @@ import {
   LogOut,
   Package,
   MapPin,
+  Menu,
+  X,
+  Home,
 } from "lucide-react";
 
 export default function Navbar() {
@@ -18,6 +21,7 @@ export default function Navbar() {
   const itemCount = useCartStore((state) => state.getItemCount());
   const [mounted, setMounted] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -43,18 +47,28 @@ export default function Navbar() {
               href="/"
               className="text-muted-foreground transition-colors hover:text-primary"
             >
-              Katalog Bunga
+              Beranda
             </Link>
             <Link
-              href="/about"
+              href="/products"
               className="text-muted-foreground transition-colors hover:text-primary"
             >
-              Tentang Kami
+              Katalog
             </Link>
+
           </nav>
 
           {/* Cart & Profile */}
           <div className="flex items-center gap-4">
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-container hover:text-primary"
+              aria-label="Toggle Menu"
+            >
+              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+
             {/* Cart Icon & Badge */}
             <Link
               href="/cart"
@@ -92,9 +106,18 @@ export default function Navbar() {
                     <div className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
                       Masuk sebagai{" "}
                       <strong className="text-foreground block truncate">
-                        {session.user?.email}
+                        {session.user?.name || "Akun"}
                       </strong>
                     </div>
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
+                    >
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      Profil Saya
+                    </Link>
+
                     <Link
                       href="/orders"
                       onClick={() => setIsDropdownOpen(false)}
@@ -137,6 +160,83 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu Drawer */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-outline-variant bg-surface shadow-lg">
+          <nav className="container-custom py-4 flex flex-col gap-2">
+            <Link
+              href="/"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+            >
+              <Home className="h-5 w-5 text-muted-foreground" />
+              Beranda
+            </Link>
+            <Link
+              href="/products"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+            >
+              <Flower2 className="h-5 w-5 text-muted-foreground" />
+              Katalog
+            </Link>
+            <Link
+              href="/cart"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+            >
+              <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+              Keranjang
+              {mounted && itemCount > 0 && (
+                <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                  {itemCount}
+                </span>
+              )}
+            </Link>
+            
+            {session && (
+              <>
+                <div className="h-px bg-border my-2" />
+                <Link
+                  href="/profile"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+                >
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  Profil Saya
+                </Link>
+                <Link
+                  href="/orders"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+                >
+                  <Package className="h-5 w-5 text-muted-foreground" />
+                  Pesanan Saya
+                </Link>
+                <Link
+                  href="/profile/addresses"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+                >
+                  <MapPin className="h-5 w-5 text-muted-foreground" />
+                  Alamat Saya
+                </Link>
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    signOut({ callbackUrl: "/" });
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 text-base font-medium text-error hover:bg-error/5 rounded-lg transition-colors text-left w-full"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Keluar
+                </button>
+              </>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

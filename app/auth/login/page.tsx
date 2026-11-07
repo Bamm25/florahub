@@ -16,11 +16,37 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!email.trim()) {
+      errors.email = "Email tidak boleh kosong";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = "Format email tidak valid";
+    }
+
+    if (!password) {
+      errors.password = "Kata sandi tidak boleh kosong";
+    } else if (password.length < 6) {
+      errors.password = "Kata sandi minimal 6 karakter";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
   
-  const handleSubmit = async (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
+    setFormErrors({});
     try {
       const res = await signIn("credentials", {
         email,
@@ -93,11 +119,17 @@ function LoginForm() {
                   type="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFormErrors({ ...formErrors, email: "" });
+                  }}
                   placeholder="nama@email.com"
-                  className="input-field pl-12"
+                  className={`input-field pl-12 ${formErrors.email ? "border-error" : ""}`}
                 />
               </div>
+              {formErrors.email && (
+                <p className="mt-1 text-sm text-error">{formErrors.email}</p>
+              )}
             </div>
             
             <div>
@@ -116,11 +148,17 @@ function LoginForm() {
                   type="password"
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setFormErrors({ ...formErrors, password: "" });
+                  }}
                   placeholder="••••••••"
-                  className="input-field pl-12"
+                  className={`input-field pl-12 ${formErrors.password ? "border-error" : ""}`}
                 />
               </div>
+              {formErrors.password && (
+                <p className="mt-1 text-sm text-error">{formErrors.password}</p>
+              )}
             </div>
             
             <div className="rounded-xl bg-success/5 p-4 text-sm text-success border border-success/20">

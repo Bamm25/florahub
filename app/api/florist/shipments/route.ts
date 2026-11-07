@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { createShipmentSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
+import { calculateEstimatedDays } from "@/lib/utils/estimateDelivery";
 
 export async function POST(request: Request) {
   try {
@@ -27,9 +28,23 @@ export async function POST(request: Request) {
         items: {
           include: {
             product: {
-              select: { floristId: true },
+              select: { 
+                floristId: true,
+                florist: {
+                  select: {
+                    addresses: {
+                      where: { isDefault: true },
+                      select: { city: true, province: true },
+                      take: 1,
+                    },
+                  },
+                },
+              },
             },
           },
+        },
+        address: {
+          select: { city: true, province: true },
         },
         shipment: true,
       },
@@ -78,6 +93,31 @@ export async function POST(request: Request) {
       );
     }
 
+    // Calculate estimatedDays if not provided
+    let calculatedEstimatedDays = estimatedDays;
+    
+    if (!calculatedEstimatedDays && order.address) {
+      // Get florist location from first product's florist
+      const firstProduct = order.items[0]?.product;
+      const floristAddress = firstProduct?.florist?.addresses?.[0];
+      
+      if (floristAddress && order.address.city && order.address.province) {
+        calculatedEstimatedDays = calculateEstimatedDays(
+          {
+            city: order.address.city,
+            province: order.address.province,
+          },
+          {
+            city: floristAddress.city,
+            province: floristAddress.province,
+          }
+        );
+      } else {
+        // Fallback to 2 days if location data is incomplete
+        calculatedEstimatedDays = 2;
+      }
+    }
+
     const [shipment] = await prisma.$transaction([
       prisma.shipment.create({
         data: {
@@ -86,7 +126,7 @@ export async function POST(request: Request) {
           service: service?.trim() || null,
           trackingNumber: trackingNumber?.trim() || null,
           status: "PENDING",
-          estimatedDays: estimatedDays || null,
+          estimatedDays: calculatedEstimatedDays || 2,
           shippingCost: order.shippingCost,
           weight: weight || null,
         },

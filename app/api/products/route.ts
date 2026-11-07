@@ -62,6 +62,8 @@ export async function GET(request: Request) {
         price: product.price,
         stock: product.stock,
         image: product.image,
+        images: product.images || [],
+        tags: product.tags || [],
         categoryId: product.categoryId,
         floristId: product.floristId,
         createdAt: product.createdAt.toISOString(),
