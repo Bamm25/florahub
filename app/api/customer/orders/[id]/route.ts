@@ -2,13 +2,16 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// GET: Fetch detail order by ID dengan items dan payment
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Validate user session dan parse order ID
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
+    // Validate order ID parameter
     if (!id) {
       return NextResponse.json(
         {
@@ -19,6 +22,7 @@ export async function GET(
       );
     }
 
+    // Query order dengan items, payment, address, dan user details
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -47,6 +51,7 @@ export async function GET(
       },
     });
 
+    // Validate order existence
     if (!order) {
       return NextResponse.json(
         {
@@ -56,6 +61,7 @@ export async function GET(
         { status: 404 },
       );
     }
+    // Validate order ownership
     if (order.userId !== userId) {
       return NextResponse.json(
         {
@@ -66,6 +72,7 @@ export async function GET(
       );
     }
 
+    // Transform data untuk response format
     const orderDetail = {
       id: order.id,
       orderNumber: order.orderNumber,
@@ -106,6 +113,7 @@ export async function GET(
       updatedAt: order.updatedAt,
     };
 
+    // Return response dengan order detail lengkap
     return NextResponse.json({
       success: true,
       message: "Detail order berhasil diambil",
@@ -114,6 +122,7 @@ export async function GET(
       },
     });
   } catch (error) {
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }

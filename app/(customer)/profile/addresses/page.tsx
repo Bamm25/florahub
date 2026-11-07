@@ -10,7 +10,8 @@ import {
   deleteAddress,
 } from "@/lib/api/addresses";
 import AddressForm from "@/components/customer/AddressForm";
-import { MapPin, Plus, Edit, Trash2, Star } from "lucide-react";
+import { AddressCard } from "@/components/customer/AddressCard";
+import { MapPin, Plus } from "lucide-react";
 
 interface Address {
   id: string;
@@ -26,7 +27,7 @@ interface Address {
 
 export default function AddressManagementPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +45,7 @@ export default function AddressManagementPage() {
     loadAddresses();
   }, [status, router]);
 
-  async function loadAddresses() {
+  async function loadAddresses(): Promise<void> {
     try {
       setIsLoading(true);
       const response = await getAddresses();
@@ -58,7 +59,18 @@ export default function AddressManagementPage() {
     }
   }
 
-  const handleSubmit = async (data: any) => {
+  interface AddressFormData {
+    label: string;
+    recipientName: string;
+    phone: string;
+    fullAddress: string;
+    city: string;
+    province: string;
+    postalCode: string;
+    isDefault: boolean;
+  }
+
+  const handleSubmit = async (data: AddressFormData): Promise<void> => {
     try {
       if (editingAddress) {
         await updateAddress(editingAddress.id, data);
@@ -149,58 +161,16 @@ export default function AddressManagementPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
           {addresses.map((address) => (
-            <div
+            <AddressCard
               key={address.id}
-              className="card-elevated relative"
-            >
-              {address.isDefault && (
-                <div className="absolute right-6 top-6 flex items-center gap-1.5 badge bg-primary text-white">
-                  <Star className="h-4 w-4 fill-current" />
-                  Alamat Utama
-                </div>
-              )}
-
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 flex-shrink-0">
-                  <MapPin className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-foreground mb-3">
-                    {address.label}
-                  </h3>
-                  <p className="text-base font-semibold text-foreground mb-2">
-                    {address.recipientName} • {address.phone}
-                  </p>
-                  <p className="text-base text-muted-foreground mb-1">
-                    {address.fullAddress}
-                  </p>
-                  <p className="text-base text-muted-foreground">
-                    {address.city}, {address.province} {address.postalCode}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 flex gap-3">
-                <button
-                  onClick={() => {
-                    setEditingAddress(address);
-                    setShowForm(true);
-                  }}
-                  className="btn-secondary flex-1"
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(address.id)}
-                  disabled={deletingId === address.id}
-                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-error/30 bg-error/5 px-6 py-3 text-base font-semibold text-error hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50 transition-colors flex-1"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {deletingId === address.id ? "Menghapus..." : "Hapus"}
-                </button>
-              </div>
-            </div>
+              address={address}
+              onEdit={(addr) => {
+                setEditingAddress(addr);
+                setShowForm(true);
+              }}
+              onDelete={handleDelete}
+              isDeleting={deletingId === address.id}
+            />
           ))}
         </div>
       )}

@@ -1,9 +1,12 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 
+// GET: Fetch semua orders customer dengan pagination dan filter status
 export async function GET(request: Request) {
   try {
+    // Validate user session dan extract user ID
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
@@ -22,6 +25,7 @@ export async function GET(request: Request) {
       "REFUNDED",
     ];
 
+    // Validate status parameter jika ada
     if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
         {
@@ -32,14 +36,16 @@ export async function GET(request: Request) {
       );
     }
 
-    const whereClause: any = {
+    // Build where clause dengan user ID dan optional status filter
+    const whereClause: Prisma.OrderWhereInput = {
       userId: userId,
     };
 
-    if (status) {
-      whereClause.status = status;
+    if (status && validStatuses.includes(status)) {
+      whereClause.status = status as Prisma.EnumOrderStatusFilter;
     }
 
+    // Query orders dengan items dan payment details
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where: whereClause,
@@ -68,6 +74,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Transform data untuk response format
     const ordersSummary = orders.map((order) => ({
       id: order.id,
       orderNumber: order.orderNumber,
@@ -75,11 +82,21 @@ export async function GET(request: Request) {
       status: order.status,
       itemCount: order.items.length,
       createdAt: order.createdAt,
+      items: order.items.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        product: {
+          id: item.product.id,
+          name: item.product.name,
+          image: item.product.image,
+        },
+      })),
       payment: {
         status: order.payment?.status,
       },
     }));
 
+        // Return response dengan pagination metadata
         return NextResponse.json({
           success: true,
           message: "Riwayat order berhasil diambil",
@@ -97,6 +114,7 @@ export async function GET(request: Request) {
         });
 
   } catch (error) {
+    // Handle auth errors dan return generic error response
     if (error instanceof NextResponse) {
       return error;
     }

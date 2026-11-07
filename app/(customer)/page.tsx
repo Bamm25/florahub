@@ -4,14 +4,16 @@ import ProductGrid from "@/components/customer/ProductGrid";
 import { getProducts } from "@/lib/api/products";
 import type { Product } from "@/types";
 import { useEffect, useState } from "react";
-import { Flower2, Sparkles, TrendingUp, Package, Bell, ShoppingCart } from "lucide-react";
+import { Flower2, TrendingUp, Package, Bell, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 
+// Component utama halaman beranda customer
 export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch daftar produk saat component mount
   useEffect(() => {
     async function fetchProducts() {
       try {
@@ -31,6 +33,7 @@ export default function HomePage() {
     fetchProducts();
   }, []);
 
+  // Render loading state dengan spinner
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -42,6 +45,7 @@ export default function HomePage() {
     );
   }
 
+  // Render error state dengan tombol retry
   if (error) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">

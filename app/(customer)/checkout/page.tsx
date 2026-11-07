@@ -5,21 +5,18 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCartStore } from "@/lib/stores/cartStore";
 import AddressSelector from "@/components/customer/AddressSelector";
+import { CheckoutSummary } from "@/components/customer/CheckoutSummary";
+import OrderItems from "@/components/customer/OrderItems";
+import CouponInput from "@/components/customer/CouponInput";
+import AddressForm from "@/components/customer/AddressForm";
 import {
   getCustomerAddresses,
   createCheckoutOrder,
   createPaymentToken,
   validateCoupon,
 } from "@/lib/api/customer";
-import {
-  ShoppingBag,
-  Truck,
-  CreditCard,
-  Tag,
-  AlertCircle,
-  CheckCircle,
-  Trash2,
-} from "lucide-react";
+import { createAddress } from "@/lib/api/addresses";
+import { Truck, AlertCircle, MapPin, Plus } from "lucide-react";
 
 interface Address {
   id: string;
@@ -33,9 +30,10 @@ interface Address {
   isDefault: boolean;
 }
 
+// Halaman checkout dengan address selector, ringkasan, dan Midtrans payment
 export default function CheckoutPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const items = useCartStore((state) => state.items);
   const total = useCartStore((state) => state.getTotal());
   const clearCart = useCartStore((state) => state.clearCart);
@@ -54,9 +52,32 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [showAddressForm, setShowAddressForm] = useState(false);
   const shippingCost = 15000;
 
-  const handleApplyCoupon = async () => {
+  // Validasi form checkout sebelum submit order
+  const validateCheckout = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!selectedAddressId) {
+      errors.address = "Pilih alamat pengiriman terlebih dahulu";
+    }
+
+    if (items.length === 0) {
+      errors.items = "Keranjang belanja kosong";
+    }
+
+    if (notes.length > 500) {
+      errors.notes = "Catatan maksimal 500 karakter";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Apply dan validasi kupon discount dengan API
+  const handleApplyCoupon = async (): Promise<void> => {
     if (!couponCode.trim()) {
       setCouponError("Masukkan kode kupon terlebih dahulu.");
       return;
@@ -86,12 +107,47 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleRemoveCoupon = () => {
+  // Hapus applied coupon dan reset form
+  const handleRemoveCoupon = (): void => {
     setAppliedCoupon(null);
     setCouponCode("");
     setCouponError(null);
   };
 
+  interface AddressFormData {
+    label: string;
+    recipientName: string;
+    phone: string;
+    fullAddress: string;
+    city: string;
+    province: string;
+    postalCode: string;
+    isDefault: boolean;
+  }
+
+  // Handle tambah alamat baru dan auto-select setelah berhasil
+  const handleAddAddress = async (data: AddressFormData): Promise<void> => {
+    try {
+      const response = await createAddress(data);
+      const newAddress = response.data.address;
+      
+      // Refresh addresses list
+      const addressesResponse = await getCustomerAddresses();
+      const addressList = addressesResponse.data.items;
+      setAddresses(addressList);
+      
+      // Auto-select newly added address
+      setSelectedAddressId(newAddress.id);
+      
+      // Close form
+      setShowAddressForm(false);
+      setFormErrors({});
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Redirect ke login jika belum auth atau cart jika kosong, load addresses
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/login?callbackUrl=/checkout");
@@ -103,7 +159,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    async function loadAddresses() {
+    async function loadAddresses(): Promise<void> {
       try {
         const response = await getCustomerAddresses();
         const addressList = response.data.items;
@@ -127,18 +183,21 @@ export default function CheckoutPage() {
     }
   }, [status, items, router]);
 
-  const handleCheckout = async () => {
-    if (!selectedAddressId) {
-      setErrorMessage("Pilih alamat pengiriman terlebih dahulu");
+  // Handle checkout: create order, get Midtrans token, open payment popup
+  const handleCheckout = async (): Promise<void> => {
+    if (!validateCheckout()) {
+      setErrorMessage("Mohon lengkapi data checkout terlebih dahulu");
       return;
     }
+
     setIsLoading(true);
     setErrorMessage(null);
+    setFormErrors({});
 
     try {
       // order
       const checkoutResponse = await createCheckoutOrder({
-        addressId: selectedAddressId,
+        addressId: selectedAddressId!,
         shippingCost,
         couponCode: appliedCoupon ? appliedCoupon.code : undefined,
         notes: notes.trim() || undefined,
@@ -149,28 +208,28 @@ export default function CheckoutPage() {
         })),
       });
 
-      //   midtrans token
+      // Get Midtrans snap token untuk payment popup
       const orderId = checkoutResponse.data.order.id;
       const paymentResponse = await createPaymentToken(orderId);
       const snapToken = paymentResponse.data.token;
 
-      // midtrans pop up
+      // Trigger Midtrans payment popup dengan callback handlers
       if (typeof window !== "undefined" && window.snap) {
         window.snap.pay(snapToken, {
-          onSuccess: function (result: any) {
+          onSuccess: function (): void {
             clearCart();
             // Gunakan window.location.href untuk hard navigation
             window.location.href = `/orders/${orderId}`;
           },
-          onPending: function (result: any) {
+          onPending: function (): void {
             clearCart();
             window.location.href = `/orders/${orderId}`;
           },
-          onError: function (result: any) {
+          onError: function (): void {
             setErrorMessage("Pembayaran gagal. Silakan coba lagi.");
             setIsLoading(false);
           },
-          onClose: function () {
+          onClose: function (): void {
             setIsLoading(false);
           },
         });
@@ -190,6 +249,7 @@ export default function CheckoutPage() {
     }
   };
 
+  // Render loading skeleton saat checking auth status
   if (status === "loading") {
     return (
       <div className="container-custom section-spacing">
@@ -198,9 +258,6 @@ export default function CheckoutPage() {
       </div>
     );
   }
-
-  const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
-  const finalTotal = Math.max(0, total + shippingCost - discount);
 
   return (
     <div className="container-custom section-spacing">
@@ -227,109 +284,78 @@ export default function CheckoutPage() {
                 Alamat Pengiriman
               </h2>
             </div>
-            <AddressSelector
-              addresses={addresses}
-              selectedId={selectedAddressId}
-              onSelect={setSelectedAddressId}
-            />
-          </div>
 
-          {/* Produk Dipesan */}
-          <div className="card-elevated">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <ShoppingBag className="h-6 w-6 text-primary" />
-              </div>
-              <h2 className="text-xl font-bold text-foreground">
-                Produk Dipesan ({items.length} item)
-              </h2>
-            </div>
-            <div className="space-y-4">
-              {items.map((item) => (
-                <div
-                  key={item.productId}
-                  className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0"
-                >
-                  <div className="flex-1">
-                    <p className="text-base font-semibold text-foreground">
-                      {item.name}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {item.quantity}x @ Rp {item.price.toLocaleString("id-ID")}
-                    </p>
+            {addresses.length === 0 ? (
+              <div className="space-y-4">
+                {/* Empty state */}
+                <div className="rounded-xl border-2 border-dashed border-border bg-surface-container-low p-8 text-center">
+                  <div className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-surface-container mb-4">
+                    <MapPin className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <p className="text-lg font-bold text-foreground">
-                    Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+                  <h3 className="text-lg font-bold text-foreground mb-2">
+                    Belum ada alamat pengiriman
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Tambah alamat untuk melanjutkan checkout
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddressForm(true)}
+                    className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-base"
+                  >
+                    <Plus className="h-5 w-5" />
+                    Tambah Alamat Sekarang
+                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Kupon Promo */}
-          <div className="card-elevated">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/10">
-                <Tag className="h-6 w-6 text-secondary" />
-              </div>
-              <h2 className="text-xl font-bold text-foreground">
-                Kode Promo (Opsional)
-              </h2>
-            </div>
-
-            {couponError && (
-              <div className="mb-4 flex items-center gap-3 rounded-lg bg-error/5 p-4 text-sm text-error border border-error/20">
-                <AlertCircle className="h-5 w-5 shrink-0" />
-                <span className="font-medium">{couponError}</span>
-              </div>
-            )}
-
-            {appliedCoupon ? (
-              <div className="flex items-center justify-between rounded-xl border-2 border-success bg-success/5 p-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-6 w-6 text-success" />
-                  <div>
-                    <p className="text-base font-bold text-success">
-                      {appliedCoupon.code}
-                    </p>
-                    <p className="text-sm text-success/80">
-                      Hemat Rp{" "}
-                      {appliedCoupon.discountAmount.toLocaleString("id-ID")}
-                    </p>
+                {/* Validation error */}
+                {formErrors.address && (
+                  <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                    <span className="font-medium">{formErrors.address}</span>
                   </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleRemoveCoupon}
-                  className="flex items-center gap-2 text-sm font-semibold text-error hover:text-error/80 transition-colors"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Hapus
-                </button>
+                )}
               </div>
             ) : (
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={couponCode}
-                  onChange={(e) => {
-                    setCouponCode(e.target.value.toUpperCase());
-                    setCouponError(null);
-                  }}
-                  placeholder="Contoh: FLORA10"
-                  className="input-field flex-1"
+              <div className="space-y-4">
+                <AddressSelector
+                  addresses={addresses}
+                  selectedId={selectedAddressId}
+                  onSelect={setSelectedAddressId}
                 />
+
+                {/* Add new address button */}
                 <button
                   type="button"
-                  onClick={handleApplyCoupon}
-                  disabled={isValidatingCoupon || !couponCode.trim()}
-                  className="btn-primary px-8 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setShowAddressForm(true)}
+                  className="w-full rounded-lg border-2 border-dashed border-border bg-surface-container-low p-4 text-sm font-medium text-foreground/70 hover:border-primary hover:bg-primary/5 hover:text-primary transition flex items-center justify-center gap-2"
                 >
-                  {isValidatingCoupon ? "Mengecek..." : "Terapkan"}
+                  <Plus className="h-5 w-5" />
+                  Tambah Alamat Baru
                 </button>
+
+                {/* Validation error */}
+                {formErrors.address && (
+                  <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                    <span className="font-medium">{formErrors.address}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
+
+          <OrderItems items={items} />
+
+          <CouponInput
+            couponCode={couponCode}
+            isValidatingCoupon={isValidatingCoupon}
+            couponError={couponError}
+            appliedCoupon={appliedCoupon}
+            onCouponCodeChange={(v) => { setCouponCode(v); setCouponError(null); }}
+            onApply={handleApplyCoupon}
+            onRemove={handleRemoveCoupon}
+          />
 
           {/* Catatan */}
           <div className="card-elevated">
@@ -338,92 +364,47 @@ export default function CheckoutPage() {
             </label>
             <textarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                setFormErrors({ ...formErrors, notes: "" });
+              }}
               placeholder="Contoh: Tolong kirim pagi hari"
               rows={4}
-              className="input-field w-full resize-none"
+              className={`input-field w-full resize-none ${formErrors.notes ? "border-error" : ""}`}
+              maxLength={500}
             />
+            <div className="mt-1 flex items-center justify-between">
+              {formErrors.notes && (
+                <p className="text-sm text-error">{formErrors.notes}</p>
+              )}
+              <p className={`text-sm ${notes.length > 450 ? "text-warning" : "text-muted-foreground"} ml-auto`}>
+                {notes.length}/500 karakter
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Ringkasan Pembayaran - Sticky Sidebar */}
         <div className="lg:col-span-1">
-          <div className="card-elevated sticky top-24">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-tertiary/10">
-                <CreditCard className="h-6 w-6 text-tertiary" />
-              </div>
-              <h2 className="text-xl font-bold text-foreground">
-                Ringkasan Pembayaran
-              </h2>
-            </div>
-            
-            <div className="space-y-4 border-b border-border pb-6">
-              <div className="flex justify-between text-base">
-                <span className="text-muted-foreground">Subtotal Produk</span>
-                <span className="font-semibold text-foreground">
-                  Rp {total.toLocaleString("id-ID")}
-                </span>
-              </div>
-              <div className="flex justify-between text-base">
-                <span className="text-muted-foreground">Ongkos Kirim</span>
-                <span className="font-semibold text-foreground">
-                  Rp {shippingCost.toLocaleString("id-ID")}
-                </span>
-              </div>
-              {discount > 0 && appliedCoupon && (
-                <div className="flex justify-between text-base">
-                  <span className="text-success">Diskon Kupon ({appliedCoupon.code})</span>
-                  <span className="font-semibold text-success">
-                    -Rp {discount.toLocaleString("id-ID")}
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-6 flex justify-between text-lg">
-              <span className="font-bold text-foreground">Total Pembayaran</span>
-              <span className="text-2xl font-bold text-primary">
-                Rp {finalTotal.toLocaleString("id-ID")}
-              </span>
-            </div>
-            
-            <button
-              onClick={handleCheckout}
-              disabled={isLoading || !selectedAddressId}
-              className="btn-primary w-full mt-6 h-14 text-lg disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isLoading ? (
-                <span>Memproses Pembayaran...</span>
-              ) : (
-                <>
-                  <CreditCard className="mr-2 h-6 w-6" />
-                  <span>Bayar Sekarang</span>
-                </>
-              )}
-            </button>
-
-            {/* Trust Signal */}
-            <div className="mt-6 rounded-xl bg-surface-container-low p-4 border border-border">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
-                  <svg className="h-5 w-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground text-sm mb-1">
-                    Pembayaran Aman
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Transaksi Anda dilindungi dengan enkripsi SSL 256-bit dan Midtrans Payment Gateway
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <CheckoutSummary
+            items={items}
+            subtotal={total}
+            shippingCost={shippingCost}
+            appliedCoupon={appliedCoupon}
+            onCheckout={handleCheckout}
+            isProcessing={isLoading}
+            isDisabled={!selectedAddressId}
+          />
         </div>
       </div>
+
+      {/* Address Form Modal */}
+      {showAddressForm && (
+        <AddressForm
+          onSubmit={handleAddAddress}
+          onCancel={() => setShowAddressForm(false)}
+        />
+      )}
     </div>
   );
 }

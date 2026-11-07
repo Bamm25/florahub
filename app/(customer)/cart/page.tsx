@@ -6,15 +6,20 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ShoppingBag, ArrowLeft } from "lucide-react";
 
+// Halaman keranjang belanja dengan list items dan ringkasan
 export default function CartPage() {
   const items = useCartStore((state) => state.items);
   const total = useCartStore((state) => state.getTotal());
   const [mounted, setMounted] = useState(false);
 
+  // Handle hydration mismatch dengan delay mounting untuk sync client/server
   useEffect(() => {
-    setMounted(true);
+    // Set mounted in next tick to avoid setting state during render
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timer);
   }, []);
 
+  // Render skeleton saat belum mounted untuk prevent hydration error
   if (!mounted) {
     return (
       <div className="container-custom py-8">

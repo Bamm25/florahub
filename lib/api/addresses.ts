@@ -34,7 +34,7 @@ interface AddressResponse {
   };
 }
 
-// Get all addresses
+// Fetch semua alamat customer dengan pagination
 export async function getAddresses(): Promise<AddressesResponse> {
   const response = await fetch("/api/customer/addresses", {
     method: "GET",
@@ -50,7 +50,7 @@ export async function getAddresses(): Promise<AddressesResponse> {
   return response.json();
 }
 
-// Create new address
+// Create alamat baru untuk customer
 export async function createAddress(data: {
   label: string;
   recipientName: string;
@@ -76,7 +76,7 @@ export async function createAddress(data: {
   return response.json();
 }
 
-// Update address
+// Update data alamat berdasarkan addressId
 export async function updateAddress(
   addressId: string,
   data: {
@@ -105,7 +105,7 @@ export async function updateAddress(
   return response.json();
 }
 
-// Delete address
+// Hapus alamat berdasarkan addressId
 export async function deleteAddress(
   addressId: string,
 ): Promise<{ success: boolean; message: string }> {

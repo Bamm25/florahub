@@ -100,7 +100,7 @@ export interface ValidateCouponResponse {
   };
 }
 
-// fetch alamat customer
+// Fetch daftar alamat customer dari API
 export async function getCustomerAddresses(): Promise<AddressesResponse> {
   const response = await fetch("/api/customer/addresses", {
     method: "GET",
@@ -116,7 +116,7 @@ export async function getCustomerAddresses(): Promise<AddressesResponse> {
   return response.json();
 }
 
-// Fungsi untuk create order (checkout)
+// Create order checkout dengan alamat, ongkir, dan coupon
 export async function createCheckoutOrder(data: {
   addressId: string;
   shippingCost: number;
@@ -143,7 +143,7 @@ export async function createCheckoutOrder(data: {
   return response.json();
 }
 
-// request Midtrans payment token
+// Request Midtrans payment token untuk order ID
 export async function createPaymentToken(
   orderId: string,
 ): Promise<PaymentTokenResponse> {
@@ -162,7 +162,7 @@ export async function createPaymentToken(
   return response.json();
 }
 
-// kupon discount
+// Validasi coupon code dan calculate discount amount
 export async function validateCoupon(data: {
   code: string;
   subtotal: number;

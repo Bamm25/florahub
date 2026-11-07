@@ -3,18 +3,21 @@
 import { useCartStore } from "@/lib/stores/cartStore";
 import type { Product } from "@/types";
 import Image from "next/image";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Star } from "lucide-react";
 import Link from "next/link";
 
 interface ProductCardProps {
   product: Product;
 }
 
+// Card display produk dengan image, rating, price, dan add to cart
 export default function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem);
+  // Determine status stok produk untuk badge dan disable button
   const isOutOfStock = product.stock === 0;
   const isLowStock = product.stock > 0 && product.stock < 10;
 
+  // Add produk ke cart store tanpa navigate ke halaman lain
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -71,6 +74,15 @@ export default function ProductCard({ product }: ProductCardProps) {
         <h3 className="line-clamp-2 text-lg font-bold text-foreground select-text group-hover:text-primary transition-colors">
           {product.name}
         </h3>
+        {product.averageRating && product.averageRating > 0 && (
+          <div className="flex items-center gap-1 text-sm mt-2">
+            <Star className="w-4 h-4 fill-warning text-warning" />
+            <span className="font-medium">{product.averageRating.toFixed(1)}</span>
+            {product.reviewCount && (
+              <span className="text-muted-foreground">({product.reviewCount})</span>
+            )}
+          </div>
+        )}
         <p className="mt-2 text-xl font-bold text-primary select-text">
           Rp {product.price.toLocaleString("id-ID")}
         </p>

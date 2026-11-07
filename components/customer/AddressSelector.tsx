@@ -20,19 +20,21 @@ interface AddressSelectorProps {
   onSelect: (addressId: string) => void;
 }
 
+// Component untuk pilih alamat pengiriman dari list yang tersimpan
 export default function AddressSelector({
   addresses,
   selectedId,
   onSelect,
 }: AddressSelectorProps) {
+  // Tampilkan empty state jika belum ada alamat
   if (addresses.length === 0) {
     return (
-      <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-        <MapPin className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-4 text-sm font-semibold text-gray-900">
+      <div className="rounded-xl border-2 border-dashed border-border bg-surface-container-low p-8 text-center">
+        <MapPin className="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 className="mt-4 text-sm font-semibold text-foreground">
           Belum ada alamat tersimpan
         </h3>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Tambahkan alamat pengiriman terlebih dahulu.
         </p>
       </div>
@@ -47,12 +49,12 @@ export default function AddressSelector({
           onClick={() => onSelect(address.id)}
           className={`relative w-full cursor-pointer rounded-lg border-2 p-4 text-left transition ${
             selectedId === address.id
-              ? "border-emerald-500 bg-emerald-50"
-              : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+              ? "border-success bg-success/10"
+              : "border-border hover:border-border/60 hover:bg-surface-container-low"
           }`}
         >
           {selectedId === address.id && (
-            <div className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600">
+            <div className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-success">
               <Check className="h-4 w-4 text-white" />
             </div>
           )}
@@ -60,7 +62,7 @@ export default function AddressSelector({
           <div className="flex items-start gap-3">
             <MapPin
               className={`h-5 w-5 mt-0.5 ${
-                selectedId === address.id ? "text-emerald-600" : "text-gray-400"
+                selectedId === address.id ? "text-success" : "text-muted-foreground"
               }`}
             />
             <div className="flex-1">
@@ -68,14 +70,14 @@ export default function AddressSelector({
                 <span
                   className={`text-sm font-semibold ${
                     selectedId === address.id
-                      ? "text-emerald-900"
-                      : "text-gray-900"
+                      ? "text-success"
+                      : "text-foreground"
                   }`}
                 >
                   {address.label}
                 </span>
                 {address.isDefault && (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  <span className="rounded-full bg-success/20 px-2 py-0.5 text-xs font-medium text-success">
                     Utama
                   </span>
                 )}
@@ -83,8 +85,8 @@ export default function AddressSelector({
               <p
                 className={`mt-1 text-sm font-medium ${
                   selectedId === address.id
-                    ? "text-emerald-800"
-                    : "text-gray-700"
+                    ? "text-success"
+                    : "text-foreground"
                 }`}
               >
                 {address.recipientName} • {address.phone}
@@ -92,8 +94,8 @@ export default function AddressSelector({
               <p
                 className={`mt-1 text-sm ${
                   selectedId === address.id
-                    ? "text-emerald-700"
-                    : "text-gray-600"
+                    ? "text-success"
+                    : "text-muted-foreground"
                 }`}
               >
                 {address.street}, {address.city}, {address.province}{" "}

@@ -2,9 +2,12 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// GET: Fetch cart customer dengan semua items dan summary
 export async function GET(request: Request) {
   try {
+    // Validate user session dan extract user ID
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
+    // Query cart dengan items dan product details
     const cart = await prisma.cart.findUnique({
       where: { userId },
       include: {
@@ -29,6 +32,7 @@ export async function GET(request: Request) {
       },
     });
 
+    // Handle empty cart case
     if (!cart || cart.items.length === 0) {
       return NextResponse.json(
         {
@@ -48,6 +52,7 @@ export async function GET(request: Request) {
       );
     }
 
+    // Calculate subtotal untuk setiap item
     const itemsWithSubtotal = cart.items.map((item) => ({
       id: item.id,
       quantity: item.quantity,
@@ -56,6 +61,7 @@ export async function GET(request: Request) {
       createdAt: item.createdAt,
     }));
 
+    // Calculate summary totals
     const summary = {
       totalItems: cart.items.length,
       totalQuantity: cart.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -65,6 +71,7 @@ export async function GET(request: Request) {
       ),
     };
 
+    // Return response dengan cart, items, dan summary
     return NextResponse.json(
       {
         success: true,
@@ -83,6 +90,7 @@ export async function GET(request: Request) {
       { status: 200 },
     );
   } catch (error) {
+    // Handle auth errors dan return generic error response
     if (error instanceof NextResponse) {
       return error;
     }

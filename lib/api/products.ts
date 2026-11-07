@@ -58,7 +58,7 @@ export interface CreateReviewResponse {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-//  Get semua products
+// Fetch semua products dengan filter dan pagination
 export async function getProducts(params?: {
   page?: number;
   limit?: number;
@@ -87,7 +87,7 @@ export async function getProducts(params?: {
   return res.json();
 }
 
-// Get product by id
+// Fetch detail product berdasarkan ID
 export async function getProductById(
   id: string,
 ): Promise<ApiResponse<Product>> {
@@ -175,7 +175,7 @@ export async function deleteProduct(
   return res.json();
 }
 
-//  fetch detail produk slug
+// Fetch detail produk berdasarkan slug untuk SEO
 export async function getProductBySlug(
   slug: string,
 ): Promise<ProductDetailResponse> {
@@ -191,7 +191,7 @@ export async function getProductBySlug(
   return response.json();
 }
 
-// fetch reviews produk
+// Fetch reviews dan rating stats untuk productId
 export async function getProductReviews(productId: string) {
   const response = await fetch(`/api/products/${productId}/reviews`, {
     method: "GET",
@@ -213,7 +213,7 @@ export async function getProductReviews(productId: string) {
   };
 }
 
-// Fecth ulasan produk
+// Submit review baru untuk productId dengan rating dan comment
 export async function createProductReview(
   productId: string,
   data: CreateReviewInput,

@@ -4,14 +4,17 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import { createAddressSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// GET: Fetch semua addresses customer dengan pagination
 export async function GET(request: Request) {
   try {
+    // Validate user session dan parse pagination params
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
 
+    // Query addresses dengan default first ordering
     const [addresses, total] = await Promise.all([
       prisma.address.findMany({
         where: { userId },
@@ -22,6 +25,7 @@ export async function GET(request: Request) {
       prisma.address.count({ where: { userId } }),
     ]);
 
+    // Return response dengan pagination metadata
     return NextResponse.json({
       success: true,
       message: "Daftar alamat berhasil diambil",
@@ -36,6 +40,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }
@@ -49,8 +54,10 @@ export async function GET(request: Request) {
   }
 }
 
+// POST: Create new address untuk customer
 export async function POST(request: Request) {
   try {
+    // Validate user session dan parse request body
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const validatedData = createAddressSchema.parse(body);
@@ -67,13 +74,16 @@ export async function POST(request: Request) {
       isDefault,
     } = validatedData;
 
+    // Check existing addresses count
     const existingAddressCount = await prisma.address.count({
       where: { userId },
     });
 
+    // First address harus default
     const shouldBeDefault =
       existingAddressCount === 0 ? true : Boolean(isDefault);
 
+    // Unset default dari addresses lain jika ini default
     if (shouldBeDefault && existingAddressCount > 0) {
       await prisma.address.updateMany({
         where: { userId },
@@ -81,6 +91,7 @@ export async function POST(request: Request) {
       });
     }
 
+    // Create new address
     const newAddress = await prisma.address.create({
       data: {
         userId,
@@ -97,6 +108,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Return response dengan new address data
     return NextResponse.json(
       {
         success: true,
@@ -106,6 +118,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -116,6 +129,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }

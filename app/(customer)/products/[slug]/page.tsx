@@ -9,7 +9,7 @@ import {
   type Review,
 } from "@/lib/api/products";
 import { useCartStore } from "@/lib/stores/cartStore";
-import { ShoppingCart, Store, Star, Minus, Plus, ArrowLeft } from "lucide-react";
+import { ShoppingCart, Store, Star, Minus, Plus, ArrowLeft, Tag } from "lucide-react";
 import ProductReviews from "@/components/customer/ProductReviews";
 import Link from "next/link";
 
@@ -21,12 +21,15 @@ interface ProductDetail {
   price: number;
   stock: number;
   image: string | null;
+  images?: string[];
+  tags?: string[];
   florist: { id: string; shopName: string; city: string };
   category: { id: string; name: string };
   averageRating: number;
   totalReviews: number;
 }
 
+// Halaman detail produk dengan gallery, info lengkap, dan reviews
 export default function ProductDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -36,19 +39,16 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const addItem = useCartStore((state) => state.addItem);
 
+  // Fetch detail produk dan reviews berdasarkan slug
   useEffect(() => {
     async function fetchData() {
       try {
         setIsLoading(true);
-        const [productRes, reviewsRes] = await Promise.all([
-          getProductBySlug(slug),
-          Promise.resolve({
-            data: { reviews: [], averageRating: 0, totalReviews: 0 },
-          }),
-        ]);
+        const productRes = await getProductBySlug(slug);
 
         setProduct(productRes.data);
 
@@ -65,6 +65,7 @@ export default function ProductDetailPage() {
     fetchData();
   }, [slug]);
 
+  // Handle tambah produk ke cart dengan quantity yang dipilih
   const handleAddToCart = () => {
     if (!product) return;
     addItem(
@@ -82,6 +83,7 @@ export default function ProductDetailPage() {
     setQuantity(1);
   };
 
+  // Render loading skeleton untuk image dan info produk
   if (isLoading) {
     return (
       <div className="container-custom section-spacing">
@@ -97,6 +99,7 @@ export default function ProductDetailPage() {
     );
   }
 
+  // Render error state jika produk tidak ditemukan
   if (error || !product) {
     return (
       <div className="container-custom section-spacing">
@@ -131,23 +134,71 @@ export default function ProductDetailPage() {
       </Link>
 
       <div className="grid gap-10 lg:grid-cols-2">
-        {/* Product Image */}
-        <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-surface-container-low shadow-md">
-          {product.image ? (
-            <Image
-              src={product.image}
-              alt={product.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 50vw"
-              priority
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <ShoppingCart className="mx-auto h-16 w-16 mb-3 opacity-40" />
-                <span className="text-sm">Gambar tidak tersedia</span>
+        {/* Product Image Gallery */}
+        <div className="space-y-4">
+          {/* Main Image */}
+          <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-surface-container-low shadow-md">
+            {(selectedImage || product.image) ? (
+              <Image
+                src={selectedImage || product.image || ""}
+                alt={product.name}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 50vw"
+                priority
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">
+                <div className="text-center">
+                  <ShoppingCart className="mx-auto h-16 w-16 mb-3 opacity-40" />
+                  <span className="text-sm">Gambar tidak tersedia</span>
+                </div>
               </div>
+            )}
+          </div>
+
+          {/* Thumbnail Gallery - Horizontal Scroll on Mobile */}
+          {product.images && product.images.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory touch-pan-x">
+              {/* Main image as first thumbnail */}
+              {product.image && (
+                <button
+                  onClick={() => setSelectedImage(product.image)}
+                  className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all snap-start touch-manipulation ${
+                    (selectedImage === product.image || !selectedImage)
+                      ? "border-primary shadow-md"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <Image
+                    src={product.image}
+                    alt={`${product.name} thumbnail`}
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
+                </button>
+              )}
+              {/* Additional images */}
+              {product.images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedImage(img)}
+                  className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all snap-start touch-manipulation ${
+                    selectedImage === img
+                      ? "border-primary shadow-md"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <Image
+                    src={img}
+                    alt={`${product.name} view ${idx + 2}`}
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -205,6 +256,26 @@ export default function ProductDetailPage() {
               {product.description}
             </p>
           </div>
+
+          {/* Tags */}
+          {product.tags && product.tags.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-medium text-muted-foreground">Tags</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {product.tags.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1 text-xs font-medium rounded-full bg-surface-container text-foreground border border-border hover:bg-surface-container-high transition-colors"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Stock Status */}
           <div className="mb-6">

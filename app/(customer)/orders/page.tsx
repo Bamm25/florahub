@@ -4,15 +4,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { getOrderHistory } from "@/lib/api/orders";
+import { OrderCard } from "@/components/customer/OrderCard";
+import SearchInput from "@/components/ui/SearchInput";
+import EmptyState from "@/components/ui/EmptyState";
 import {
   Package,
   Clock,
   CheckCircle,
   Truck,
   XCircle,
-  ChevronRight,
   Filter,
   ShoppingBag,
+  Search,
+  type LucideIcon,
 } from "lucide-react";
 
 interface OrderSummary {
@@ -22,14 +26,24 @@ interface OrderSummary {
   status: string;
   itemCount: number;
   createdAt: string;
+  items: Array<{
+    id: string;
+    quantity?: number;
+    product: {
+      id: string;
+      name: string;
+      image?: string;
+    };
+  }>;
   payment: {
     status: string;
   };
 }
 
+// Halaman riwayat pesanan dengan filter status dan search
 export default function OrderHistoryPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
 
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +51,9 @@ export default function OrderHistoryPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
 
+  // Redirect ke login jika belum auth, fetch orders dengan pagination dan filter
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/login?callbackUrl=/orders");
@@ -70,10 +86,11 @@ export default function OrderHistoryPage() {
     }
   }, [status, selectedStatus, currentPage, router]);
 
+  // Mapping status order ke icon, label, dan warna untuk display
   const getStatusConfig = (status: string) => {
     const configs: Record<
       string,
-      { icon: any; label: string; color: string; bgColor: string }
+      { icon: LucideIcon; label: string; color: string; bgColor: string }
     > = {
       PENDING: {
         icon: Clock,
@@ -122,6 +139,23 @@ export default function OrderHistoryPage() {
     );
   };
 
+  // Filter orders di client-side berdasarkan search query
+  const filteredOrders = orders.filter(order => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase().trim();
+    
+    // Search in all relevant fields with safe null checks
+    return (
+      (order.id && order.id.toLowerCase().includes(query)) ||
+      (order.orderNumber && order.orderNumber.toLowerCase().includes(query)) ||
+      order.items?.some(item => 
+        item.product?.name?.toLowerCase().includes(query)
+      )
+    );
+  });
+
+  // Render loading skeleton untuk order list
   if (status === "loading" || isLoading) {
     return (
       <div className="container-custom section-spacing">
@@ -154,6 +188,15 @@ export default function OrderHistoryPage() {
   return (
     <div className="container-custom section-spacing">
       <h1 className="text-4xl font-bold text-foreground mb-8">Riwayat Pesanan</h1>
+
+      {/* Search Bar */}
+      <div className="mb-6">
+        <SearchInput 
+          placeholder="Cari pesanan (Order ID, nama produk, atau nomor pesanan)"
+          value={searchQuery}
+          onChange={setSearchQuery}
+        />
+      </div>
 
       {/* Filter Status */}
       <div className="mb-8 flex items-center gap-3 overflow-x-auto pb-2">
@@ -216,49 +259,42 @@ export default function OrderHistoryPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {orders.map((order) => {
-            const statusConfig = getStatusConfig(order.status);
-            const StatusIcon = statusConfig.icon;
+        <>
+          {/* Result count */}
+          <p className="text-sm text-muted-foreground mb-4">
+            Menampilkan {filteredOrders.length} dari {orders.length} pesanan
+          </p>
 
-            return (
-              <button
-                key={order.id}
-                onClick={() => router.push(`/orders/${order.id}`)}
-                className="card-elevated w-full text-left hover:shadow-lg transition-all hover:scale-[1.01]"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="text-lg font-bold text-foreground">
-                        {order.orderNumber}
-                      </h3>
-                      <span
-                        className={`badge flex items-center gap-1.5 ${statusConfig.bgColor} ${statusConfig.color}`}
-                      >
-                        <StatusIcon className="h-4 w-4" />
-                        {statusConfig.label}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {new Date(order.createdAt).toLocaleDateString("id-ID", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </p>
-                    <p className="text-base font-semibold text-foreground">
-                      {order.itemCount} item • Rp{" "}
-                      {order.totalAmount.toLocaleString("id-ID")}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-                </div>
-              </button>
-            );
-          })}
-        </div>
+          {/* Search empty state */}
+          {filteredOrders.length === 0 && searchQuery ? (
+            <EmptyState 
+              icon={<Search className="h-16 w-16" />}
+              title="Tidak ada pesanan yang cocok"
+              description={`Tidak ada pesanan yang cocok dengan pencarian "${searchQuery}"`}
+              action={{
+                label: "Hapus pencarian",
+                onClick: () => setSearchQuery(""),
+                icon: <XCircle className="h-5 w-5" />
+              }}
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  onCancelled={(cancelledId) => {
+                    setOrders((prev) =>
+                      prev.map((o) =>
+                        o.id === cancelledId ? { ...o, status: "CANCELLED" } : o,
+                      ),
+                    );
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Pagination */}

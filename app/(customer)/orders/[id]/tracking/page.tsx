@@ -13,8 +13,8 @@ import {
   Copy,
   Check,
   CheckCircle2,
-  Truck,
   MapPin,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -24,6 +24,7 @@ interface OrderDetail {
   status: string;
   totalAmount: number;
   createdAt: string;
+  updatedAt: string;
   items: Array<{
     id: string;
     product: {
@@ -55,13 +56,14 @@ interface TimelineEvent {
   stepCategory: "created" | "transit" | "delivering" | "delivered";
 }
 
+// Halaman tracking pengiriman dengan timeline dan stepper progress
 export default function OrderTrackingPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
-  const { data: session, status: authStatus } = useSession();
+  const { status: authStatus } = useSession();
   const resolvedParams = use(params);
   const orderId = resolvedParams.id;
 
@@ -70,7 +72,9 @@ export default function OrderTrackingPage({
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedOrderId, setCopiedOrderId] = useState(false);
 
+  // Redirect ke login jika belum auth, fetch order dan shipment data
   useEffect(() => {
     if (authStatus === "unauthenticated") {
       router.push(`/auth/login?callbackUrl=/orders/${orderId}/tracking`);
@@ -81,7 +85,10 @@ export default function OrderTrackingPage({
       try {
         setIsLoading(true);
         const orderRes = await getOrderDetail(orderId);
-        setOrder(orderRes.data.order);
+        setOrder({
+          ...orderRes.data.order,
+          updatedAt: (orderRes.data.order as any).updatedAt || orderRes.data.order.createdAt,
+        });
 
         try {
           const shipRes = await getOrderShipment(orderId);
@@ -105,41 +112,50 @@ export default function OrderTrackingPage({
     }
   }, [authStatus, orderId, router]);
 
+  // Copy nomor resi ke clipboard dengan feedback visual
   const handleCopyResi = (resi: string) => {
     navigator.clipboard.writeText(resi);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Copy order ID ke clipboard dengan feedback visual
+  const handleCopyOrderId = (orderId: string) => {
+    navigator.clipboard.writeText(orderId);
+    setCopiedOrderId(true);
+    setTimeout(() => setCopiedOrderId(false), 2000);
+  };
+
+  // Render loading skeleton untuk tracking page
   if (authStatus === "loading" || isLoading) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <div className="h-8 w-40 animate-pulse rounded bg-gray-200" />
-        <div className="mt-6 h-32 animate-pulse rounded-xl bg-gray-100" />
-        <div className="mt-4 h-64 animate-pulse rounded-xl bg-gray-100" />
+      <div className="container-custom py-8">
+        <div className="h-8 w-40 animate-pulse rounded bg-surface-container" />
+        <div className="mt-4 h-32 animate-pulse rounded-xl bg-surface-container" />
+        <div className="mt-4 h-64 animate-pulse rounded-xl bg-surface-container" />
       </div>
     );
   }
 
+  // Render error state jika order tidak ditemukan
   if (errorMessage || !order) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-8 text-center">
-        <p className="text-red-600">{errorMessage || "Pesanan tidak ditemukan"}</p>
-        <button
-          onClick={() => router.push(`/orders/${orderId}`)}
-          className="mt-4 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white"
-        >
-          Kembali ke Rincian Pesanan
-        </button>
+      <div className="container-custom section-spacing">
+        <div className="card-elevated text-center max-w-2xl mx-auto">
+          <p className="text-error mb-4">{errorMessage || "Pesanan tidak ditemukan"}</p>
+          <button
+            onClick={() => router.push(`/orders/${orderId}`)}
+            className="btn-primary"
+          >
+            Kembali ke Rincian Pesanan
+          </button>
+        </div>
       </div>
     );
   }
 
   const customerCity = order.address?.city || "Surabaya";
   const courierName = shipment?.courier || "FloraHub Jatim Express";
-  const trackingNo =
-    shipment?.trackingNumber ||
-    `FH-JTM-${order.orderNumber.replace(/[^0-9]/g, "") || "88219"}`;
 
   const createdDate = new Date(order.createdAt);
   const estDays = shipment?.estimatedDays || 2;
@@ -151,6 +167,7 @@ export default function OrderTrackingPage({
     month: "short",
   });
 
+  const isCancelled = order.status === "CANCELLED";
   let activeStep = 1;
   const isDelivered =
     order.status === "DELIVERED" || shipment?.status === "DELIVERED";
@@ -172,6 +189,21 @@ export default function OrderTrackingPage({
       minute: "2-digit",
     }),
   });
+
+  // Build timeline events berdasarkan order status untuk display riwayat
+  if (isCancelled) {
+    const cancelDate = new Date(order.updatedAt);
+    const { dateStr, timeStr } = formatEventDate(cancelDate);
+    events.push({
+      id: "ev-cancelled",
+      dateStr,
+      timeStr,
+      statusTitle: "Pesanan Dibatalkan",
+      description: "Pesanan telah dibatalkan. Jika Anda sudah melakukan pembayaran, dana akan dikembalikan dalam 3-7 hari kerja.",
+      isLatest: true,
+      stepCategory: "created",
+    });
+  }
 
   if (isDelivered) {
     const deliveryDate = shipment?.deliveredAt
@@ -255,36 +287,77 @@ export default function OrderTrackingPage({
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 shadow-sm">
+    <div className="min-h-screen bg-surface-container-low pb-16">
+      <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-surface px-4 py-3 shadow-sm">
         <button
           onClick={() => router.push(`/orders/${orderId}`)}
-          className="rounded-full p-1.5 text-gray-600 transition hover:bg-gray-100"
+          className="rounded-full p-1.5 text-muted-foreground transition hover:bg-surface-container"
           aria-label="Kembali"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-base font-bold text-gray-900">Status Pengiriman</h1>
+        <h1 className="text-base font-bold text-foreground">Status Pengiriman</h1>
       </div>
 
-      <div className="mx-auto max-w-2xl px-4 pt-6 pb-8 space-y-5">
+      <div className="container-custom pt-6 pb-8 space-y-5">
+        {/* Order ID Copy Section */}
+        <div className="card-elevated p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-foreground">Order ID</span>
+            <span className="text-xs text-muted-foreground">ID Referensi Transaksi</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <code className="flex-1 text-base font-mono font-semibold text-foreground bg-surface px-3 py-2 rounded border border-border">
+              {order.orderNumber}
+            </code>
+            
+            <button
+              onClick={() => handleCopyOrderId(order.orderNumber)}
+              className="btn-outline flex items-center gap-2 text-sm px-4 py-2 whitespace-nowrap"
+              title="Salin Order ID"
+            >
+              {copiedOrderId ? (
+                <>
+                  <Check className="w-4 h-4 text-success" />
+                  <span>Tersalin</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  <span>Salin ID</span>
+                </>
+              )}
+            </button>
+          </div>
+          
+          <p className="text-xs text-muted-foreground mt-2">
+            Gunakan Order ID ini untuk mencari atau memfilter pesanan di menu Riwayat Pesanan.
+          </p>
+        </div>
+
         {/* 1. Header Estimasi & Horizontal Stepper */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md">
+        <div className="card-elevated p-6">
           <div className="mb-5">
-            <p className="text-xl font-bold text-gray-900 leading-tight">
+            <p className="text-xl font-bold text-foreground leading-tight">
               {isDelivered
                 ? "Pesanan telah tiba di tujuan"
                 : `Pesanan tiba pada ${formattedEstArrival}`}
             </p>
-            <p className="text-sm text-gray-600 mt-1.5 font-medium">
+            <p className="text-sm text-muted-foreground mt-1.5 font-medium">
               Marketplace Multi-Florist • Area Service Jawa Timur
             </p>
+            {!isDelivered && (
+              <p className="text-xs text-muted-foreground mt-2">
+                * Estimasi pengiriman dapat berubah tergantung kondisi kurir
+              </p>
+            )}
           </div>
 
           <div className="relative mt-7 px-4">
-            <div className="absolute left-10 right-10 top-3.5 h-1 bg-gray-200 -z-0 rounded-full">
+            <div className="absolute left-10 right-10 top-3.5 h-1 bg-border -z-0 rounded-full">
               <div
-                className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                className="h-full bg-success transition-all duration-500 rounded-full"
                 style={{
                   width:
                     activeStep === 1 ? "0%" : activeStep === 2 ? "50%" : "100%",
@@ -297,8 +370,8 @@ export default function OrderTrackingPage({
                 <div
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white transition shadow-sm ${
                     activeStep >= 1
-                      ? "bg-emerald-500 ring-4 ring-emerald-100"
-                      : "bg-gray-300"
+                      ? "bg-success ring-4 ring-success/20"
+                      : "bg-muted-foreground/40"
                   }`}
                 >
                   <Check className="h-4 w-4" />
@@ -306,8 +379,8 @@ export default function OrderTrackingPage({
                 <span
                   className={`mt-2.5 text-center text-[13px] font-medium leading-tight ${
                     activeStep >= 1
-                      ? "text-emerald-700 font-semibold"
-                      : "text-gray-500"
+                      ? "text-success font-semibold"
+                      : "text-muted-foreground"
                   }`}
                 >
                   Sedang Dikirim
@@ -318,8 +391,8 @@ export default function OrderTrackingPage({
                 <div
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white transition shadow-sm ${
                     activeStep >= 2
-                      ? "bg-emerald-500 ring-4 ring-emerald-100"
-                      : "bg-gray-300"
+                      ? "bg-success ring-4 ring-success/20"
+                      : "bg-muted-foreground/40"
                   }`}
                 >
                   {activeStep >= 2 ? (
@@ -331,8 +404,8 @@ export default function OrderTrackingPage({
                 <span
                   className={`mt-2.5 text-center text-[13px] font-medium leading-tight ${
                     activeStep >= 2
-                      ? "text-emerald-700 font-semibold"
-                      : "text-gray-500"
+                      ? "text-success font-semibold"
+                      : "text-muted-foreground"
                   }`}
                 >
                   Menuju Alamatmu
@@ -343,8 +416,8 @@ export default function OrderTrackingPage({
                 <div
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white transition shadow-sm ${
                     activeStep === 3
-                      ? "bg-emerald-500 ring-4 ring-emerald-100"
-                      : "bg-gray-300"
+                      ? "bg-success ring-4 ring-success/20"
+                      : "bg-muted-foreground/40"
                   }`}
                 >
                   {activeStep === 3 ? (
@@ -356,8 +429,8 @@ export default function OrderTrackingPage({
                 <span
                   className={`mt-2.5 text-center text-[13px] font-medium leading-tight ${
                     activeStep === 3
-                      ? "text-emerald-700 font-semibold"
-                      : "text-gray-500"
+                      ? "text-success font-semibold"
+                      : "text-muted-foreground"
                   }`}
                 >
                   Pesanan Tiba
@@ -368,44 +441,53 @@ export default function OrderTrackingPage({
         </div>
 
         {/* 2. Kartu Kurir & Nomor Resi */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-md">
+        <div className="card-elevated p-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <img
                 src={order.items[0]?.product.image || "/placeholder.png"}
                 alt={order.items[0]?.product.name || "Produk"}
-                className="h-14 w-14 rounded-lg border border-gray-100 object-cover shadow-sm"
+                className="h-14 w-14 rounded-lg border border-border object-cover shadow-sm"
               />
               <div>
-                <p className="text-sm font-bold text-gray-900">{courierName}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="font-mono text-xs text-gray-700 font-medium">
-                    {trackingNo}
-                  </span>
-                  <button
-                    onClick={() => handleCopyResi(trackingNo)}
-                    className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-200 transition"
-                    title="Salin Resi"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="h-3 w-3 text-emerald-600" />
-                        <span className="text-emerald-600">Tersalin!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3 w-3" />
-                        <span>Salin</span>
-                      </>
-                    )}
-                  </button>
+                <p className="text-sm font-bold text-foreground">{courierName}</p>
+                <div className="mt-1">
+                  {shipment?.trackingNumber ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">No. Resi:</span>
+                      <span className="font-mono text-xs text-foreground/80 font-medium">
+                        {shipment.trackingNumber}
+                      </span>
+                      <button
+                        onClick={() => handleCopyResi(shipment.trackingNumber!)}
+                        className="inline-flex items-center gap-1 rounded-md bg-surface-container px-2 py-1 text-[11px] font-semibold text-foreground/80 hover:bg-surface-container-low transition"
+                        title="Salin Nomor Resi"
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="h-3 w-3 text-success" />
+                            <span className="text-success">Tersalin!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>Salin Resi</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">
+                      Nomor resi belum tersedia — menunggu florist memproses pesanan
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
 
             <Link
               href={`/orders/${orderId}`}
-              className="whitespace-nowrap rounded-lg border border-gray-300 px-3.5 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 shadow-sm"
+              className="whitespace-nowrap rounded-lg border border-border px-3.5 py-2 text-xs font-semibold text-foreground/80 transition hover:bg-surface-container-low shadow-sm"
             >
               Rincian Pesanan
             </Link>
@@ -413,27 +495,32 @@ export default function OrderTrackingPage({
         </div>
 
         {/* 3. Timeline Vertikal */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-md">
-          <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-3 mb-5">
+        <div className="card-elevated p-6">
+          <h2 className="text-base font-bold text-foreground border-b border-border pb-3 mb-5">
             Riwayat Pengiriman
           </h2>
 
           <div className="relative pl-7 space-y-7">
-            <div className="absolute left-[13px] top-3 bottom-3 w-[3px] bg-gray-300 rounded-full" />
+            <div className="absolute left-[13px] top-3 bottom-3 w-[3px] bg-border rounded-full" />
 
             {events.map((ev, index) => {
               const isFirst = index === 0;
+              const isCancelledEvent = ev.id === "ev-cancelled";
 
               return (
                 <div key={ev.id} className="relative flex items-start gap-4">
                   <div className="absolute -left-7 mt-0.5">
-                    {isFirst ? (
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white ring-4 ring-emerald-100 shadow-sm">
+                    {isCancelledEvent ? (
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-error/10 text-error ring-4 ring-error/20 shadow-sm">
+                        <XCircle className="h-4.5 w-4.5" />
+                      </div>
+                    ) : isFirst ? (
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-success text-white ring-4 ring-success/20 shadow-sm">
                         <CheckCircle2 className="h-4.5 w-4.5" />
                       </div>
                     ) : (
                       <div className="flex h-7 w-7 items-center justify-center">
-                        <div className="h-3 w-3 rounded-full bg-gray-400 ring-2 ring-white shadow-sm" />
+                        <div className="h-3 w-3 rounded-full bg-muted-foreground/50 ring-2 ring-white shadow-sm" />
                       </div>
                     )}
                   </div>
@@ -442,7 +529,11 @@ export default function OrderTrackingPage({
                     <div className="flex items-center gap-2">
                       <span
                         className={`text-xs font-semibold ${
-                          isFirst ? "text-emerald-700" : "text-gray-600"
+                          isCancelledEvent
+                            ? "text-error"
+                            : isFirst
+                              ? "text-success"
+                              : "text-muted-foreground"
                         }`}
                       >
                         {ev.dateStr} • {ev.timeStr}
@@ -451,9 +542,11 @@ export default function OrderTrackingPage({
 
                     <p
                       className={`mt-1.5 text-sm leading-snug ${
-                        isFirst
-                          ? "font-bold text-gray-900"
-                          : "font-semibold text-gray-800"
+                        isCancelledEvent
+                          ? "font-bold text-error"
+                          : isFirst
+                            ? "font-bold text-foreground"
+                            : "font-semibold text-foreground/90"
                       }`}
                     >
                       {ev.statusTitle}
@@ -461,7 +554,11 @@ export default function OrderTrackingPage({
 
                     <p
                       className={`mt-1 text-xs leading-relaxed ${
-                        isFirst ? "text-gray-700" : "text-gray-600"
+                        isCancelledEvent
+                          ? "text-error/80"
+                          : isFirst
+                            ? "text-foreground/80"
+                            : "text-muted-foreground"
                       }`}
                     >
                       {ev.description}
@@ -475,15 +572,15 @@ export default function OrderTrackingPage({
 
         {/* Info Alamat */}
         {order.address && (
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-md flex items-start gap-3">
-            <MapPin className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-            <div className="text-xs text-gray-700 space-y-1 leading-relaxed">
-              <p className="font-bold text-gray-900 text-sm">
+          <div className="card-elevated p-5 flex items-start gap-3">
+            <MapPin className="h-5 w-5 text-success shrink-0 mt-0.5" />
+            <div className="text-xs text-foreground/80 space-y-1 leading-relaxed">
+              <p className="font-bold text-foreground text-sm">
                 Alamat Tujuan: {order.address.recipientName} (
                 {order.address.phone})
               </p>
               <p>{order.address.fullAddress}</p>
-              <p className="font-semibold text-emerald-700">
+              <p className="font-semibold text-success">
                 {order.address.city}, {order.address.province}
               </p>
             </div>

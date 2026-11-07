@@ -8,15 +8,19 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
+// PUT: Update review by ID
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
+    // Validate user session dan parse review ID
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id: reviewId } = await params;
 
+    // Query existing review untuk validation
     const existingReview = await prisma.review.findUnique({
       where: { id: reviewId },
     });
 
+    // Validate review existence
     if (!existingReview) {
       return NextResponse.json(
         { success: false, message: "Ulasan tidak ditemukan" },
@@ -24,6 +28,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Validate ownership
     if (existingReview.userId !== userId) {
       return NextResponse.json(
         {
@@ -35,10 +40,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Parse dan validate request body
     const body = await request.json();
     const validatedData = updateReviewSchema.parse(body);
     const { rating, comment, images } = validatedData;
 
+    // Update review dengan data baru
     const updatedReview = await prisma.review.update({
       where: { id: reviewId },
       data: {
@@ -58,6 +65,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
 
+    // Return response dengan updated review
     return NextResponse.json({
       success: true,
       message: "Ulasan berhasil diperbarui",
@@ -66,6 +74,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
+    // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -76,6 +85,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         { status: 400 },
       );
     }
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }
@@ -89,15 +99,19 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 }
 
+// DELETE: Remove review by ID
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
+    // Validate user session dan parse review ID
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id: reviewId } = await params;
 
+    // Query existing review untuk validation
     const existingReview = await prisma.review.findUnique({
       where: { id: reviewId },
     });
 
+    // Validate review existence
     if (!existingReview) {
       return NextResponse.json(
         {
@@ -107,6 +121,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
         { status: 404 },
       );
     }
+    // Validate ownership
     if (existingReview.userId !== userId) {
       return NextResponse.json(
         {
@@ -118,15 +133,18 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Delete review dari database
     await prisma.review.delete({
       where: { id: reviewId },
     });
 
+    // Return success response
     return NextResponse.json({
       success: true,
       message: "Ulasan berhasil dihapus",
     });
   } catch (error) {
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }

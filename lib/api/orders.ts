@@ -60,6 +60,15 @@ interface OrderSummary {
   status: string;
   itemCount: number;
   createdAt: string;
+  items: Array<{
+    id: string;
+    quantity?: number;
+    product: {
+      id: string;
+      name: string;
+      image?: string;
+    };
+  }>;
   payment: {
     status: string;
   };
@@ -100,7 +109,7 @@ interface ShipmentResponse {
   };
 }
 
-// fetch detail order by ID
+// Fetch detail order lengkap berdasarkan orderId
 export async function getOrderDetail(
   orderId: string,
 ): Promise<OrderDetailResponse> {
@@ -117,7 +126,7 @@ export async function getOrderDetail(
   return response.json();
 }
 
-// order history pagination & filter
+// Fetch order history dengan filter status dan pagination
 export async function getOrderHistory(params?: {
   status?: string;
   page?: number;
@@ -141,7 +150,26 @@ export async function getOrderHistory(params?: {
   return response.json();
 }
 
-// Fetch pengiriman berdasarkan orderId
+// Cancel order dengan status PENDING
+export async function cancelOrder(orderId: string): Promise<{
+  success: boolean;
+  message: string;
+  data?: { orderId: string };
+}> {
+  const response = await fetch(`/api/customer/orders/${orderId}/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || "Gagal membatalkan pesanan");
+  }
+  return data;
+}
+
+// Fetch data shipment berdasarkan orderId
 export async function getOrderShipment(
   orderId: string,
 ): Promise<ShipmentResponse> {

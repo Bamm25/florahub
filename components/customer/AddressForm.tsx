@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import Modal from "@/components/forms/Modal";
+import FormField from "@/components/forms/FormField";
 
 interface Address {
   id: string;
@@ -15,18 +16,31 @@ interface Address {
   isDefault: boolean;
 }
 
+interface AddressFormData {
+  label: string;
+  recipientName: string;
+  phone: string;
+  fullAddress: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  isDefault: boolean;
+}
+
 interface AddressFormProps {
   address?: Address | null;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: AddressFormData) => Promise<void>;
   onCancel: () => void;
 }
 
+// Modal form untuk tambah atau edit alamat pengiriman
 export default function AddressForm({
   address,
   onSubmit,
   onCancel,
 }: AddressFormProps) {
-  const [formData, setFormData] = useState({
+  // Initialize form data dari address yang ada atau default kosong
+  const [formData, setFormData] = useState<AddressFormData>({
     label: address?.label || "",
     recipientName: address?.recipientName || "",
     phone: address?.phone || "",
@@ -39,14 +53,96 @@ export default function AddressForm({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Helper untuk update field dan clear error saat user mengetik
+  const set =
+    (field: keyof Omit<AddressFormData, "isDefault">) => (value: string) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
+    };
+
+  // Validate semua field form dengan rules spesifik
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.label.trim()) {
+      errors.label = "Label alamat tidak boleh kosong";
+    } else if (formData.label.trim().length < 2) {
+      errors.label = "Label alamat minimal 2 karakter";
+    }
+
+    if (!formData.recipientName.trim()) {
+      errors.recipientName = "Nama penerima tidak boleh kosong";
+    } else if (formData.recipientName.trim().length < 3) {
+      errors.recipientName = "Nama penerima minimal 3 karakter";
+    }
+
+    if (!formData.phone.trim()) {
+      errors.phone = "No. telepon tidak boleh kosong";
+    } else if (!/^\d+$/.test(formData.phone.trim())) {
+      errors.phone = "No. telepon harus berupa angka";
+    } else if (
+      formData.phone.trim().length < 10 ||
+      formData.phone.trim().length > 13
+    ) {
+      errors.phone = "No. telepon harus 10-13 digit";
+    }
+
+    if (!formData.fullAddress.trim()) {
+      errors.fullAddress = "Alamat lengkap tidak boleh kosong";
+    } else if (formData.fullAddress.trim().length < 10) {
+      errors.fullAddress = "Alamat lengkap minimal 10 karakter";
+    }
+
+    if (!formData.city.trim()) {
+      errors.city = "Kota tidak boleh kosong";
+    } else if (formData.city.trim().length < 2) {
+      errors.city = "Nama kota minimal 2 karakter";
+    }
+
+    if (!formData.province.trim()) {
+      errors.province = "Provinsi tidak boleh kosong";
+    } else if (formData.province.trim().length < 2) {
+      errors.province = "Nama provinsi minimal 2 karakter";
+    }
+
+    if (!formData.postalCode.trim()) {
+      errors.postalCode = "Kode pos tidak boleh kosong";
+    } else if (!/^\d+$/.test(formData.postalCode.trim())) {
+      errors.postalCode = "Kode pos harus berupa angka";
+    } else if (formData.postalCode.trim().length !== 5) {
+      errors.postalCode = "Kode pos harus 5 digit";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Submit form setelah validate dan trim whitespace
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      await onSubmit(formData);
+      // Trim semua field text sebelum submit
+      const trimmedData: AddressFormData = {
+        ...formData,
+        label: formData.label.trim(),
+        recipientName: formData.recipientName.trim(),
+        phone: formData.phone.trim(),
+        fullAddress: formData.fullAddress.trim(),
+        city: formData.city.trim(),
+        province: formData.province.trim(),
+        postalCode: formData.postalCode.trim(),
+      };
+      await onSubmit(trimmedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan");
       setIsSubmitting(false);
@@ -54,176 +150,124 @@ export default function AddressForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">
-            {address ? "Edit Alamat" : "Tambah Alamat Baru"}
-          </h2>
-          <button
-            onClick={onCancel}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            <X className="h-5 w-5" />
-          </button>
+    <Modal
+      isOpen
+      onClose={onCancel}
+      title={address ? "Edit Alamat" : "Tambah Alamat Baru"}
+      size="md"
+    >
+      {error && (
+        <div className="mb-4 rounded-lg border border-error/20 bg-error/10 p-4 text-sm text-error">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <FormField
+          label="Label Alamat"
+          name="label"
+          value={formData.label}
+          onChange={set("label")}
+          error={formErrors.label}
+          placeholder="Contoh: Rumah, Kantor, Apartemen"
+          required
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Nama Penerima"
+            name="recipientName"
+            value={formData.recipientName}
+            onChange={set("recipientName")}
+            error={formErrors.recipientName}
+            placeholder="Nama lengkap penerima"
+            required
+          />
+          <FormField
+            label="No. Telepon"
+            name="phone"
+            value={formData.phone}
+            onChange={set("phone")}
+            error={formErrors.phone}
+            placeholder="08xxxxxxxxxx"
+            required
+          />
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        <FormField
+          label="Alamat Lengkap"
+          name="fullAddress"
+          type="textarea"
+          value={formData.fullAddress}
+          onChange={set("fullAddress")}
+          error={formErrors.fullAddress}
+          placeholder="Jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
+          rows={3}
+          required
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Label Alamat <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.label}
-              onChange={(e) =>
-                setFormData({ ...formData, label: e.target.value })
-              }
-              placeholder="Contoh: Rumah, Kantor, Apartemen"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-          </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormField
+            label="Kota"
+            name="city"
+            value={formData.city}
+            onChange={set("city")}
+            error={formErrors.city}
+            placeholder="Contoh: Jakarta Selatan"
+            required
+          />
+          <FormField
+            label="Provinsi"
+            name="province"
+            value={formData.province}
+            onChange={set("province")}
+            error={formErrors.province}
+            placeholder="Contoh: DKI Jakarta"
+            required
+          />
+          <FormField
+            label="Kode Pos"
+            name="postalCode"
+            value={formData.postalCode}
+            onChange={set("postalCode")}
+            error={formErrors.postalCode}
+            placeholder="12345"
+            required
+          />
+        </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Nama Penerima <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.recipientName}
-                onChange={(e) =>
-                  setFormData({ ...formData, recipientName: e.target.value })
-                }
-                placeholder="Nama lengkap penerima"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="isDefault"
+            checked={formData.isDefault}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, isDefault: e.target.checked }))
+            }
+            className="h-4 w-4 rounded border-border text-success focus:ring-success/20"
+          />
+          <label htmlFor="isDefault" className="text-sm text-foreground/80">
+            Jadikan alamat utama
+          </label>
+        </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                No. Telepon <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="tel"
-                required
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
-                placeholder="08xxxxxxxxxx"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Alamat Lengkap <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              required
-              rows={3}
-              value={formData.fullAddress}
-              onChange={(e) =>
-                setFormData({ ...formData, fullAddress: e.target.value })
-              }
-              placeholder="Jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Kota <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.city}
-                onChange={(e) =>
-                  setFormData({ ...formData, city: e.target.value })
-                }
-                placeholder="Contoh: Jakarta Selatan"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Provinsi <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.province}
-                onChange={(e) =>
-                  setFormData({ ...formData, province: e.target.value })
-                }
-                placeholder="Contoh: DKI Jakarta"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Kode Pos <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.postalCode}
-                onChange={(e) =>
-                  setFormData({ ...formData, postalCode: e.target.value })
-                }
-                placeholder="12345"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isDefault"
-              checked={formData.isDefault}
-              onChange={(e) =>
-                setFormData({ ...formData, isDefault: e.target.checked })
-              }
-              className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-            />
-            <label htmlFor="isDefault" className="text-sm text-gray-700">
-              Jadikan alamat utama
-            </label>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-            >
-              {isSubmitting ? "Menyimpan..." : "Simpan Alamat"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex gap-3 pt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn-secondary flex-1"
+          >
+            Batal
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="flex-1 rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white hover:bg-success/90 disabled:cursor-not-allowed disabled:bg-muted-foreground/40"
+          >
+            {isSubmitting ? "Menyimpan..." : "Simpan Alamat"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

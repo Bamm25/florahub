@@ -4,19 +4,24 @@ import { NextResponse } from "next/server";
 import { validateCouponSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// POST: Validate coupon code dan calculate discount
 export async function POST(request: Request) {
   try {
+    // Validate user session dan parse request body
     const { userId } = await requireAuth(request);
     const body = await request.json();
     const validated = validateCouponSchema.parse(body);
     const { code, subtotal, shippingCost = 0 } = validated;
 
+    // Normalize coupon code ke uppercase
     const normalizedCode = code.trim().toUpperCase();
 
+    // Query coupon by code
     const coupon = await prisma.coupon.findUnique({
       where: { code: normalizedCode },
     });
 
+    // Validate coupon existence
     if (!coupon) {
       return NextResponse.json(
         {
@@ -27,6 +32,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate coupon masih aktif
     if (!coupon.isActive) {
       return NextResponse.json(
         {
@@ -38,6 +44,7 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
+    // Validate coupon valid date range - belum berlaku
     if (now < coupon.validFrom) {
       return NextResponse.json(
         {
@@ -48,6 +55,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate coupon valid date range - sudah expired
     if (now > coupon.validUntil) {
       return NextResponse.json(
         {
@@ -58,6 +66,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate usage limit global tidak exceed
     if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) {
       return NextResponse.json(
         {
@@ -68,6 +77,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Check user usage count untuk coupon ini
     const userUsageCount = await prisma.couponUsage.count({
       where: {
         couponId: coupon.id,
@@ -75,6 +85,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Validate user usage tidak exceed limit
     if (userUsageCount >= coupon.usagePerUser) {
       return NextResponse.json(
         {
@@ -85,6 +96,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate minimum purchase requirement
     if (coupon.minPurchase !== null && subtotal < coupon.minPurchase) {
       return NextResponse.json(
         {
@@ -97,6 +109,7 @@ export async function POST(request: Request) {
 
     let discountAmount = 0;
 
+    // Calculate discount berdasarkan type PERCENTAGE
     if (coupon.type === "PERCENTAGE") {
       const calculatedDiscount = (subtotal * coupon.value) / 100;
       if (
@@ -108,18 +121,23 @@ export async function POST(request: Request) {
         discountAmount = calculatedDiscount;
       }
     } else if (coupon.type === "FIXED") {
+      // Calculate discount untuk type FIXED
       discountAmount = Math.min(coupon.value, subtotal);
     } else if (coupon.type === "FREE_SHIPPING") {
+      // Calculate discount untuk type FREE_SHIPPING
       const maxShippingDiscount =
         coupon.maxDiscount || coupon.value || shippingCost;
       discountAmount = Math.min(shippingCost, maxShippingDiscount);
     }
 
+    // Round discount amount
     discountAmount = Math.round(discountAmount);
 
+    // Calculate final amount setelah discount
     const totalOrderAmount = subtotal + shippingCost;
     const finalAmount = Math.max(0, totalOrderAmount - discountAmount);
 
+    // Return response dengan coupon dan calculation details
     return NextResponse.json({
       success: true,
       message: "Kupon berhasil diterapkan",
@@ -142,6 +160,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -152,6 +171,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }

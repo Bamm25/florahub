@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import {
   getOrderDetail,
   getOrderShipment,
+  cancelOrder,
   type Shipment,
 } from "@/lib/api/orders";
 import {
@@ -18,6 +19,8 @@ import {
   Truck,
   Home,
   ArrowLeft,
+  AlertTriangle,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -63,13 +66,14 @@ interface OrderDetail {
   } | null;
 }
 
+// Halaman detail pesanan dengan info lengkap dan tombol cancel
 export default function OrderDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const resolvedParams = use(params);
   const orderId = resolvedParams.id;
 
@@ -77,7 +81,11 @@ export default function OrderDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [shipment, setShipment] = useState<Shipment | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
+  // Redirect ke login jika belum auth, fetch order detail dan shipment info
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push(`/auth/login?callbackUrl=/orders/${orderId}`);
@@ -90,12 +98,12 @@ export default function OrderDetailPage({
         const response = await getOrderDetail(orderId);
         setOrder(response.data.order);
 
-        // Coba fetch shipment, abaikan jika belum ada (404)
+        // Fetch shipment info jika tersedia, skip error jika belum ada
         try {
           const shipmentRes = await getOrderShipment(orderId);
           setShipment(shipmentRes.data.shipment);
         } catch {
-          // Belum ada shipment, tidak masalah
+          // Shipment belum tersedia untuk order ini
           setShipment(null);
         }
       } catch (error) {
@@ -112,6 +120,7 @@ export default function OrderDetailPage({
     }
   }, [status, orderId, router]);
 
+  // Render loading skeleton untuk order detail
   if (status === "loading" || isLoading) {
     return (
       <div className="container-custom section-spacing">
@@ -121,6 +130,7 @@ export default function OrderDetailPage({
     );
   }
 
+  // Render error state jika order tidak ditemukan
   if (errorMessage || !order) {
     return (
       <div className="container-custom section-spacing">
@@ -141,10 +151,11 @@ export default function OrderDetailPage({
     );
   }
 
+  // Mapping status order ke icon, label, warna, dan bg color
   const getStatusConfig = (status: string) => {
     const configs: Record<
       string,
-      { icon: any; label: string; color: string; bgColor: string }
+      { icon: LucideIcon; label: string; color: string; bgColor: string }
     > = {
       PENDING: {
         icon: Clock,
@@ -196,6 +207,23 @@ export default function OrderDetailPage({
   const statusConfig = getStatusConfig(order.status);
   const StatusIcon = statusConfig.icon;
 
+  // Handle konfirmasi cancel order dan update state lokal
+  const handleConfirmCancel = async () => {
+    try {
+      setIsCancelling(true);
+      setCancelError(null);
+      await cancelOrder(order.id);
+      setShowCancelModal(false);
+      setOrder((prev) => prev ? { ...prev, status: "CANCELLED" } : prev);
+    } catch (error) {
+      setCancelError(
+        error instanceof Error ? error.message : "Gagal membatalkan pesanan",
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <div className="container-custom section-spacing">
       {/* Back Button */}
@@ -229,8 +257,8 @@ export default function OrderDetailPage({
           })}
         </p>
 
-        {/* Tombol Menuju Halaman Tracking */}
-        <div className="mt-6 flex justify-center">
+        {/* Action buttons */}
+        <div className="mt-6 flex justify-center gap-3 flex-wrap">
           <button
             onClick={() => router.push(`/orders/${order.id}/tracking`)}
             className="btn-primary"
@@ -238,8 +266,82 @@ export default function OrderDetailPage({
             <Truck className="mr-2 h-5 w-5" />
             <span>Lacak Pengiriman Pesanan</span>
           </button>
+
+          {order.status === "PENDING" && (
+            <button
+              onClick={() => {
+                setCancelError(null);
+                setShowCancelModal(true);
+              }}
+              className="flex items-center gap-2 rounded-xl border border-error/50 bg-error/10 px-5 py-2.5 text-sm font-semibold text-error hover:bg-error/20 transition-colors"
+            >
+              <XCircle className="h-5 w-5" />
+              Batalkan Pesanan
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !isCancelling && setShowCancelModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl border border-border">
+            <div className="mb-4 flex justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-error/10">
+                <AlertTriangle className="h-8 w-8 text-error" />
+              </div>
+            </div>
+            <h2 className="mb-2 text-center text-xl font-bold text-foreground">
+              Batalkan Pesanan?
+            </h2>
+            <p className="mb-2 text-center text-sm text-muted-foreground">
+              Pesanan{" "}
+              <span className="font-semibold text-foreground">
+                #{order.orderNumber}
+              </span>{" "}
+              akan dibatalkan dan stok produk akan dikembalikan.
+            </p>
+            <p className="mb-6 text-center text-sm font-medium text-warning">
+              Tindakan ini tidak dapat dibatalkan.
+            </p>
+            {cancelError && (
+              <div className="mb-4 rounded-xl bg-error/10 border border-error/30 p-3 text-sm text-error text-center">
+                {cancelError}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                disabled={isCancelling}
+                className="flex-1 btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Tidak, Kembali
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={isCancelling}
+                className="flex-1 rounded-xl bg-error px-4 py-2.5 text-sm font-semibold text-white hover:bg-error/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isCancelling ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Membatalkan...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-4 w-4" />
+                    Ya, Batalkan
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">

@@ -336,11 +336,11 @@ export async function POST(request: Request) {
       },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error) {
     if (error instanceof NextResponse) {
       return error;
     }
-    if (error?.name === "ZodError" || error?.issues) {
+    if (error && typeof error === 'object' && 'name' in error && error.name === "ZodError" && 'issues' in error) {
       console.error("Zod validation error checkout:", error.issues);
       return NextResponse.json(
         {
@@ -351,11 +351,12 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    const message = error instanceof Error ? error.message : "Gagal membuat order";
     console.error("Error checkout:", error);
     return NextResponse.json(
       {
         success: false,
-        message: error?.message || "Gagal membuat order",
+        message,
       },
       { status: 500 },
     );

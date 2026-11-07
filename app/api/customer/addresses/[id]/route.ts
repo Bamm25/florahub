@@ -6,15 +6,19 @@ import { z } from "zod";
 
 type RouteParms = { params: Promise<{ id: string }> };
 
+// GET: Fetch detail address by ID
 export async function GET(request: Request, { params }: RouteParms) {
   try {
+    // Validate user session dan parse address ID
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
 
+    // Query address by ID
     const address = await prisma.address.findUnique({
       where: { id },
     });
 
+    // Validate address existence
     if (!address) {
       return NextResponse.json(
         {
@@ -25,6 +29,7 @@ export async function GET(request: Request, { params }: RouteParms) {
       );
     }
 
+    // Validate ownership
     if (address.userId !== userId) {
       return NextResponse.json(
         {
@@ -35,12 +40,14 @@ export async function GET(request: Request, { params }: RouteParms) {
       );
     }
 
+    // Return response dengan address detail
     return NextResponse.json({
       success: true,
       message: "Detail alamat berhasil diambil",
       data: { address },
     });
   } catch (error) {
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }
@@ -54,15 +61,19 @@ export async function GET(request: Request, { params }: RouteParms) {
   }
 }
 
+// PUT: Update address by ID
 export async function PUT(request: Request, { params }: RouteParms) {
   try {
+    // Validate user session dan parse address ID
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
 
+    // Query existing address untuk validation
     const existingAddress = await prisma.address.findUnique({
       where: { id },
     });
 
+    // Validate address existence
     if (!existingAddress) {
       return NextResponse.json(
         {
@@ -73,6 +84,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
       );
     }
 
+    // Validate ownership
     if (existingAddress.userId !== userId) {
       return NextResponse.json(
         {
@@ -83,6 +95,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
       );
     }
 
+    // Parse dan validate request body
     const body = await request.json();
     const validatedData = updateAddressSchema.parse(body);
     const {
@@ -98,6 +111,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
       isDefault,
     } = validatedData;
 
+    // Unset default dari addresses lain jika ini jadi default
     if (isDefault === true) {
       await prisma.address.updateMany({
         where: {
@@ -110,6 +124,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
       });
     }
 
+    // Update address dengan data baru
     const updatedAddress = await prisma.address.update({
       where: { id },
       data: {
@@ -136,12 +151,14 @@ export async function PUT(request: Request, { params }: RouteParms) {
       },
     });
 
+    // Return response dengan updated address
     return NextResponse.json({
       success: true,
       message: "Alamat berhasil diperbarui",
       data: { address: updatedAddress },
     });
   } catch (error) {
+    // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -152,6 +169,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
         { status: 400 },
       );
     }
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }
@@ -165,15 +183,19 @@ export async function PUT(request: Request, { params }: RouteParms) {
   }
 }
 
+// DELETE: Remove address by ID
 export async function DELETE(request: Request, { params }: RouteParms) {
   try {
+    // Validate user session dan parse address ID
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
 
+    // Query existing address untuk validation
     const existingAddress = await prisma.address.findUnique({
       where: { id },
     });
 
+    // Validate address existence
     if (!existingAddress) {
       return NextResponse.json(
         {
@@ -184,6 +206,7 @@ export async function DELETE(request: Request, { params }: RouteParms) {
       );
     }
 
+    // Validate ownership
     if (existingAddress.userId !== userId) {
       return NextResponse.json(
         {
@@ -194,10 +217,12 @@ export async function DELETE(request: Request, { params }: RouteParms) {
       );
     }
 
+    // Delete address dari database
     await prisma.address.delete({
       where: { id },
     });
 
+    // Set default ke address lain jika yang dihapus default
     if (existingAddress.isDefault) {
       const remainingAddress = await prisma.address.findFirst({
         where: { userId },
@@ -214,11 +239,13 @@ export async function DELETE(request: Request, { params }: RouteParms) {
       }
     }
 
+    // Return success response
     return NextResponse.json({
       success: true,
       message: "Alamat berhasil dihapus",
     });
   } catch (error) {
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }

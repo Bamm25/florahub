@@ -4,17 +4,20 @@ import { NextResponse } from "next/server";
 import { updateCartItemSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// PATCH: Update quantity cart item
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Validate user session dan parse params
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
     const body = await request.json();
     const validated = updateCartItemSchema.parse(body);
     const { quantity } = validated;
 
+    // Query cart item dengan cart dan product details
     const cartItem = await prisma.cartItem.findUnique({
       where: { id },
       include: {
@@ -32,6 +35,7 @@ export async function PATCH(
       },
     });
 
+    // Validate cart item existence
     if (!cartItem) {
       return NextResponse.json(
         { success: false, message: "Item tidak ditemukan di keranjang" },
@@ -39,6 +43,7 @@ export async function PATCH(
       );
     }
 
+    // Validate ownership
     if (cartItem.cart.userId !== userId) {
       return NextResponse.json(
         { success: false, message: "Forbidden: Item ini bukan milik Anda" },
@@ -46,6 +51,7 @@ export async function PATCH(
       );
     }
 
+    // Validate product masih aktif
     if (!cartItem.product.isActive) {
       return NextResponse.json(
         { success: false, message: "Produk tidak tersedia lagi" },
@@ -53,6 +59,7 @@ export async function PATCH(
       );
     }
 
+    // Validate stock availability
     if (cartItem.product.stock < quantity) {
       return NextResponse.json(
         {
@@ -63,6 +70,7 @@ export async function PATCH(
       );
     }
 
+    // Update cart item quantity
     const updatedItem = await prisma.cartItem.update({
       where: { id },
       data: { quantity },
@@ -79,6 +87,7 @@ export async function PATCH(
       },
     });
 
+    // Return response dengan subtotal calculation
     return NextResponse.json(
       {
         success: true,
@@ -91,6 +100,7 @@ export async function PATCH(
       { status: 200 },
     );
   } catch (error) {
+    // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -101,6 +111,7 @@ export async function PATCH(
         { status: 400 },
       );
     }
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }
@@ -112,14 +123,17 @@ export async function PATCH(
   }
 }
 
+// DELETE: Remove item dari cart
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Validate user session dan parse params
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
 
+    // Query cart item dengan cart dan product name
     const cartItem = await prisma.cartItem.findUnique({
       where: { id },
       include: {
@@ -132,6 +146,7 @@ export async function DELETE(
       },
     });
 
+    // Validate cart item existence
     if (!cartItem) {
       return NextResponse.json(
         { success: false, message: "Item tidak ditemukan di keranjang" },
@@ -139,6 +154,7 @@ export async function DELETE(
       );
     }
 
+    // Validate ownership
     if (cartItem.cart.userId !== userId) {
       return NextResponse.json(
         {
@@ -149,10 +165,12 @@ export async function DELETE(
       );
     }
 
+    // Delete cart item dari database
     await prisma.cartItem.delete({
       where: { id },
     });
 
+    // Return success response dengan product name
     return NextResponse.json(
       {
         success: true,
@@ -161,6 +179,7 @@ export async function DELETE(
       { status: 200 },
     );
   } catch (error) {
+    // Handle auth errors
     if (error instanceof NextResponse) {
       return error;
     }
