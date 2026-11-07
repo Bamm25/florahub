@@ -51,22 +51,16 @@ graphify-out/
 *.bak
 app/globals.css.backup
 
-# Research documents (not for production)
-DESIGN_COMPARISON_ANALYSIS.md
-FundedNext.md
-Tradeify.md
-IMPLEMENTATION_PROGRESS.md
-QUICK_UPDATE_GUIDE.md
-
 # Documentation and reports (local development only)
-/docs/*.md
-VALIDATION_GUARDS_SUMMARY.md
-nesting-reduction-report.md
-INVENTORY_FIX_SUMMARY.md
-ACTION_PLAN_FULLSTACK.md
-FLORIST_DEVELOPMENT_ROADMAP.md
-FORM_PATTERNS_ANALYSIS.md
-component-architecture-analysis.md
+# Ignore all .md files except README.md
+*.md
+!README.md
+!/docs/ERD.txt
 
-# Graphify reports (regenerated on demand)
-/graphify-out/*.md
+# Temporary debug files
+COMMIT_MESSAGE.txt
+*.sql
+*.mjs
+*test-coupon*.ts
+debug-*.mjs
+fix-*.mjs
