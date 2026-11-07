@@ -240,8 +240,10 @@ export default function ProductDetailPage() {
                   max={product.stock}
                   value={quantity}
                   onChange={(e) => {
-                    const val = parseInt(e.target.value) || 1;
-                    setQuantity(Math.min(Math.max(1, val), product.stock));
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val)) {
+                      setQuantity(Math.min(Math.max(1, val), product.stock));
+                    }
                   }}
                   className="input-field w-24 text-center text-xl font-bold"
                 />

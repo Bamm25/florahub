@@ -121,11 +121,13 @@ export default function CartTable() {
                     max={item.stock}
                     value={item.quantity}
                     onChange={(e) => {
-                      const newQty = parseInt(e.target.value) || 1;
-                      updateQuantity(
-                        item.productId,
-                        Math.min(Math.max(1, newQty), item.stock),
-                      );
+                      const newQty = parseInt(e.target.value, 10);
+                      if (!isNaN(newQty)) {
+                        updateQuantity(
+                          item.productId,
+                          Math.min(Math.max(1, newQty), item.stock),
+                        );
+                      }
                     }}
                     className="w-16 rounded-md border border-gray-300 px-2 py-1 text-center text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
