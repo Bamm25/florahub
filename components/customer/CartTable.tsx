@@ -53,7 +53,7 @@ export default function CartTable() {
         {items.map((item) => (
           <div
             key={item.productId}
-            className="card-elevated !p-4 space-y-3"
+            className="card-elevated p-4 space-y-3"
           >
             {/* Product Info */}
             <div className="flex gap-3">

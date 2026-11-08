@@ -246,7 +246,7 @@ export const updateHarvestAnnouncementSchema = z.object({
 export const createPreorderSchema = z.object({
   harvestAnnouncementId: z.uuid("Harvest announcement ID tidak valid"),
   quantity: z.number().min(1, "Quantity minimal 1"),
-  notes: z.string().max(500).optional(),
+  notes: z.string().max(500).nullable().optional(),
 });
 
 // Update preorder
@@ -272,20 +272,20 @@ export const updatePurchaseSchema = z.object({
 export const createShipmentSchema = z.object({
   orderId: z.uuid("Order ID tidak valid"),
   courier: z.string().min(1, "Nama kurir wajib diisi").max(50),
-  service: z.string().max(20).optional(),
-  trackingNumber: z.string().max(100).optional(),
-  estimatedDays: z.number().int().min(1).optional(),
-  weight: z.number().int().min(1, "Berat minimal 1 gram").optional(),
+  service: z.string().max(20).nullable().optional(),
+  trackingNumber: z.string().max(100).nullable().optional(),
+  estimatedDays: z.number().int().min(1).nullable().optional(),
+  weight: z.number().min(0.01, "Berat minimal 0.01 kg").nullable().optional(),
 });
 
 // Update shipment
 export const updateShipmentStatusSchema = z.object({
   status: z.enum(["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"]),
   courier: z.string().min(1).max(50).optional(),
-  service: z.string().max(20).optional(),
-  trackingNumber: z.string().max(100).optional(),
-  estimatedDays: z.number().int().min(1).optional(),
-  weight: z.number().int().min(1).optional(),
+  service: z.string().max(20).nullable().optional(),
+  trackingNumber: z.string().max(100).nullable().optional(),
+  estimatedDays: z.number().int().min(1).nullable().optional(),
+  weight: z.number().min(0.01).nullable().optional(),
 });
 
 // Update sale

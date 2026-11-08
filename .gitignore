@@ -64,3 +64,7 @@ COMMIT_MESSAGE.txt
 *test-coupon*.ts
 debug-*.mjs
 fix-*.mjs
+
+# Uploaded files (but keep directory structure)
+public/uploads/**
+!public/uploads/**/.gitkeep

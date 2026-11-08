@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Bell, Check, CheckCheck, Trash2, Package, ShoppingCart, Calendar, TrendingUp } from "lucide-react";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorState from "@/components/ui/ErrorState";
@@ -107,13 +107,16 @@ export default function FloristNotificationsPage() {
 
   const getNotificationIcon = (type: string) => {
     const icons: Record<string, React.ReactNode> = {
-      ORDER: <ShoppingCart className="w-5 h-5 text-primary" />,
-      SHIPMENT: <Package className="w-5 h-5 text-info" />,
-      PRE_ORDER: <Calendar className="w-5 h-5 text-warning" />,
-      INVENTORY: <TrendingUp className="w-5 h-5 text-success" />,
-      SYSTEM: <Bell className="w-5 h-5 text-muted-foreground" />,
+      ORDER_CREATED: <ShoppingCart className="w-5 h-5 text-primary" />,
+      PAYMENT_SUCCESS: <ShoppingCart className="w-5 h-5 text-success" />,
+      SHIPMENT_UPDATE: <Package className="w-5 h-5 text-info" />,
+      LOW_STOCK_ALERT: <TrendingUp className="w-5 h-5 text-warning" />,
+      HARVEST_ANNOUNCEMENT: <Calendar className="w-5 h-5 text-success" />,
+      PREORDER_CONFIRMED: <Calendar className="w-5 h-5 text-warning" />,
+      REVIEW_REMINDER: <Bell className="w-5 h-5 text-muted-foreground" />,
+      COUPON_AVAILABLE: <Bell className="w-5 h-5 text-primary" />,
     };
-    return icons[type] || icons.SYSTEM;
+    return icons[type] || <Bell className="w-5 h-5 text-muted-foreground" />;
   };
 
   if (isLoading) {

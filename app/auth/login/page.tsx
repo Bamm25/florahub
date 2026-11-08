@@ -60,7 +60,17 @@ function LoginForm() {
         setIsLoading(false);
         return;
       }
-      router.push(callbackUrl);
+      
+      // Fetch session to determine user role
+      const { getSession } = await import("next-auth/react");
+      const session = await getSession();
+      
+      // Role-based redirect
+      if (session?.user && (session.user as any).role === "FLORIST") {
+        router.push("/florist/dashboard");
+      } else {
+        router.push(callbackUrl);
+      }
       router.refresh();
     } catch {
       setErrorMessage("Terjadi gangguan koneksi. Silakan coba sesaat lagi.");
@@ -162,7 +172,7 @@ function LoginForm() {
             </div>
             
             <div className="rounded-xl bg-success/5 p-4 text-sm text-success border border-success/20">
-              <strong className="font-bold">Demo Customer:</strong> budi@mail.com / password123
+              <strong className="font-bold">Demo Customer:</strong> customer@test.com / password123
             </div>
             
             <button

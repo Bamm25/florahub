@@ -11,6 +11,448 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id                    String                @id @default(cuid()) @db.Char(25)
+  name                  String                @db.VarChar(200)
+  email                 String                @unique @db.VarChar(255)
+  password              String                @db.Char(60)
+  role                  Role                  @default(CUSTOMER)
+  image                 String?               @db.VarChar(500)
+  phone                 String?               @db.VarChar(20)
+  isActive              Boolean               @default(true)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  addresses             Address[]             @relation("UserAddresses")
+  auditLogs             AuditLog[]
+  cart                  Cart?
+  couponsCreated        Coupon[]              @relation("CouponCreator")
+  couponUsages          CouponUsage[]
+  floristInventories    FloristInventory[]    @relation("FloristInventories")
+  harvestAnnouncements  HarvestAnnouncement[] @relation("SupplierAnnouncements")
+  harvestPreOrders      HarvestPreOrder[]     @relation("FloristPreOrders")
+  notifications         Notification[]
+  orders                Order[]               @relation("CustomerOrders")
+  products              Product[]             @relation("FloristProducts")
+  reviews               Review[]
+  supplierStocks        Stock[]               @relation("SupplierStocks")
+  floristStockPurchases StockTransaction[]    @relation("FloristPurchases")
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+}
+
+model Address {
+  id            String   @id @default(cuid()) @db.Char(25)
+  userId        String   @db.Char(25)
+  label         String   @db.VarChar(50)
+  recipientName String   @db.VarChar(200)
+  phone         String   @db.VarChar(20)
+  fullAddress   String
+  city          String   @db.VarChar(100)
+  province      String   @db.VarChar(100)
+  postalCode    String   @db.VarChar(10)
+  latitude      Float?
+  longitude     Float?
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation("UserAddresses", fields: [userId], references: [id], onDelete: Cascade)
+  orders        Order[]
+
+  @@index([userId])
+  @@index([isDefault])
+}
+
+model FlowerCategory {
+  id          String    @id @default(cuid()) @db.Char(25)
+  name        String    @unique @db.VarChar(100)
+  slug        String    @unique @db.VarChar(150)
+  description String?
+  image       String?   @db.VarChar(500)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model Product {
+  id                String             @id @default(cuid()) @db.Char(25)
+  name              String             @db.VarChar(200)
+  slug              String             @unique @db.VarChar(150)
+  description       String?
+  price             Int
+  stock             Int
+  image             String             @db.VarChar(500)
+  images            String[]           @default([])
+  categoryId        String             @db.Char(25)
+  floristId         String             @db.Char(25)
+  isActive          Boolean            @default(true)
+  isFeatured        Boolean            @default(false)
+  tags              String[]           @default([])
+  weight            Int?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
+  category          FlowerCategory     @relation(fields: [categoryId], references: [id])
+  florist           User               @relation("FloristProducts", fields: [floristId], references: [id])
+  productComponents ProductComponent[]
+  reviews           Review[]
+
+  @@index([categoryId])
+  @@index([floristId])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([slug])
+  @@index([categoryId, isActive])
+}
+
+model Cart {
+  id        String     @id @default(cuid()) @db.Char(25)
+  userId    String     @unique @db.Char(25)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid()) @db.Char(25)
+  cartId    String   @db.Char(25)
+  productId String   @db.Char(25)
+  quantity  Int      @db.SmallInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+}
+
+model Order {
+  id               String       @id @default(cuid()) @db.Char(25)
+  orderNumber      String       @unique @db.VarChar(50)
+  userId           String       @db.Char(25)
+  addressId        String?      @db.Char(25)
+  totalAmount      Int
+  subtotal         Int
+  shippingCost     Int          @default(0)
+  discount         Int          @default(0)
+  status           OrderStatus  @default(PENDING)
+  isPreorder       Boolean      @default(false)
+  preorderDeadline DateTime?
+  estimatedReady   DateTime?
+  depositAmount    Int?
+  depositPaid      Boolean      @default(false)
+  notes            String?
+  cancelReason     String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  couponUsage      CouponUsage?
+  address          Address?     @relation(fields: [addressId], references: [id])
+  user             User         @relation("CustomerOrders", fields: [userId], references: [id])
+  items            OrderItem[]
+  payment          Payment?
+  shipment         Shipment?
+
+  @@index([userId])
+  @@index([status])
+  @@index([orderNumber])
+  @@index([createdAt])
+  @@index([isPreorder])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid()) @db.Char(25)
+  orderId   String   @db.Char(25)
+  productId String   @db.Char(25)
+  quantity  Int      @db.SmallInt
+  price     Int
+  subtotal  Int
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Payment {
+  id            String        @id @default(cuid()) @db.Char(25)
+  orderId       String        @unique @db.Char(25)
+  amount        Int
+  method        String        @db.VarChar(50)
+  status        PaymentStatus @default(PENDING)
+  transactionId String?       @unique @db.VarChar(100)
+  paymentUrl    String?       @db.VarChar(500)
+  expiryTime    DateTime?
+  paidAt        DateTime?
+  refundedAt    DateTime?
+  refundAmount  Int?
+  paymentProof  String?       @db.VarChar(500)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([transactionId])
+  @@index([createdAt])
+}
+
+model Shipment {
+  id             String         @id @default(cuid()) @db.Char(25)
+  orderId        String         @unique @db.Char(25)
+  courier        String         @db.VarChar(50)
+  service        String?        @db.VarChar(20)
+  trackingNumber String?        @db.VarChar(100)
+  status         ShipmentStatus @default(PENDING)
+  estimatedDays  Int?           @db.SmallInt
+  shippingCost   Int
+  weight         Int?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([trackingNumber])
+  @@index([orderId])
+}
+
+model Stock {
+  id                 String             @id @default(cuid()) @db.Char(25)
+  supplierId         String             @db.Char(25)
+  name               String             @db.VarChar(200)
+  variety            String?            @db.VarChar(100)
+  quantity           Int
+  unit               String             @default("tangkai") @db.VarChar(20)
+  pricePerUnit       Int
+  harvestDate        DateTime           @default(now())
+  expiryDate         DateTime?
+  location           String?            @db.VarChar(200)
+  isAvailable        Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  floristInventories FloristInventory[]
+  supplier           User               @relation("SupplierStocks", fields: [supplierId], references: [id], onDelete: Cascade)
+  stockTransactions  StockTransaction[]
+
+  @@index([supplierId])
+  @@index([harvestDate])
+  @@index([isAvailable])
+}
+
+model StockTransaction {
+  id           String            @id @default(cuid()) @db.Char(25)
+  stockId      String            @db.Char(25)
+  floristId    String            @db.Char(25)
+  quantity     Int
+  pricePerUnit Int
+  totalPrice   Int
+  status       TransactionStatus @default(PENDING)
+  paymentProof String?           @db.VarChar(500)
+  deliveredAt  DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  florist      User              @relation("FloristPurchases", fields: [floristId], references: [id], onDelete: Cascade)
+  stock        Stock             @relation(fields: [stockId], references: [id])
+
+  @@index([floristId])
+  @@index([stockId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model HarvestAnnouncement {
+  id                String            @id @default(cuid()) @db.Char(25)
+  supplierId        String            @db.Char(25)
+  flowerName        String            @db.VarChar(200)
+  variety           String?           @db.VarChar(100)
+  estimatedQuantity Int
+  pricePerUnit      Int
+  harvestDate       DateTime
+  announceDate      DateTime          @default(now())
+  description       String?
+  location          String?           @db.VarChar(200)
+  image             String?           @db.VarChar(500)
+  isActive          Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  supplier          User              @relation("SupplierAnnouncements", fields: [supplierId], references: [id], onDelete: Cascade)
+  preOrders         HarvestPreOrder[]
+
+  @@index([harvestDate])
+  @@index([supplierId])
+  @@index([isActive])
+  @@index([announceDate])
+}
+
+model HarvestPreOrder {
+  id             String                @id @default(cuid()) @db.Char(25)
+  announcementId String                @db.Char(25)
+  floristId      String                @db.Char(25)
+  quantity       Int
+  pricePerUnit   Int
+  totalPrice     Int
+  status         HarvestPreOrderStatus @default(PENDING)
+  notes          String?
+  confirmedAt    DateTime?
+  cancelledAt    DateTime?
+  cancelReason   String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  announcement   HarvestAnnouncement   @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  florist        User                  @relation("FloristPreOrders", fields: [floristId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, floristId])
+  @@index([floristId])
+  @@index([status])
+  @@index([announcementId])
+}
+
+model FloristInventory {
+  id                String             @id @default(cuid()) @db.Char(25)
+  floristId         String             @db.Char(25)
+  stockId           String             @db.Char(25)
+  quantity          Int
+  minThreshold      Int                @default(10) @db.SmallInt
+  maxCapacity       Int?
+  location          String?            @db.VarChar(200)
+  lastRestockDate   DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  florist           User               @relation("FloristInventories", fields: [floristId], references: [id], onDelete: Cascade)
+  stock             Stock              @relation(fields: [stockId], references: [id])
+  productComponents ProductComponent[]
+
+  @@unique([floristId, stockId])
+  @@index([floristId])
+  @@index([stockId])
+}
+
+model ProductComponent {
+  id          String           @id @default(cuid()) @db.Char(25)
+  productId   String           @db.Char(25)
+  inventoryId String           @db.Char(25)
+  quantity    Int              @db.SmallInt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  inventory   FloristInventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, inventoryId])
+  @@index([productId])
+  @@index([inventoryId])
+}
+
+model Notification {
+  id        String           @id @default(cuid()) @db.Char(25)
+  userId    String           @db.Char(25)
+  title     String           @db.VarChar(200)
+  message   String
+  type      NotificationType
+  link      String?          @db.VarChar(500)
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([userId, isRead])
+}
+
+model Review {
+  id           String   @id @default(cuid()) @db.Char(25)
+  productId    String   @db.Char(25)
+  userId       String   @db.Char(25)
+  orderId      String?  @db.Char(25)
+  rating       Int      @db.SmallInt
+  comment      String?
+  images       String[] @default([])
+  isVerified   Boolean  @default(false)
+  helpfulCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+  @@index([rating])
+  @@index([isVerified])
+  @@index([productId, rating])
+}
+
+model Coupon {
+  id            String        @id @default(cuid()) @db.Char(25)
+  code          String        @unique @db.VarChar(50)
+  name          String        @db.VarChar(200)
+  description   String?
+  type          CouponType
+  value         Int
+  minPurchase   Int?
+  maxDiscount   Int?
+  validFrom     DateTime
+  validUntil    DateTime
+  usageLimit    Int?
+  usagePerUser  Int           @default(1) @db.SmallInt
+  usageCount    Int           @default(0)
+  isActive      Boolean       @default(true)
+  createdById   String?       @db.Char(25)
+  applicableFor String[]      @default([])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  createdBy     User?         @relation("CouponCreator", fields: [createdById], references: [id])
+  usages        CouponUsage[]
+
+  @@index([code])
+  @@index([validFrom, validUntil])
+  @@index([isActive])
+}
+
+model CouponUsage {
+  id        String   @id @default(cuid()) @db.Char(25)
+  couponId  String   @db.Char(25)
+  orderId   String   @unique @db.Char(25)
+  userId    String   @db.Char(25)
+  discount  Int
+  createdAt DateTime @default(now())
+  coupon    Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([userId])
+  @@index([orderId])
+}
+
+model AuditLog {
+  id        String      @id @default(cuid()) @db.Char(25)
+  userId    String?     @db.Char(25)
+  action    AuditAction
+  entity    String      @db.VarChar(50)
+  entityId  String      @db.Char(25)
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?     @db.VarChar(45)
+  userAgent String?     @db.VarChar(500)
+  createdAt DateTime    @default(now())
+  user      User?       @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+}
+
 enum Role {
   ADMIN
   SUPPLIER
@@ -19,14 +461,14 @@ enum Role {
 }
 
 enum OrderStatus {
-  PENDING // Menunggu pembayaran
-  PAID // Sudah dibayar, belum diproses
-  PROCESSING // Sedang dirakit florist
-  READY_TO_SHIP // Siap dikirim
-  SHIPPED // Dalam pengiriman
-  DELIVERED // Sudah sampai
-  CANCELLED // Dibatalkan
-  REFUNDED // Dikembalikan
+  PENDING
+  PAID
+  PROCESSING
+  READY_TO_SHIP
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
 }
 
 enum PaymentStatus {
@@ -68,9 +510,9 @@ enum NotificationType {
 }
 
 enum CouponType {
-  PERCENTAGE // Diskon persentase (10%)
-  FIXED // Diskon nominal (Rp 50.000)
-  FREE_SHIPPING // Gratis ongkir
+  PERCENTAGE
+  FIXED
+  FREE_SHIPPING
 }
 
 enum AuditAction {
@@ -81,480 +523,4 @@ enum AuditAction {
   LOGOUT
   PAYMENT
   REFUND
-}
-
-// USER & AUTHENTICATION
-model User {
-  id        String   @id @default(cuid()) @db.Char(25)
-  name      String   @db.VarChar(200)
-  email     String   @unique @db.VarChar(255)
-  password  String   @db.Char(60)
-  role      Role     @default(CUSTOMER)
-  image     String?  @db.VarChar(500)
-  phone     String?  @db.VarChar(20)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relasi
-  addresses             Address[]             @relation("UserAddresses")
-  products              Product[]             @relation("FloristProducts")
-  orders                Order[]               @relation("CustomerOrders")
-  cart                  Cart?
-  supplierStocks        Stock[]               @relation("SupplierStocks")
-  floristStockPurchases StockTransaction[]    @relation("FloristPurchases")
-  floristInventories    FloristInventory[]    @relation("FloristInventories")
-  harvestAnnouncements  HarvestAnnouncement[] @relation("SupplierAnnouncements")
-  harvestPreOrders      HarvestPreOrder[]     @relation("FloristPreOrders")
-  notifications         Notification[]
-  reviews               Review[]
-  auditLogs             AuditLog[]
-  couponsCreated        Coupon[]              @relation("CouponCreator")
-  couponUsages          CouponUsage[]
-
-  @@index([email])
-  @@index([role])
-  @@index([isActive])
-}
-
-// ADDRESS 
-model Address {
-  id            String   @id @default(cuid()) @db.Char(25)
-  userId        String   @db.Char(25)
-  label         String   @db.VarChar(50)
-  recipientName String   @db.VarChar(200)
-  phone         String   @db.VarChar(20)
-  fullAddress   String   @db.Text
-  city          String   @db.VarChar(100)
-  province      String   @db.VarChar(100)
-  postalCode    String   @db.VarChar(10)
-  latitude      Float?   @db.DoublePrecision
-  longitude     Float?   @db.DoublePrecision
-  isDefault     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user   User    @relation("UserAddresses", fields: [userId], references: [id], onDelete: Cascade)
-  orders Order[]
-
-  @@index([userId])
-  @@index([isDefault])
-}
-
-// PRODUCT CATALOG
-model FlowerCategory {
-  id          String   @id @default(cuid()) @db.Char(25)
-  name        String   @unique @db.VarChar(100)
-  slug        String   @unique @db.VarChar(150)
-  description String?  @db.Text
-  image       String?  @db.VarChar(500)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  products Product[]
-
-  @@index([slug])
-  @@index([isActive])
-}
-
-model Product {
-  id          String   @id @default(cuid()) @db.Char(25)
-  name        String   @db.VarChar(200)
-  slug        String   @unique @db.VarChar(150)
-  description String?  @db.Text
-  price       Int // Rupiah (no decimal)
-  stock       Int
-  image       String   @db.VarChar(500)
-  images      String[] @default([])
-  categoryId  String   @db.Char(25)
-  floristId   String   @db.Char(25)
-  isActive    Boolean  @default(true)
-  isFeatured  Boolean  @default(false)
-  tags        String[] @default([])
-  weight      Int? // Gram (integer, bukan float)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  category          FlowerCategory     @relation(fields: [categoryId], references: [id])
-  florist           User               @relation("FloristProducts", fields: [floristId], references: [id])
-  cartItems         CartItem[]
-  orderItems        OrderItem[]
-  productComponents ProductComponent[]
-  reviews           Review[]
-
-  @@index([categoryId])
-  @@index([floristId])
-  @@index([isActive])
-  @@index([isFeatured])
-  @@index([slug])
-  @@index([categoryId, isActive])
-}
-
-// SHOPPING CART
-model Cart {
-  id        String   @id @default(cuid()) @db.Char(25)
-  userId    String   @unique @db.Char(25)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items CartItem[]
-}
-
-model CartItem {
-  id        String   @id @default(cuid()) @db.Char(25)
-  cartId    String   @db.Char(25)
-  productId String   @db.Char(25)
-  quantity  Int      @db.SmallInt
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([cartId, productId])
-  @@index([cartId])
-}
-
-// ORDER & CHECKOUT
-model Order {
-  id               String      @id @default(cuid()) @db.Char(25)
-  orderNumber      String      @unique @db.VarChar(50)
-  userId           String      @db.Char(25)
-  addressId        String?     @db.Char(25)
-  totalAmount      Int // Rupiah
-  subtotal         Int // Rupiah
-  shippingCost     Int         @default(0) // Rupiah
-  discount         Int         @default(0) // Rupiah
-  status           OrderStatus @default(PENDING)
-  isPreorder       Boolean     @default(false)
-  preorderDeadline DateTime?
-  estimatedReady   DateTime?
-  depositAmount    Int? // Rupiah
-  depositPaid      Boolean     @default(false)
-  notes            String?     @db.Text
-  cancelReason     String?     @db.Text
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-
-  user        User         @relation("CustomerOrders", fields: [userId], references: [id])
-  address     Address?     @relation(fields: [addressId], references: [id])
-  items       OrderItem[]
-  payment     Payment?
-  shipment    Shipment?
-  couponUsage CouponUsage?
-
-  @@index([userId])
-  @@index([status])
-  @@index([orderNumber])
-  @@index([createdAt])
-  @@index([isPreorder])
-}
-
-model OrderItem {
-  id        String   @id @default(cuid()) @db.Char(25)
-  orderId   String   @db.Char(25)
-  productId String   @db.Char(25)
-  quantity  Int      @db.SmallInt
-  price     Int // Rupiah (snapshot harga saat checkout)
-  subtotal  Int // Rupiah (price * quantity)
-  createdAt DateTime @default(now())
-
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-
-  @@index([orderId])
-  @@index([productId])
-}
-
-model Payment {
-  id            String        @id @default(cuid()) @db.Char(25)
-  orderId       String        @unique @db.Char(25)
-  amount        Int // Rupiah
-  method        String        @db.VarChar(50)
-  status        PaymentStatus @default(PENDING)
-  transactionId String?       @unique @db.VarChar(100)
-  paymentUrl    String?       @db.VarChar(500)
-  expiryTime    DateTime?
-  paidAt        DateTime?
-  refundedAt    DateTime?
-  refundAmount  Int? // Rupiah
-  paymentProof  String?       @db.VarChar(500)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([status])
-  @@index([transactionId])
-  @@index([createdAt])
-}
-
-model Shipment {
-  id             String         @id @default(cuid()) @db.Char(25)
-  orderId        String         @unique @db.Char(25)
-  courier        String         @db.VarChar(50)
-  service        String?        @db.VarChar(20)
-  trackingNumber String?        @db.VarChar(100)
-  status         ShipmentStatus @default(PENDING)
-  estimatedDays  Int?           @db.SmallInt
-  shippingCost   Int // Rupiah
-  weight         Int? // Gram (integer)
-  shippedAt      DateTime?
-  deliveredAt    DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  @@index([status])
-  @@index([trackingNumber])
-  @@index([orderId])
-}
-
-// SUPPLIER STOCK MANAGEMENT
-model Stock {
-  id           String    @id @default(cuid()) @db.Char(25)
-  supplierId   String    @db.Char(25)
-  name         String    @db.VarChar(200)
-  variety      String?   @db.VarChar(100)
-  quantity     Int
-  unit         String    @default("tangkai") @db.VarChar(20)
-  pricePerUnit Int // Rupiah per unit
-  harvestDate  DateTime  @default(now())
-  expiryDate   DateTime?
-  location     String?   @db.VarChar(200)
-  isAvailable  Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  supplier           User               @relation("SupplierStocks", fields: [supplierId], references: [id], onDelete: Cascade)
-  stockTransactions  StockTransaction[]
-  floristInventories FloristInventory[]
-
-  @@index([supplierId])
-  @@index([harvestDate])
-  @@index([isAvailable])
-}
- 
-model StockTransaction {
-  id           String            @id @default(cuid()) @db.Char(25)
-  stockId      String            @db.Char(25)
-  floristId    String            @db.Char(25)
-  quantity     Int
-  pricePerUnit Int // Rupiah (snapshot harga saat transaksi)
-  totalPrice   Int // Rupiah
-  status       TransactionStatus @default(PENDING)
-  paymentProof String?           @db.VarChar(500)
-  deliveredAt  DateTime?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-
-  stock   Stock @relation(fields: [stockId], references: [id], onDelete: Restrict)
-  florist User  @relation("FloristPurchases", fields: [floristId], references: [id], onDelete: Cascade)
-
-  @@index([floristId])
-  @@index([stockId])
-  @@index([status])
-  @@index([createdAt])
-}
-
-// HARVEST FESTIVAL (Fitur Baru #1)
-model HarvestAnnouncement {
-  id                String   @id @default(cuid()) @db.Char(25)
-  supplierId        String   @db.Char(25)
-  flowerName        String   @db.VarChar(200)
-  variety           String?  @db.VarChar(100)
-  estimatedQuantity Int
-  pricePerUnit      Int // Rupiah per unit
-  harvestDate       DateTime
-  announceDate      DateTime @default(now())
-  description       String?  @db.Text
-  location          String?  @db.VarChar(200)
-  image             String?  @db.VarChar(500)
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  supplier  User              @relation("SupplierAnnouncements", fields: [supplierId], references: [id], onDelete: Cascade)
-  preOrders HarvestPreOrder[]
-
-  @@index([harvestDate])
-  @@index([supplierId])
-  @@index([isActive])
-  @@index([announceDate])
-}
-
-model HarvestPreOrder {
-  id             String                @id @default(cuid()) @db.Char(25)
-  announcementId String                @db.Char(25)
-  floristId      String                @db.Char(25)
-  quantity       Int
-  pricePerUnit   Int // Rupiah (snapshot harga saat pre-order)
-  totalPrice     Int // Rupiah
-  status         HarvestPreOrderStatus @default(PENDING)
-  notes          String?               @db.Text
-  confirmedAt    DateTime?
-  cancelledAt    DateTime?
-  cancelReason   String?               @db.Text
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-
-  announcement HarvestAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
-  florist      User                @relation("FloristPreOrders", fields: [floristId], references: [id], onDelete: Cascade)
-
-  @@unique([announcementId, floristId])
-  @@index([floristId])
-  @@index([status])
-  @@index([announcementId])
-}
-
-// FLORIST INVENTORY TRACKING (Fitur Baru #3)
-model FloristInventory {
-  id              String    @id @default(cuid()) @db.Char(25)
-  floristId       String    @db.Char(25)
-  stockId         String    @db.Char(25)
-  quantity        Int
-  minThreshold    Int       @default(10) @db.SmallInt
-  maxCapacity     Int?      @db.Integer
-  location        String?   @db.VarChar(200)
-  lastRestockDate DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  florist           User               @relation("FloristInventories", fields: [floristId], references: [id], onDelete: Cascade)
-  stock             Stock              @relation(fields: [stockId], references: [id], onDelete: Restrict)
-  productComponents ProductComponent[]
-
-  @@unique([floristId, stockId])
-  @@index([floristId])
-  @@index([stockId])
-}
-
-model ProductComponent {
-  id          String   @id @default(cuid()) @db.Char(25)
-  productId   String   @db.Char(25)
-  inventoryId String   @db.Char(25)
-  quantity    Int      @db.SmallInt
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  inventory FloristInventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
-
-  @@unique([productId, inventoryId])
-  @@index([productId])
-  @@index([inventoryId])
-}
-
-// NOTIFICATION SYSTEM
-model Notification {
-  id        String           @id @default(cuid()) @db.Char(25)
-  userId    String           @db.Char(25)
-  title     String           @db.VarChar(200)
-  message   String           @db.Text
-  type      NotificationType
-  link      String?          @db.VarChar(500)
-  isRead    Boolean          @default(false)
-  readAt    DateTime?
-  createdAt DateTime         @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([isRead])
-  @@index([createdAt])
-  @@index([userId, isRead])
-}
-
-// REVIEW & RATING
-model Review {
-  id           String   @id @default(cuid()) @db.Char(25)
-  productId    String   @db.Char(25)
-  userId       String   @db.Char(25)
-  orderId      String?  @db.Char(25)
-  rating       Int      @db.SmallInt
-  comment      String?  @db.Text
-  images       String[] @default([])
-  isVerified   Boolean  @default(false)
-  helpfulCount Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-  @@index([userId])
-  @@index([rating])
-  @@index([isVerified])
-  @@index([productId, rating])
-}
-
-// COUPON & VOUCHER SYSTEM
-model Coupon {
-  id            String     @id @default(cuid()) @db.Char(25)
-  code          String     @unique @db.VarChar(50)
-  name          String     @db.VarChar(200)
-  description   String?    @db.Text
-  type          CouponType
-  value         Int // Untuk PERCENTAGE: simpan 10 (bukan 0.1), untuk FIXED: rupiah
-  minPurchase   Int? // Rupiah
-  maxDiscount   Int? // Rupiah
-  validFrom     DateTime
-  validUntil    DateTime
-  usageLimit    Int?
-  usagePerUser  Int        @default(1) @db.SmallInt
-  usageCount    Int        @default(0)
-  isActive      Boolean    @default(true)
-  createdById   String?    @db.Char(25)
-  applicableFor String[]   @default([])
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-
-  createdBy User?         @relation("CouponCreator", fields: [createdById], references: [id])
-  usages    CouponUsage[]
-
-  @@index([code])
-  @@index([validFrom, validUntil])
-  @@index([isActive])
-}
-
-model CouponUsage {
-  id        String   @id @default(cuid()) @db.Char(25)
-  couponId  String   @db.Char(25)
-  orderId   String   @unique @db.Char(25)
-  userId    String   @db.Char(25)
-  discount  Int // Rupiah (berapa diskon yang didapat)
-  createdAt DateTime @default(now())
-
-  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
-  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([couponId])
-  @@index([userId])
-  @@index([orderId])
-}
-
-// AUDIT LOG
-model AuditLog {
-  id        String      @id @default(cuid()) @db.Char(25)
-  userId    String?     @db.Char(25)
-  action    AuditAction
-  entity    String      @db.VarChar(50)
-  entityId  String      @db.Char(25)
-  oldValue  Json?
-  newValue  Json?
-  ipAddress String?     @db.VarChar(45)
-  userAgent String?     @db.VarChar(500)
-  createdAt DateTime    @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([entity, entityId])
-  @@index([userId])
-  @@index([createdAt])
-  @@index([action])
 }

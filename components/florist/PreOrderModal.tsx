@@ -99,6 +99,16 @@ export default function PreOrderModal({
       const json = await res.json();
 
       if (!res.ok) {
+        // Handle validation errors with specific field messages
+        if (json.errors && Array.isArray(json.errors)) {
+          const fieldErrors: Record<string, string> = {};
+          json.errors.forEach((err: any) => {
+            const field = err.path?.[0] || 'submit';
+            fieldErrors[field] = err.message;
+          });
+          setFormErrors(fieldErrors);
+          return;
+        }
         throw new Error(json.message || "Gagal membuat pre-order");
       }
 
@@ -128,8 +138,8 @@ export default function PreOrderModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-      <div className="card-elevated w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-surface-container-low border-b border-border p-6 flex items-center justify-between">
+      <div className="card-elevated w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-xl font-semibold">Buat Pre-Order</h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -144,7 +154,7 @@ export default function PreOrderModal({
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-4">
+      <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
         {showSuccess && (
           <div className="p-4 bg-success/10 border border-success/30 rounded-xl flex items-center gap-3 text-success animate-in fade-in slide-in-from-top-2">
             <CheckCircle2 className="w-5 h-5 flex-shrink-0" />

@@ -351,10 +351,10 @@ export default function FloristDashboardPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <Link
-                          href={`/orders?id=${order.id}`}
+                          href={`/florist/orders/${order.id}`}
                           className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
                         >
-                          <span>Detail</span>
+                          <span>Lihat Detail</span>
                           <ArrowRight className="h-3.5 w-3.5" />
                         </Link>
                       </td>

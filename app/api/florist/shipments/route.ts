@@ -21,6 +21,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validated = createShipmentSchema.parse(body);
     const { orderId, courier, service, trackingNumber, estimatedDays, weight } = validated;
+    
+    // Convert weight from kg to grams for database storage
+    const weightInGrams = weight ? Math.round(weight * 1000) : null;
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
@@ -128,12 +131,23 @@ export async function POST(request: Request) {
           status: "PENDING",
           estimatedDays: calculatedEstimatedDays || 2,
           shippingCost: order.shippingCost,
-          weight: weight || null,
+          weight: weightInGrams,
         },
       }),
       prisma.order.update({
         where: { id: order.id },
-        data: { status: "PROCESSING" },
+        data: { status: "SHIPPED" },
+      }),
+      // Notify customer about shipment creation
+      prisma.notification.create({
+        data: {
+          userId: order.userId,
+          title: "Pesanan Dikirim!",
+          message: `Pesanan #${order.orderNumber} telah dikirim via ${courier.trim()}${trackingNumber ? ` dengan nomor resi ${trackingNumber.trim()}` : ""}. Lacak pengiriman Anda di halaman detail pesanan.`,
+          type: "SHIPMENT_UPDATE",
+          link: `/orders/${order.id}`,
+          isRead: false,
+        },
       }),
     ]);
 

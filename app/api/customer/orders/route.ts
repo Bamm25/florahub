@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       whereClause.status = status as Prisma.EnumOrderStatusFilter;
     }
 
-    // Query orders dengan items dan payment details
+    // Query orders dengan items, payment, dan shipment details
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where: whereClause,
@@ -62,6 +62,14 @@ export async function GET(request: Request) {
             },
           },
           payment: true,
+          shipment: {
+            select: {
+              id: true,
+              status: true,
+              courier: true,
+              trackingNumber: true,
+            },
+          },
         },
         skip,
         take: limit,
@@ -94,6 +102,14 @@ export async function GET(request: Request) {
       payment: {
         status: order.payment?.status,
       },
+      shipment: order.shipment
+        ? {
+            id: order.shipment.id,
+            status: order.shipment.status,
+            courier: order.shipment.courier,
+            trackingNumber: order.shipment.trackingNumber,
+          }
+        : null,
     }));
 
         // Return response dengan pagination metadata

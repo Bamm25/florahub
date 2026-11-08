@@ -157,6 +157,36 @@ export async function PUT(
       },
     });
 
+    // Trigger low stock notification if quantity dropped below threshold
+    if (
+      quantity !== undefined &&
+      inventory.quantity < inventory.minThreshold
+    ) {
+      // Only create notification if no unread low-stock alert already exists for this inventory
+      const existingAlert = await prisma.notification.findFirst({
+        where: {
+          userId: inventory.floristId,
+          type: "LOW_STOCK_ALERT",
+          isRead: false,
+          link: `/florist/inventory`,
+          message: { contains: inventory.stock.name },
+        },
+      });
+
+      if (!existingAlert) {
+        await prisma.notification.create({
+          data: {
+            userId: inventory.floristId,
+            title: "Stok Rendah!",
+            message: `Stok ${inventory.stock.name} hanya tersisa ${inventory.quantity} ${inventory.stock.unit}. Segera lakukan restock (minimum: ${inventory.minThreshold} ${inventory.stock.unit}).`,
+            type: "LOW_STOCK_ALERT",
+            link: `/florist/inventory`,
+            isRead: false,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: "Inventory berhasil diperbarui",

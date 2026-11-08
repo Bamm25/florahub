@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       userId,
     };
 
-    if (unreadOnly) {
+    if (unreadOnly === "true") {
       whereClause.isRead = false;
     }
 

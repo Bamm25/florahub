@@ -22,6 +22,9 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Check if user is florist
+  const isFlorist = session?.user && (session.user as any).role === "FLORIST";
 
   useEffect(() => {
     setMounted(true);
@@ -69,19 +72,21 @@ export default function Navbar() {
               {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
 
-            {/* Cart Icon & Badge */}
-            <Link
-              href="/cart"
-              aria-label="Keranjang Belanja"
-              className="relative flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-container hover:text-primary"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {mounted && itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white animate-in zoom-in-50">
-                  {itemCount > 99 ? "99+" : itemCount}
-                </span>
-              )}
-            </Link>
+            {/* Cart Icon & Badge - Only for non-florist users */}
+            {!isFlorist && (
+              <Link
+                href="/cart"
+                aria-label="Keranjang Belanja"
+                className="relative flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-container hover:text-primary"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {mounted && itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white animate-in zoom-in-50">
+                    {itemCount > 99 ? "99+" : itemCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* Authentication Section */}
             {status === "loading" ? (
@@ -109,32 +114,45 @@ export default function Navbar() {
                         {session.user?.name || "Akun"}
                       </strong>
                     </div>
-                    <Link
-                      href="/profile"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
-                    >
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      Profil Saya
-                    </Link>
+                    {isFlorist ? (
+                      <Link
+                        href="/florist/dashboard"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
+                      >
+                        <Home className="h-4 w-4 text-muted-foreground" />
+                        Dashboard Florist
+                      </Link>
+                    ) : (
+                      <>
+                        <Link
+                          href="/profile"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
+                        >
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          Profil Saya
+                        </Link>
 
-                    <Link
-                      href="/orders"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
-                    >
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      Pesanan Saya
-                    </Link>
+                        <Link
+                          href="/orders"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
+                        >
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          Pesanan Saya
+                        </Link>
 
-                    <Link
-                      href="/profile/addresses"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
-                    >
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      Alamat Saya
-                    </Link>
+                        <Link
+                          href="/profile/addresses"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
+                        >
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          Alamat Saya
+                        </Link>
+                      </>
+                    )}
 
                     <button
                       onClick={() => {
@@ -181,47 +199,62 @@ export default function Navbar() {
               <Flower2 className="h-5 w-5 text-muted-foreground" />
               Katalog
             </Link>
-            <Link
-              href="/cart"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
-            >
-              <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-              Keranjang
-              {mounted && itemCount > 0 && (
-                <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
-                  {itemCount}
-                </span>
-              )}
-            </Link>
+            {!isFlorist && (
+              <Link
+                href="/cart"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+              >
+                <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                Keranjang
+                {mounted && itemCount > 0 && (
+                  <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                    {itemCount}
+                  </span>
+                )}
+              </Link>
+            )}
             
             {session && (
               <>
                 <div className="h-px bg-border my-2" />
-                <Link
-                  href="/profile"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
-                >
-                  <User className="h-5 w-5 text-muted-foreground" />
-                  Profil Saya
-                </Link>
-                <Link
-                  href="/orders"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
-                >
-                  <Package className="h-5 w-5 text-muted-foreground" />
-                  Pesanan Saya
-                </Link>
-                <Link
-                  href="/profile/addresses"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
-                >
-                  <MapPin className="h-5 w-5 text-muted-foreground" />
-                  Alamat Saya
-                </Link>
+                {isFlorist ? (
+                  <Link
+                    href="/florist/dashboard"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+                  >
+                    <Home className="h-5 w-5 text-muted-foreground" />
+                    Dashboard Florist
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+                    >
+                      <User className="h-5 w-5 text-muted-foreground" />
+                      Profil Saya
+                    </Link>
+                    <Link
+                      href="/orders"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+                    >
+                      <Package className="h-5 w-5 text-muted-foreground" />
+                      Pesanan Saya
+                    </Link>
+                    <Link
+                      href="/profile/addresses"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+                    >
+                      <MapPin className="h-5 w-5 text-muted-foreground" />
+                      Alamat Saya
+                    </Link>
+                  </>
+                )}
                 <button
                   onClick={() => {
                     setIsMobileMenuOpen(false);

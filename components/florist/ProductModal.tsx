@@ -1,5 +1,5 @@
-import React from "react";
-import { Loader2, Package } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Loader2, Package, Upload, X } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
 
@@ -48,6 +48,67 @@ export default function ProductModal({
   onSubmit,
   onChange,
 }: ProductModalProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset error
+    setUploadError("");
+
+    // Client-side validation
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError("Format file tidak didukung. Gunakan JPG, PNG, WebP, atau GIF");
+      return;
+    }
+
+    if (file.size > maxSize) {
+      setUploadError("Ukuran file maksimal 5MB");
+      return;
+    }
+
+    // Upload file
+    try {
+      setIsUploading(true);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Upload gagal");
+      }
+
+      // Set image URL to form
+      onChange("image", data.url);
+    } catch (error) {
+      console.error("Upload error:", error);
+      setUploadError(error instanceof Error ? error.message : "Gagal mengupload gambar. Coba lagi");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    onChange("image", "");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setUploadError("");
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -128,16 +189,75 @@ export default function ProductModal({
           />
         </div>
 
-        <FormField
-          label="URL Gambar"
-          name="image"
-          type="text"
-          value={formData.image}
-          onChange={(value) => onChange("image", value)}
-          error={formErrors.image}
-          required
-          placeholder="https://example.com/image.jpg"
-        />
+        {/* File Upload Section */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-foreground">
+            Gambar Produk <span className="text-error">*</span>
+          </label>
+
+          {/* Hidden file input */}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+            ref={fileInputRef}
+            disabled={isUploading}
+          />
+
+          {/* Upload button or Image preview */}
+          {!formData.image ? (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-border hover:border-primary rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Upload className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {isUploading ? "Uploading..." : "Upload Gambar"}
+              </span>
+            </button>
+          ) : (
+            <div className="relative group">
+              <img
+                src={formData.image}
+                alt="Preview"
+                className="w-full h-48 object-cover rounded-xl border border-border"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="absolute top-2 right-2 bg-error text-white p-2 rounded-full shadow-lg hover:bg-error/90 transition-colors opacity-0 group-hover:opacity-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {isUploading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Mengupload gambar...</span>
+            </div>
+          )}
+
+          {/* Upload error */}
+          {uploadError && (
+            <p className="text-sm text-error">{uploadError}</p>
+          )}
+
+          {/* Form validation error */}
+          {formErrors.image && (
+            <p className="text-sm text-error">{formErrors.image}</p>
+          )}
+
+          {/* Help text */}
+          <p className="text-xs text-muted-foreground">
+            Format: JPG, PNG, WebP, GIF (Max 5MB)
+          </p>
+        </div>
 
         <div>
           <FormField
@@ -200,7 +320,7 @@ export default function ProductModal({
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isUploading}
             className="flex-1 btn-primary text-sm"
           >
             {isSubmitting ? (

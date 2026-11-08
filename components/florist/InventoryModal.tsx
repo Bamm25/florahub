@@ -47,8 +47,8 @@ export default function InventoryModal({
 }: InventoryModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-      <div className="card-elevated w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-surface-container-low border-b border-border p-6 flex items-center justify-between">
+      <div className="card-elevated w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-xl font-semibold">Update Inventory</h2>
             <p className="text-sm text-muted-foreground mt-1">
@@ -63,7 +63,7 @@ export default function InventoryModal({
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="p-6 space-y-4">
+        <form onSubmit={onSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           {formErrors.submit && (
             <div className="p-3 bg-error/5 border border-error/20 rounded-xl text-sm text-error">
               {formErrors.submit}

@@ -22,7 +22,7 @@ export async function GET(
       );
     }
 
-    // Query order dengan items, payment, address, dan user details
+    // Query order dengan items, payment, address, shipment, dan user details
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -41,6 +41,7 @@ export async function GET(
         },
         payment: true,
         address: true,
+        shipment: true,
         user: {
           select: {
             name: true,
@@ -98,6 +99,18 @@ export async function GET(
       })),
 
       address: order.address,
+      shipment: order.shipment
+        ? {
+            id: order.shipment.id,
+            courier: order.shipment.courier,
+            service: order.shipment.service,
+            trackingNumber: order.shipment.trackingNumber,
+            status: order.shipment.status,
+            estimatedDays: order.shipment.estimatedDays,
+            shippedAt: order.shipment.shippedAt,
+            deliveredAt: order.shipment.deliveredAt,
+          }
+        : null,
       payment: order.payment
         ? {
             id: order.payment.id,

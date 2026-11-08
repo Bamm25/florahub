@@ -102,7 +102,8 @@ export default function FloristProductsPage() {
       const res = await fetch("/api/categories");
       const json = await res.json();
       if (res.ok) {
-        setCategories(json.data || []);
+        // API returns { data: { items: [...], pagination: {...} } }
+        setCategories(json.data?.items || []);
       }
     } catch (err) {
       console.error("Failed to fetch categories:", err);
@@ -403,8 +404,8 @@ export default function FloristProductsPage() {
 
       {isComponentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-          <div className="card-elevated w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-surface-container-low border-b border-border p-6 flex items-center justify-between">
+          <div className="card-elevated w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="text-xl font-semibold">Komponen Produk (BOM)</h2>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -419,7 +420,7 @@ export default function FloristProductsPage() {
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto flex-1">
               {!Array.isArray(productComponents) || productComponents.length === 0 ? (
                 <div className="text-center py-8">
                   <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />

@@ -161,6 +161,20 @@ export async function POST(request: Request) {
       },
     });
 
+    // Trigger low stock notification if initial quantity is already below threshold
+    if (inventory.quantity < inventory.minThreshold) {
+      await prisma.notification.create({
+        data: {
+          userId: inventory.floristId,
+          title: "Stok Rendah!",
+          message: `Stok ${inventory.stock.name} hanya tersisa ${inventory.quantity} ${inventory.stock.unit}. Segera lakukan restock (minimum: ${inventory.minThreshold} ${inventory.stock.unit}).`,
+          type: "LOW_STOCK_ALERT",
+          link: `/florist/inventory`,
+          isRead: false,
+        },
+      });
+    }
+
     return NextResponse.json(
       {
         success: true,

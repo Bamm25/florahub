@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Package, Search, Loader2, X } from "lucide-react";
+import { Package, Search, Loader2 } from "lucide-react";
+import Link from "next/link";
 
 interface Order {
   id: string;
@@ -41,8 +42,6 @@ export default function FloristOrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -76,16 +75,6 @@ export default function FloristOrdersPage() {
       order.user.email.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
-
-  const openDetailModal = (order: Order) => {
-    setSelectedOrder(order);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedOrder(null);
-  };
 
   const formatRupiah = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -264,37 +253,17 @@ export default function FloristOrdersPage() {
                     <td className="px-4 py-3 text-center">{getPaymentStatusBadge(order.payment?.status)}</td>
                     <td className="px-4 py-3 text-center">{getShipmentStatusBadge(order.shipment?.status)}</td>
                     <td className="px-4 py-3 text-center">
-                      <button onClick={() => openDetailModal(order)} className="btn-primary text-sm px-4 py-2">
+                      <Link
+                        href={`/florist/orders/${order.id}`}
+                        className="btn-primary text-sm px-4 py-2 inline-block"
+                      >
                         Detail
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Modal - Placeholder */}
-      {isModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-          <div className="card-elevated w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-surface-container-low border-b border-border p-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">Detail Pesanan</h2>
-                <p className="text-sm text-muted-foreground mt-1">{selectedOrder.orderNumber}</p>
-              </div>
-              <button onClick={closeModal} className="text-muted-foreground hover:text-foreground transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-6">
-              <div className="text-center text-muted-foreground py-12">
-                <p className="text-lg font-medium">Modal content coming soon...</p>
-                <p className="text-sm mt-2">Order info, items list, dan shipment form akan ditambahkan</p>
-              </div>
-            </div>
           </div>
         </div>
       )}

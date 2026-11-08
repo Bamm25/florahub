@@ -32,8 +32,8 @@ export default function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-      <div className={`card-elevated w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto`}>
-        <div className="sticky top-0 bg-surface-container-low border-b border-border p-6 flex items-center justify-between">
+      <div className={`card-elevated w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col overflow-hidden`}>
+        <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-xl font-semibold text-foreground">{title}</h2>
             {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
@@ -46,7 +46,7 @@ export default function Modal({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>
   );

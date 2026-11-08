@@ -93,7 +93,7 @@ export function CheckoutSummary({
       {/* Trust Signal */}
       <div className="mt-6 rounded-xl bg-surface-container-low p-4 border border-border">
         <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+          <div className="shrink-0 h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
             <svg
               className="h-5 w-5 text-success"
               fill="none"

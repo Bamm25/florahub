@@ -238,7 +238,20 @@ export default function FloristShipmentsPage() {
         });
 
         const json = await res.json();
-        if (!res.ok) throw new Error(json.message || "Gagal membuat shipment");
+        if (!res.ok) {
+          // Handle validation errors with specific field messages
+          if (json.errors && Array.isArray(json.errors)) {
+            const fieldErrors: Record<string, string> = {};
+            json.errors.forEach((err: any) => {
+              const field = err.path?.[0] || 'submit';
+              fieldErrors[field] = err.message;
+            });
+            setFormErrors(fieldErrors);
+            setIsSubmitting(false);
+            return;
+          }
+          throw new Error(json.message || "Gagal membuat shipment");
+        }
         await fetchPaidOrders();
       } else {
         payload.status = formData.status;
@@ -362,8 +375,8 @@ export default function FloristShipmentsPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-          <div className="card-elevated w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-surface-container-low border-b border-border p-6 flex items-center justify-between">
+          <div className="card-elevated w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="text-xl font-semibold">
                   {modalMode === "create" ? "Buat Shipment" : "Update Shipment"}
@@ -377,7 +390,7 @@ export default function FloristShipmentsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               {formErrors.submit && (
                 <div className="p-3 bg-error/5 border border-error/20 rounded-xl text-sm text-error">
                   {formErrors.submit}
@@ -430,9 +443,10 @@ export default function FloristShipmentsPage() {
                   type="text"
                   value={formData.service}
                   onChange={(e) => setFormData({ ...formData, service: e.target.value })}
-                  className="input-field"
+                  className={`input-field ${formErrors.service ? "border-error" : ""}`}
                   placeholder="REG, YES, Express, dll"
                 />
+                {formErrors.service && <p className="mt-1 text-sm text-error">{formErrors.service}</p>}
               </div>
 
               <div>

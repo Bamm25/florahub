@@ -26,6 +26,9 @@ export async function PUT(
     const body = await request.json();
     const validated = updateShipmentStatusSchema.parse(body);
     const { status, courier, service, trackingNumber, estimatedDays, weight } = validated;
+    
+    // Convert weight from kg to grams for database storage
+    const weightInGrams = weight !== undefined && weight !== null ? Math.round(weight * 1000) : undefined;
 
     const existingShipment = await prisma.shipment.findUnique({
       where: { id },
@@ -123,7 +126,7 @@ export async function PUT(
     if (service !== undefined) updateData.service = service?.trim() || null;
     if (trackingNumber !== undefined) updateData.trackingNumber = trackingNumber?.trim() || null;
     if (estimatedDays !== undefined) updateData.estimatedDays = estimatedDays;
-    if (weight !== undefined) updateData.weight = weight;
+    if (weightInGrams !== undefined) updateData.weight = weightInGrams;
 
     if (status === "SHIPPED") {
       updateData.shippedAt = new Date();
@@ -161,6 +164,37 @@ export async function PUT(
         },
       }),
     ]);
+
+    // Notify customer about shipment status change
+    if (status && status !== existingShipment.status) {
+      const statusMessages: Record<string, string> = {
+        PROCESSING: `Pesanan #${existingShipment.order.orderNumber} sedang diproses oleh florist.`,
+        SHIPPED: `Pesanan #${existingShipment.order.orderNumber} telah dikirim${trackingNumber || existingShipment.trackingNumber ? ` dengan nomor resi ${trackingNumber || existingShipment.trackingNumber}` : ""}.`,
+        DELIVERED: `Pesanan #${existingShipment.order.orderNumber} telah sampai di tujuan. Terima kasih telah berbelanja!`,
+        CANCELLED: `Pengiriman pesanan #${existingShipment.order.orderNumber} telah dibatalkan.`,
+      };
+
+      const message = statusMessages[status];
+      if (message) {
+        await prisma.notification.create({
+          data: {
+            userId: existingShipment.order.userId,
+            title:
+              status === "DELIVERED"
+                ? "Pesanan Telah Sampai!"
+                : status === "SHIPPED"
+                ? "Pesanan Sedang Dikirim!"
+                : status === "CANCELLED"
+                ? "Pengiriman Dibatalkan"
+                : "Update Status Pesanan",
+            message,
+            type: "SHIPMENT_UPDATE",
+            link: `/customer/orders/${existingShipment.orderId}`,
+            isRead: false,
+          },
+        });
+      }
+    }
 
     await createAuditLog({
       userId: floristId,

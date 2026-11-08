@@ -71,16 +71,82 @@ export async function POST(request: Request) {
         },
       });
 
+      // Update stock and check for low stock alerts
       for (const item of order.items) {
-        await prisma.product.update({
+        const updatedProduct = await prisma.product.update({
           where: { id: item.productId },
           data: {
             stock: {
               decrement: item.quantity,
             },
           },
+          select: {
+            id: true,
+            name: true,
+            stock: true,
+            floristId: true,
+          },
+        });
+
+        // Trigger low stock alert if stock falls below threshold (10 units)
+        const LOW_STOCK_THRESHOLD = 10;
+        if (updatedProduct.stock < LOW_STOCK_THRESHOLD && updatedProduct.stock >= 0) {
+          // Check if there's already an unread low stock alert for this product
+          const existingAlert = await prisma.notification.findFirst({
+            where: {
+              userId: updatedProduct.floristId,
+              type: "LOW_STOCK_ALERT",
+              isRead: false,
+              message: { contains: updatedProduct.name },
+            },
+          });
+
+          if (!existingAlert) {
+            await prisma.notification.create({
+              data: {
+                userId: updatedProduct.floristId,
+                title: "Peringatan Stok Rendah!",
+                message: `Stok produk "${updatedProduct.name}" hanya tersisa ${updatedProduct.stock} unit. Segera lakukan restock untuk menghindari kehabisan stok.`,
+                type: "LOW_STOCK_ALERT",
+                link: `/florist/products`,
+                isRead: false,
+              },
+            });
+          }
+        }
+      }
+
+      // Notify each unique florist about successful payment
+      const floristMap = await prisma.product.findMany({
+        where: { id: { in: order.items.map((i) => i.productId) } },
+        select: { floristId: true },
+        distinct: ["floristId"],
+      });
+      const uniqueFloristIds = floristMap.map((p) => p.floristId);
+      if (uniqueFloristIds.length > 0) {
+        await prisma.notification.createMany({
+          data: uniqueFloristIds.map((floristId) => ({
+            userId: floristId,
+            title: "Pembayaran Diterima!",
+            message: `Order #${order.orderNumber} telah dibayar. Segera proses dan kirimkan pesanan.`,
+            type: "PAYMENT_SUCCESS" as const,
+            link: `/florist/orders`,
+            isRead: false,
+          })),
         });
       }
+
+      // Notify customer about payment success
+      await prisma.notification.create({
+        data: {
+          userId: order.userId,
+          title: "Pembayaran Berhasil!",
+          message: `Pembayaran untuk order #${order.orderNumber} telah berhasil dikonfirmasi. Pesanan Anda sedang diproses.`,
+          type: "PAYMENT_SUCCESS",
+          link: `/customer/orders`,
+          isRead: false,
+        },
+      });
     } else if (
       transaction_status === "deny" ||
       transaction_status === "expire" ||

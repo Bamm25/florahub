@@ -286,6 +286,21 @@ export async function POST(request: Request) {
       ]);
     }
 
+    // Notify each unique florist about the new order
+    const floristIds = [...new Set(products.map((p) => p.floristId))];
+    if (floristIds.length > 0) {
+      await prisma.notification.createMany({
+        data: floristIds.map((floristId) => ({
+          userId: floristId,
+          title: "Pesanan Baru Masuk!",
+          message: `Order #${order.orderNumber} telah masuk dengan total Rp ${order.totalAmount.toLocaleString("id-ID")}. Segera proses pesanan.`,
+          type: "ORDER_CREATED" as const,
+          link: `/florist/orders`,
+          isRead: false,
+        })),
+      });
+    }
+
     // Cart di-manage oleh frontend (localStorage), tidak perlu hapus dari database
 
     return NextResponse.json(
