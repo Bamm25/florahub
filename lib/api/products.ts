@@ -57,7 +57,18 @@ export interface CreateReviewResponse {
   };
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+function getBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    return "";
+  }
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "http://localhost:3000";
+}
 
 // Fetch semua products dengan filter dan pagination
 export async function getProducts(params?: {
@@ -72,7 +83,8 @@ export async function getProducts(params?: {
   if (params?.search) queryParams.set("search", params.search);
   if (params?.categoryId) queryParams.set("categoryId", params.categoryId);
 
-  const url = `${API_BASE_URL}/api/products?${queryParams.toString()}`;
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/products?${queryParams.toString()}`;
   const res = await fetch(url, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
@@ -92,7 +104,8 @@ export async function getProducts(params?: {
 export async function getProductById(
   id: string,
 ): Promise<ApiResponse<Product>> {
-  const url = `${API_BASE_URL}/api/products/${id}`;
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/products/${id}`;
 
   const res = await fetch(url, {
     method: "GET",
@@ -114,7 +127,8 @@ export async function getProductById(
 export async function createProduct(
   data: ProductFormData,
 ): Promise<ApiResponse<Product>> {
-  const url = `${API_BASE_URL}/api/florist/products`;
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/florist/products`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -137,7 +151,8 @@ export async function updateProduct(
   id: string,
   data: Partial<ProductFormData>,
 ): Promise<ApiResponse<Product>> {
-  const url = `${API_BASE_URL}/api/florist/products/${id}`;
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/florist/products/${id}`;
   const res = await fetch(url, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -159,7 +174,8 @@ export async function updateProduct(
 export async function deleteProduct(
   id: string,
 ): Promise<ApiResponse<{ id: string }>> {
-  const url = `${API_BASE_URL}/api/florist/products/${id}`;
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/api/florist/products/${id}`;
   const res = await fetch(url, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
