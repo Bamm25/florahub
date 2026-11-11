@@ -41,5 +41,5 @@ export async function getAllPublicStores() {
     },
   });
 
-  return florists.filter((f) => f.products.length > 0);
+  return florists.filter((f: any) => f.products.length > 0);
 }

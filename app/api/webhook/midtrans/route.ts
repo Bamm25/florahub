@@ -100,14 +100,14 @@ export async function POST(request: Request) {
       // Kirim notifikasi hanya jika order berhasil ditransisikan dari PENDING ke PAID
       if (transitionResult.shouldNotify) {
         const floristMap = await prisma.product.findMany({
-          where: { id: { in: order.items.map((i) => i.productId) } },
+          where: { id: { in: order.items.map((i: { productId: string }) => i.productId) } },
           select: { floristId: true },
           distinct: ["floristId"],
         });
-        const uniqueFloristIds = floristMap.map((p) => p.floristId);
+        const uniqueFloristIds = floristMap.map((p: { floristId: string }) => p.floristId);
         if (uniqueFloristIds.length > 0) {
           await prisma.notification.createMany({
-            data: uniqueFloristIds.map((floristId) => ({
+            data: uniqueFloristIds.map((floristId: string) => ({
               userId: floristId,
               title: "Pembayaran Diterima!",
               message: `Order #${order.orderNumber} telah dibayar. Segera proses dan kirimkan pesanan.`,
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
       transaction_status === "expire" ||
       transaction_status === "cancel"
     ) {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: any) => {
         await tx.payment.updateMany({
           where: { orderId: order.id },
           data: {
