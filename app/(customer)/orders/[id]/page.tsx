@@ -9,6 +9,7 @@ import {
   cancelOrder,
   type Shipment,
 } from "@/lib/api/orders";
+import { createPaymentToken } from "@/lib/api/customer";
 import {
   CheckCircle,
   Clock,
@@ -86,6 +87,7 @@ export default function OrderDetailPage({
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
 
   // Redirect ke login jika belum auth, fetch order detail dan shipment info
   useEffect(() => {
@@ -138,6 +140,38 @@ export default function OrderDetailPage({
       console.error("Refresh order error:", error);
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  // Fungsi bayar sekarang untuk order PENDING via popup Midtrans
+  const handlePayNow = async () => {
+    if (!order) return;
+    try {
+      setIsPaying(true);
+      const res = await createPaymentToken(order.id);
+      const snapToken = res.data.token;
+      if (typeof window !== "undefined" && (window as any).snap) {
+        (window as any).snap.pay(snapToken, {
+          onSuccess: function (): void {
+            handleRefreshOrder();
+          },
+          onPending: function (): void {
+            handleRefreshOrder();
+          },
+          onError: function (): void {
+            alert("Pembayaran gagal. Silakan coba lagi.");
+          },
+          onClose: function (): void {
+            // Popup ditutup oleh user
+          },
+        });
+      } else {
+        alert("Script pembayaran Midtrans belum siap dimuat. Silakan refresh halaman.");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal menyiapkan pembayaran");
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -280,13 +314,30 @@ export default function OrderDetailPage({
 
         {/* Action buttons */}
         <div className="mt-6 flex justify-center gap-3 flex-wrap">
-          <button
-            onClick={() => router.push(`/orders/${order.id}/tracking`)}
-            className="btn-primary"
-          >
-            <Truck className="mr-2 h-5 w-5" />
-            <span>Lacak Pengiriman Pesanan</span>
-          </button>
+          {order.status === "PENDING" && (
+            <button
+              onClick={handlePayNow}
+              disabled={isPaying}
+              className="btn-primary flex items-center gap-2 px-6 py-2.5 font-bold shadow-md hover:shadow-lg transition-all"
+            >
+              {isPaying ? (
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <CreditCard className="h-5 w-5" />
+              )}
+              <span>{isPaying ? "Menyiapkan Pembayaran..." : "Bayar Sekarang"}</span>
+            </button>
+          )}
+
+          {order.status !== "PENDING" && order.status !== "CANCELLED" && (
+            <button
+              onClick={() => router.push(`/orders/${order.id}/tracking`)}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Truck className="h-5 w-5" />
+              <span>Lacak Pengiriman Pesanan</span>
+            </button>
+          )}
 
           <button
             onClick={handleRefreshOrder}
@@ -569,6 +620,25 @@ export default function OrderDetailPage({
                     {new Date(order.payment.paidAt).toLocaleString("id-ID")}
                   </p>
                 )}
+              </div>
+            )}
+
+            {order.status === "PENDING" && (
+              <div className="mt-6 rounded-xl bg-warning/10 p-4 border border-warning/30">
+                <p className="text-sm font-bold text-warning flex items-center gap-1.5 mb-1">
+                  <Clock className="w-4 h-4" /> Menunggu Pembayaran
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Silakan selesaikan pembayaran agar florist dapat segera merangkai dan mengirimkan pesanan Anda.
+                </p>
+                <button
+                  onClick={handlePayNow}
+                  disabled={isPaying}
+                  className="btn-primary w-full py-2.5 text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  {isPaying ? "Menyiapkan..." : "Bayar Sekarang"}
+                </button>
               </div>
             )}
 

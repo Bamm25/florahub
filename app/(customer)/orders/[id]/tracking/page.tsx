@@ -202,6 +202,21 @@ export default function OrderTrackingPage({
     }),
   });
 
+  // Perhitungan timeline waktu realistis & strictly ascending
+  const startMs = createdDate.getTime();
+  const deliveryDate = isDelivered
+    ? (shipment?.deliveredAt ? new Date(shipment.deliveredAt) : new Date())
+    : null;
+  const currentElapsedMs = isDelivered && deliveryDate
+    ? Math.max(deliveryDate.getTime() - startMs, 60 * 1000)
+    : Math.max(Date.now() - startMs, 60 * 1000);
+
+  // Titik waktu perantara diproporsikan dari waktu riil agar selalu urut kronologis
+  const processDate = new Date(startMs + Math.round(currentElapsedMs * 0.15));
+  const firstMileDate = new Date(startMs + Math.round(currentElapsedMs * 0.40));
+  const transitDate = new Date(startMs + Math.round(currentElapsedMs * 0.65));
+  const outDate = new Date(startMs + Math.round(currentElapsedMs * 0.88));
+
   // Build timeline events berdasarkan order & shipment status aktual
   if (isCancelled) {
     const cancelDate = new Date(order.updatedAt);
@@ -217,10 +232,7 @@ export default function OrderTrackingPage({
     });
   }
 
-  if (isDelivered) {
-    const deliveryDate = shipment?.deliveredAt
-      ? new Date(shipment.deliveredAt)
-      : new Date();
+  if (isDelivered && deliveryDate) {
     const { dateStr, timeStr } = formatEventDate(deliveryDate);
     events.push({
       id: "ev-delivered",
@@ -234,19 +246,17 @@ export default function OrderTrackingPage({
   }
 
   if (isDelivered || isShipped) {
-    const outDate = new Date(createdDate.getTime() + 14 * 3600 * 1000);
-    const { dateStr, timeStr } = formatEventDate(outDate);
+    const { dateStr: outD, timeStr: outT } = formatEventDate(outDate);
     events.push({
       id: "ev-out",
-      dateStr,
-      timeStr,
+      dateStr: outD,
+      timeStr: outT,
       statusTitle: "Pesanan Dalam Proses Pengantaran",
       description: `Kurir ${courierName} sedang membawa paket menuju alamat tujuan Anda di Kota ${customerCity}.`,
       isLatest: events.length === 0,
       stepCategory: "delivering",
     });
 
-    const transitDate = new Date(createdDate.getTime() + 8 * 3600 * 1000);
     const { dateStr: trDate, timeStr: trTime } = formatEventDate(transitDate);
     events.push({
       id: "ev-hub-2",
@@ -258,7 +268,6 @@ export default function OrderTrackingPage({
       stepCategory: "transit",
     });
 
-    const firstMileDate = new Date(createdDate.getTime() + 4 * 3600 * 1000);
     const { dateStr: fmDate, timeStr: fmTime } = formatEventDate(firstMileDate);
     events.push({
       id: "ev-hub-1",
@@ -285,7 +294,6 @@ export default function OrderTrackingPage({
   }
 
   if (isDelivered || isShipped || isProcessing || order.status !== "PENDING") {
-    const processDate = new Date(createdDate.getTime() + 1 * 3600 * 1000);
     const { dateStr, timeStr } = formatEventDate(processDate);
     events.push({
       id: "ev-proc",

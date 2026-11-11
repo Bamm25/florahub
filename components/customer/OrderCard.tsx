@@ -10,9 +10,11 @@ import {
   XCircle,
   ChevronRight,
   AlertTriangle,
+  CreditCard,
   type LucideIcon,
 } from "lucide-react";
 import { cancelOrder } from "@/lib/api/orders";
+import { createPaymentToken } from "@/lib/api/customer";
 
 // Props interface untuk komponen card display order
 interface OrderCardProps {
@@ -47,6 +49,39 @@ export function OrderCard({ order, onClick, onCancelled }: OrderCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
+
+  // Bayar langsung via popup Midtrans dari list pesanan
+  const handlePayNow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      setIsPaying(true);
+      const res = await createPaymentToken(order.id);
+      const snapToken = res.data.token;
+      if (typeof window !== "undefined" && (window as any).snap) {
+        (window as any).snap.pay(snapToken, {
+          onSuccess: function (): void {
+            router.push(`/orders/${order.id}`);
+          },
+          onPending: function (): void {
+            router.push(`/orders/${order.id}`);
+          },
+          onError: function (): void {
+            alert("Pembayaran gagal. Silakan coba lagi.");
+          },
+          onClose: function (): void {
+            // Popup ditutup oleh customer
+          },
+        });
+      } else {
+        alert("Script pembayaran Midtrans belum siap dimuat. Silakan refresh halaman.");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal menyiapkan pembayaran");
+    } finally {
+      setIsPaying(false);
+    }
+  };
 
   // Navigate ke detail order menggunakan callback atau router
   const handleClick = () => {
@@ -165,15 +200,27 @@ export function OrderCard({ order, onClick, onCancelled }: OrderCardProps) {
           </div>
         </button>
 
-        {/* Cancel button — only for PENDING orders */}
+        {/* Actions for PENDING orders */}
         {order.status === "PENDING" && (
-          <div className="mt-4 pt-4 border-t border-border flex justify-end">
+          <div className="mt-4 pt-4 border-t border-border flex items-center justify-end gap-3">
             <button
               onClick={handleCancelClick}
-              className="flex items-center gap-2 rounded-xl border border-error/50 bg-error/10 px-4 py-2 text-sm font-medium text-error hover:bg-error/20 transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-error/40 bg-error/10 px-3.5 py-2 text-xs font-semibold text-error hover:bg-error/20 transition-colors"
             >
               <XCircle className="h-4 w-4" />
-              Batalkan Pesanan
+              Batalkan
+            </button>
+            <button
+              onClick={handlePayNow}
+              disabled={isPaying}
+              className="btn-primary flex items-center gap-1.5 px-4 py-2 text-xs font-bold shadow-sm"
+            >
+              {isPaying ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <CreditCard className="h-4 w-4" />
+              )}
+              <span>{isPaying ? "Menyiapkan..." : "Bayar Sekarang"}</span>
             </button>
           </div>
         )}

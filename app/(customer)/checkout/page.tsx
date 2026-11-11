@@ -287,7 +287,9 @@ export default function CheckoutPage() {
             setIsLoading(false);
           },
           onClose: function (): void {
-            setIsLoading(false);
+            clearCart();
+            // Arahkan customer ke halaman detail pesanan agar dapat melanjutkan pembayaran kapan saja
+            window.location.href = `/orders/${orderId}`;
           },
         });
       } else {
