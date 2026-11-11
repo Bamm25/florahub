@@ -68,9 +68,12 @@ scripts/
 tests/
 
 # IDE and tool states
+.agents/
 .claude/
 .windsurf/
 .postman/
+skills-lock.json
+CLAUDE.md
 
 # Temporary debug files
 COMMIT_MESSAGE.txt
