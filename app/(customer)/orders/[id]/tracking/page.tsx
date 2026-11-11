@@ -173,13 +173,23 @@ export default function OrderTrackingPage({
   let activeStep = 1;
   const isDelivered =
     order.status === "DELIVERED" || shipment?.status === "DELIVERED";
-  const isOutForDelivery =
-    shipment?.status === "IN_TRANSIT" || order.status === "SHIPPED";
+  const isShipped =
+    shipment?.status === "SHIPPED" ||
+    shipment?.status === "IN_TRANSIT" ||
+    (order.status === "SHIPPED" && shipment?.status !== "PENDING" && shipment?.status !== "PROCESSING");
+  const isProcessing =
+    order.status === "PROCESSING" ||
+    shipment?.status === "PROCESSING" ||
+    shipment?.status === "PENDING";
 
   if (isDelivered) {
     activeStep = 3;
-  } else if (isOutForDelivery) {
+  } else if (isShipped) {
     activeStep = 2;
+  } else if (isProcessing) {
+    activeStep = 1;
+  } else {
+    activeStep = 0;
   }
 
   const events: TimelineEvent[] = [];
@@ -192,7 +202,7 @@ export default function OrderTrackingPage({
     }),
   });
 
-  // Build timeline events berdasarkan order status untuk display riwayat
+  // Build timeline events berdasarkan order & shipment status aktual
   if (isCancelled) {
     const cancelDate = new Date(order.updatedAt);
     const { dateStr, timeStr } = formatEventDate(cancelDate);
@@ -223,7 +233,7 @@ export default function OrderTrackingPage({
     });
   }
 
-  if (isDelivered || isOutForDelivery) {
+  if (isDelivered || isShipped) {
     const outDate = new Date(createdDate.getTime() + 14 * 3600 * 1000);
     const { dateStr, timeStr } = formatEventDate(outDate);
     events.push({
@@ -235,15 +245,13 @@ export default function OrderTrackingPage({
       isLatest: events.length === 0,
       stepCategory: "delivering",
     });
-  }
 
-  if (isDelivered || isOutForDelivery || shipment) {
     const transitDate = new Date(createdDate.getTime() + 8 * 3600 * 1000);
-    const { dateStr, timeStr } = formatEventDate(transitDate);
+    const { dateStr: trDate, timeStr: trTime } = formatEventDate(transitDate);
     events.push({
       id: "ev-hub-2",
-      dateStr,
-      timeStr,
+      dateStr: trDate,
+      timeStr: trTime,
       statusTitle: "Tiba di Hub Transit Jawa Timur",
       description: `Diproses di Hub Logistik Jawa Timur (Hub Surabaya Waru / Sidoarjo Gateway).`,
       isLatest: events.length === 0,
@@ -261,9 +269,22 @@ export default function OrderTrackingPage({
       isLatest: events.length === 0,
       stepCategory: "transit",
     });
+  } else if (shipment?.trackingNumber) {
+    // Shipment sudah dibuat tetapi paket masih di florist (menunggu penjemputan kurir)
+    const shipDate = new Date((shipment as any).createdAt || createdDate);
+    const { dateStr, timeStr } = formatEventDate(shipDate);
+    events.push({
+      id: "ev-awb-created",
+      dateStr,
+      timeStr,
+      statusTitle: "Nomor Resi Diterbitkan & Menunggu Kurir",
+      description: `Nomor resi ${shipment.trackingNumber} (${courierName}) telah diterbitkan. Paket bunga segar siap menunggu penjemputan oleh kurir.`,
+      isLatest: events.length === 0,
+      stepCategory: "transit",
+    });
   }
 
-  if (order.status !== "PENDING") {
+  if (isDelivered || isShipped || isProcessing || order.status !== "PENDING") {
     const processDate = new Date(createdDate.getTime() + 1 * 3600 * 1000);
     const { dateStr, timeStr } = formatEventDate(processDate);
     events.push({

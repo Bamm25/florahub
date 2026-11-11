@@ -60,14 +60,29 @@ export async function GET(
         const newStatus = mapBiteshipStatus(biteshipOrder.status);
         const waybillId = biteshipOrder.courier?.waybill_id || shipment.trackingNumber;
 
-        if (newStatus !== shipment.status || waybillId !== shipment.trackingNumber) {
+        const STATUS_RANK: Record<string, number> = {
+          PENDING: 1,
+          PROCESSING: 2,
+          SHIPPED: 3,
+          DELIVERED: 4,
+          CANCELLED: 99,
+        };
+
+        const currentRank = STATUS_RANK[shipment.status] || 0;
+        const nextRank = STATUS_RANK[newStatus] || 0;
+        // Hanya update status dari Biteship jika statusnya maju, jangan downgrade status yang sudah diperbarui florist
+        const shouldUpdateStatus = nextRank > currentRank;
+        const finalStatus = shouldUpdateStatus ? newStatus : shipment.status;
+        const isTrackingChanged = waybillId && waybillId !== shipment.trackingNumber;
+
+        if (shouldUpdateStatus || isTrackingChanged) {
           currentShipment = await prisma.shipment.update({
             where: { id: shipment.id },
             data: {
-              status: newStatus,
+              status: finalStatus,
               trackingNumber: waybillId,
-              shippedAt: newStatus === "SHIPPED" && !shipment.shippedAt ? new Date() : undefined,
-              deliveredAt: newStatus === "DELIVERED" && !shipment.deliveredAt ? new Date() : undefined,
+              shippedAt: finalStatus === "SHIPPED" && !shipment.shippedAt ? new Date() : undefined,
+              deliveredAt: finalStatus === "DELIVERED" && !shipment.deliveredAt ? new Date() : undefined,
             },
             include: {
               order: {
@@ -82,10 +97,10 @@ export async function GET(
             },
           });
 
-          if (newStatus === "SHIPPED" && shipment.order.status === "PROCESSING") {
+          if (finalStatus === "SHIPPED" && shipment.order.status === "PROCESSING") {
             await prisma.order.update({ where: { id: shipment.orderId }, data: { status: "SHIPPED" } });
           }
-          if (newStatus === "DELIVERED" && shipment.order.status !== "DELIVERED") {
+          if (finalStatus === "DELIVERED" && shipment.order.status !== "DELIVERED") {
             await prisma.order.update({ where: { id: shipment.orderId }, data: { status: "DELIVERED" } });
           }
         }

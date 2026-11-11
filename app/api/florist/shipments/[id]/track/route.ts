@@ -81,24 +81,34 @@ export async function GET(
     const newStatus = mapBiteshipStatus(biteshipOrder.status);
     const waybillId = biteshipOrder.courier?.waybill_id || shipment.trackingNumber;
 
-    // Update status, resi, shippedAt, deliveredAt di database jika berbeda
-    const isStatusChanged = newStatus !== shipment.status;
-    const isTrackingChanged = waybillId !== shipment.trackingNumber;
+    const STATUS_RANK: Record<string, number> = {
+      PENDING: 1,
+      PROCESSING: 2,
+      SHIPPED: 3,
+      DELIVERED: 4,
+      CANCELLED: 99,
+    };
 
-    if (isStatusChanged || isTrackingChanged) {
+    const currentRank = STATUS_RANK[shipment.status] || 0;
+    const nextRank = STATUS_RANK[newStatus] || 0;
+    const shouldUpdateStatus = nextRank > currentRank;
+    const finalStatus = shouldUpdateStatus ? newStatus : shipment.status;
+    const isTrackingChanged = waybillId && waybillId !== shipment.trackingNumber;
+
+    if (shouldUpdateStatus || isTrackingChanged) {
       await prisma.shipment.update({
         where: { id: shipmentId },
         data: {
-          status: newStatus,
+          status: finalStatus,
           trackingNumber: waybillId,
-          shippedAt: newStatus === "SHIPPED" && !shipment.shippedAt ? new Date() : undefined,
-          deliveredAt: newStatus === "DELIVERED" && !shipment.deliveredAt ? new Date() : undefined,
+          shippedAt: finalStatus === "SHIPPED" && !shipment.shippedAt ? new Date() : undefined,
+          deliveredAt: finalStatus === "DELIVERED" && !shipment.deliveredAt ? new Date() : undefined,
         },
       });
     }
 
     // Update order status jika shipment shipped
-    if (newStatus === "SHIPPED" && shipment.order.status === "PROCESSING") {
+    if (finalStatus === "SHIPPED" && shipment.order.status === "PROCESSING") {
       await prisma.order.update({
         where: { id: shipment.orderId },
         data: { status: "SHIPPED" },

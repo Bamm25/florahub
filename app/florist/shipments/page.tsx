@@ -387,8 +387,8 @@ export default function FloristShipmentsPage() {
 
   const getNextStatuses = (currentStatus: string): string[] => {
     const transitions: Record<string, string[]> = {
-      PENDING: ["PENDING", "PROCESSING", "SHIPPED", "CANCELLED"],
-      PROCESSING: ["PROCESSING", "SHIPPED", "CANCELLED"],
+      PENDING: ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"],
+      PROCESSING: ["PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"],
       SHIPPED: ["SHIPPED", "DELIVERED", "CANCELLED"],
       DELIVERED: ["DELIVERED"],
       CANCELLED: ["CANCELLED"],

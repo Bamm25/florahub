@@ -86,9 +86,9 @@ export async function PUT(
 
     if (status && status !== existingShipment.status) {
       const validTransitions: Record<string, string[]> = {
-        PENDING: ["PROCESSING", "SHIPPED", "CANCELLED"],
-        PROCESSING: ["SHIPPED", "CANCELLED"],
-        SHIPPED: ["DELIVERED", "CANCELLED"],
+        PENDING: ["PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"],
+        PROCESSING: ["PENDING", "SHIPPED", "DELIVERED", "CANCELLED"],
+        SHIPPED: ["PROCESSING", "DELIVERED", "CANCELLED"],
       };
 
       const allowedStatuses = validTransitions[existingShipment.status] || [];
@@ -129,11 +129,14 @@ export async function PUT(
     if (weightInGrams !== undefined) updateData.weight = weightInGrams;
 
     if (status === "SHIPPED") {
-      updateData.shippedAt = new Date();
+      updateData.shippedAt = existingShipment.shippedAt || new Date();
     }
 
     if (status === "DELIVERED") {
       updateData.deliveredAt = new Date();
+      if (!existingShipment.shippedAt) {
+        updateData.shippedAt = new Date();
+      }
     }
 
     if (Object.keys(updateData).length === 0) {
