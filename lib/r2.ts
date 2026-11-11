@@ -32,6 +32,11 @@ export async function uploadToR2(
     throw new Error("Cloudflare R2 belum dikonfigurasi di environment variables.");
   }
 
+  const publicUrlBase = process.env.R2_PUBLIC_URL?.trim().replace(/\/+$/, "");
+  if (!publicUrlBase || !/^https:\/\/[^/]+$/i.test(publicUrlBase)) {
+    throw new Error("R2_PUBLIC_URL harus berupa URL publik HTTPS yang valid.");
+  }
+
   const bucketName = process.env.R2_BUCKET_NAME;
   const key = `products/${filename}`;
 
@@ -43,18 +48,6 @@ export async function uploadToR2(
       ContentType: contentType,
     })
   );
-
-  // Dapatkan base public URL (Custom Domain atau R2.dev public URL)
-  let publicUrlBase = process.env.R2_PUBLIC_URL || "";
-  // Hapus trailing slash jika ada
-  if (publicUrlBase.endsWith("/")) {
-    publicUrlBase = publicUrlBase.slice(0, -1);
-  }
-
-  // Jika publicUrlBase belum diset, gunakan default path
-  if (!publicUrlBase) {
-    return `https://${bucketName}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
-  }
 
   return `${publicUrlBase}/${key}`;
 }

@@ -101,7 +101,7 @@ export const createProductSchema = z.object({
   description: z.string().min(10, "Deskripsi minimal 10 karakter"),
   price: z.number().min(0, "Harga tidak boleh negatif"),
   stock: z.number().int().min(0, "Stok tidak boleh negatif"),
-  categoryId: z.uuid("Category ID tidak valid"),
+  categoryId: z.string().min(1, "Category ID tidak valid"),
   image: z.url("URL gambar tidak valid").optional(),
   isActive: z.boolean().default(true),
 });
@@ -112,7 +112,7 @@ export const updateProductSchema = z.object({
   description: z.string().min(10).optional(),
   price: z.number().min(0).optional(),
   stock: z.number().int().min(0).optional(),
-  categoryId: z.uuid().optional(),
+  categoryId: z.string().min(1).optional(),
   image: z.url().optional(),
   isActive: z.boolean().optional(),
 });
@@ -169,7 +169,7 @@ export const updateCategorySchema = z.object({
 // Florist inventory schemas
 // Create inventory
 export const createInventorySchema = z.object({
-  stockId: z.uuid("Stock ID tidak valid"),
+  stockId: z.string().min(1, "Stock ID tidak valid"),
   quantity: z.number().min(0, "Quantity tidak boleh negatif"),
   location: z.string().min(1, "Lokasi wajib diisi").max(100),
   notes: z.string().max(500).optional(),
@@ -185,7 +185,7 @@ export const updateInventorySchema = z.object({
 // Florist product component schemas
 // Create product component
 export const createProductComponentSchema = z.object({
-  inventoryId: z.uuid("Inventory ID tidak valid"),
+  inventoryId: z.string().length(25, "Inventory ID harus CUID 25 karakter"), // ID inventory Prisma bertipe CUID
   quantity: z.number().min(0.01, "Quantity harus lebih dari 0"),
 });
 
@@ -244,7 +244,7 @@ export const updateHarvestAnnouncementSchema = z.object({
 // Preorder schemas
 // Create preorder
 export const createPreorderSchema = z.object({
-  harvestAnnouncementId: z.uuid("Harvest announcement ID tidak valid"),
+  harvestAnnouncementId: z.string().min(1, "Harvest announcement ID tidak valid"),
   quantity: z.number().min(1, "Quantity minimal 1"),
   notes: z.string().max(500).nullable().optional(),
 });
@@ -258,7 +258,7 @@ export const updatePreorderSchema = z.object({
 // Purchase & shipment schemas
 // Create purchase
 export const createPurchaseSchema = z.object({
-  stockId: z.uuid("Stock ID tidak valid"),
+  stockId: z.string().min(1, "Stock ID tidak valid"),
   quantity: z.number().min(1, "Quantity minimal 1"),
   notes: z.string().max(500).optional(),
 });
@@ -270,7 +270,7 @@ export const updatePurchaseSchema = z.object({
 
 // Create shipment
 export const createShipmentSchema = z.object({
-  orderId: z.uuid("Order ID tidak valid"),
+  orderId: z.string().min(1, "Order ID tidak valid"),
   courier: z.string().min(1, "Nama kurir wajib diisi").max(50),
   service: z.string().max(20).nullable().optional(),
   trackingNumber: z.string().max(100).nullable().optional(),
@@ -303,7 +303,7 @@ export const createPaymentSchema = z.object({
 // Cart item schemas
 // Create cart item
 export const createCartItemSchema = z.object({
-  productId: z.uuid("Product ID tidak valid"),
+  productId: z.string().min(1, "Product ID tidak valid"),
   quantity: z.number().int().min(1, "Quantity minimal 1"),
 });
 
@@ -333,7 +333,7 @@ export const updateUserSchema = z.object({
 
 // Notification schemas
 export const createNotificationSchema = z.object({
-  userId: z.uuid("User ID tidak valid"),
+  userId: z.string().min(1, "User ID tidak valid"),
   title: z.string().min(1, "Judul wajib diisi").max(200),
   message: z.string().min(1, "Pesan wajib diisi").max(1000),
   type: z.string().max(50).optional(),

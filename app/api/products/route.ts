@@ -23,6 +23,12 @@ export async function GET(request: Request) {
               id: true,
               name: true,
               email: true,
+              floristProfile: {
+                select: {
+                  shopName: true,
+                  defaultAddress: { select: { city: true } },
+                },
+              },
             },
           },
           reviews: {
@@ -69,8 +75,8 @@ export async function GET(request: Request) {
         createdAt: product.createdAt.toISOString(),
         florist: {
           id: product.florist.id,
-          shopName: product.florist.name,
-          city: "Surabaya",
+          shopName: product.florist.floristProfile?.shopName || product.florist.name,
+          city: product.florist.floristProfile?.defaultAddress?.city || "",
         },
         category: {
           id: product.category?.id || "",

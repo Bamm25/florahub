@@ -239,7 +239,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Florist Info */}
-          <div className="mb-6 flex items-center gap-3 rounded-xl bg-surface-container p-4 border border-border">
+          <Link href={`/stores/${product.florist.id}`} className="mb-6 flex items-center gap-3 rounded-xl bg-surface-container p-4 border border-border transition-colors hover:border-primary" aria-label={`Lihat toko ${product.florist.shopName}`}>
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
               <Store className="h-6 w-6 text-primary" />
             </div>
@@ -248,7 +248,7 @@ export default function ProductDetailPage() {
               <p className="text-base font-bold text-foreground">{product.florist.shopName}</p>
               <p className="text-sm text-muted-foreground">{product.florist.city}</p>
             </div>
-          </div>
+          </Link>
 
           {/* Description */}
           <div className="mb-6">

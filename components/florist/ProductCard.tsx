@@ -1,5 +1,5 @@
 import React from "react";
-import { Eye, Edit, Trash2, ImageIcon } from "lucide-react";
+import { Eye, Edit, Trash2, ImageIcon, Package } from "lucide-react";
 import { formatRupiah } from "@/lib/utils/formatters";
 
 // Use full Product type to match parent component
@@ -27,8 +27,9 @@ interface Product {
 interface ProductCardProps {
   product: Product;
   onEdit: (product: Product) => void;
-  onDelete: (product: Product) => void;
-  onViewComponents: (productId: string) => void;
+  onDelete: (id: string) => void;
+  onViewComponents: (product: Product) => void;
+  onProduce: (product: Product) => void;
 }
 
 /**
@@ -40,6 +41,7 @@ export default function ProductCard({
   onEdit,
   onDelete,
   onViewComponents,
+  onProduce,
 }: ProductCardProps) {
   return (
     <div className="card-elevated p-0 overflow-hidden hover:shadow-xl transition-all">
@@ -100,28 +102,37 @@ export default function ProductCard({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 pt-2 border-t border-border">
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
           <button
-            onClick={() => onViewComponents(product.id)}
-            className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-tertiary bg-tertiary/5 rounded-xl hover:bg-tertiary/10 transition-colors"
+            onClick={() => onViewComponents(product)}
+            className="inline-flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-tertiary bg-tertiary/5 rounded-xl hover:bg-tertiary/10 transition-colors"
             title="Lihat Komponen BOM"
           >
             <Eye className="w-4 h-4" />
             BOM
           </button>
           <button
+            onClick={() => onProduce(product)}
+            className="inline-flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-success bg-success/5 rounded-xl hover:bg-success/10 transition-colors"
+            title="Produksi Produk"
+          >
+            <Package className="w-4 h-4" />
+            Produksi
+          </button>
+          <button
             onClick={() => onEdit(product)}
-            className="flex-1 inline-flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-primary bg-primary/5 rounded-xl hover:bg-primary/10 transition-colors"
+            className="inline-flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-primary bg-primary/5 rounded-xl hover:bg-primary/10 transition-colors"
           >
             <Edit className="w-4 h-4" />
             Edit
           </button>
           <button
-            onClick={() => onDelete(product)}
-            className="px-3 py-2 text-error bg-error/5 rounded-xl hover:bg-error/10 transition-colors"
+            onClick={() => onDelete(product.id)}
+            className="inline-flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-error bg-error/5 rounded-xl hover:bg-error/10 transition-colors"
             title="Hapus"
           >
             <Trash2 className="w-4 h-4" />
+            Hapus
           </button>
         </div>
       </div>

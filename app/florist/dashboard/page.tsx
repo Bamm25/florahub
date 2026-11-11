@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Boxes,
   Truck,
+  MapPin,
   RotateCcw,
 } from "lucide-react";
 
@@ -36,6 +37,23 @@ interface DashboardData {
       email: string;
     };
   }>;
+  floristInfo?: {
+    shopName: string;
+    shopDescription: string;
+    logo: string | null;
+    banner: string | null;
+    name: string;
+    email: string;
+    phone: string;
+    address: {
+      recipientName: string;
+      phone: string;
+      fullAddress: string;
+      city: string;
+      province: string;
+      postalCode: string;
+    } | null;
+  };
 }
 
 export default function FloristDashboardPage() {
@@ -158,6 +176,7 @@ export default function FloristDashboardPage() {
   };
 
   const recentOrders = data?.recentOrders || [];
+  const floristInfo = data?.floristInfo;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -170,18 +189,29 @@ export default function FloristDashboardPage() {
             Pantau arus pesanan, pendapatan toko, dan ketersediaan stok bunga
             secara real-time.
           </p>
+          {floristInfo?.address && (
+            <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
+              <MapPin className="h-4 w-4 shrink-0" />
+              <span>
+                {floristInfo.shopName} • {floristInfo.address.fullAddress}, {floristInfo.address.city}, {floristInfo.address.province} {floristInfo.address.postalCode}
+              </span>
+            </p>
+          )}
+          <Link href="/florist/settings/shop" className="mt-2 inline-flex text-xs font-semibold text-primary hover:underline">
+            Kelola profil & alamat toko
+          </Link>
         </div>
 
         <div className="flex items-center gap-3">
           <Link
-            href="/orders"
+            href="/florist/orders"
             className="btn-primary inline-flex items-center gap-2 text-sm"
           >
             <ShoppingBag className="h-4 w-4" />
             <span>Kelola Pesanan</span>
           </Link>
           <Link
-            href="/inventory"
+            href="/florist/inventory"
             className="btn-secondary inline-flex items-center gap-2 text-sm"
           >
             <Boxes className="h-4 w-4" />
@@ -279,7 +309,7 @@ export default function FloristDashboardPage() {
             </p>
           </div>
           <Link
-            href="/orders"
+            href="/florist/orders"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
           >
             <span>Semua Pesanan</span>

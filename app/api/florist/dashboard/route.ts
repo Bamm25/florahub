@@ -206,6 +206,33 @@ export async function GET(request: Request) {
       },
     });
 
+    // Gunakan nama toko dari profil untuk dashboard.
+    const floristProfile = await prisma.floristProfile.findUnique({
+      where: { userId },
+      select: {
+        shopName: true,
+        shopDescription: true,
+        logo: true,
+        banner: true,
+        defaultAddressId: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    // Get default address
+    let defaultAddress = null;
+    if (floristProfile?.defaultAddressId) {
+      defaultAddress = await prisma.address.findFirst({
+        where: { id: floristProfile.defaultAddressId, userId, isDefault: true },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: "Dashboard data berhasil diambil",
@@ -224,12 +251,23 @@ export async function GET(request: Request) {
           topProducts: topProductsWithDetails,
         },
         recentOrders,
+        floristInfo: {
+          shopName: floristProfile?.shopName || "",
+          shopDescription: floristProfile?.shopDescription || "",
+          logo: floristProfile?.logo || null,
+          banner: floristProfile?.banner || null,
+          name: floristProfile?.user.name || "",
+          email: floristProfile?.user.email || "",
+          phone: floristProfile?.user.phone || "",
+          address: defaultAddress,
+        },
       },
     });
   } catch (error) {
     if (error instanceof NextResponse) {
       return error;
     }
+    console.error("[FLORIST_DASHBOARD_ERROR]", error);
     return NextResponse.json(
       { success: false, message: "Gagal mengambil dashboard data" },
       { status: 500 },

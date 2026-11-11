@@ -22,7 +22,7 @@ export async function GET(
       );
     }
 
-    // Query order dengan items, payment, address, shipment, dan user details
+    // Query order dengan items, payment, address, shipment, dan user details (no cache untuk real-time status)
     const order = await prisma.order.findUnique({
       where: { id },
       include: {

@@ -50,121 +50,122 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validasi kesesuaian gross_amount callback dengan total order
+    const receivedGross = Math.round(parseFloat(gross_amount));
+    if (receivedGross !== order.totalAmount) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Gross amount mismatch: expected ${order.totalAmount}, got ${receivedGross}`,
+        },
+        { status: 400 },
+      );
+    }
+
     if (
       transaction_status === "settlement" ||
       transaction_status === "capture"
     ) {
-      await prisma.payment.update({
-        where: { orderId: order.id },
-        data: {
-          status: "PAID",
-          method: payment_type || "midtrans",
-          transactionId: transaction_id,
-          paidAt: new Date(),
-        },
-      });
-
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: "PAID",
-        },
-      });
-
-      // Update stock and check for low stock alerts
-      for (const item of order.items) {
-        const updatedProduct = await prisma.product.update({
-          where: { id: item.productId },
+      // Eksekusi transisi status secara atomic untuk mencegah duplicate notification & late settlement
+      const transitionResult = await prisma.$transaction(async (tx) => {
+        // Hanya order dengan status PENDING yang dapat berubah menjadi PAID
+        const updateResult = await tx.order.updateMany({
+          where: {
+            id: order.id,
+            status: "PENDING",
+          },
           data: {
-            stock: {
-              decrement: item.quantity,
-            },
-          },
-          select: {
-            id: true,
-            name: true,
-            stock: true,
-            floristId: true,
+            status: "PAID",
           },
         });
 
-        // Trigger low stock alert if stock falls below threshold (10 units)
-        const LOW_STOCK_THRESHOLD = 10;
-        if (updatedProduct.stock < LOW_STOCK_THRESHOLD && updatedProduct.stock >= 0) {
-          // Check if there's already an unread low stock alert for this product
-          const existingAlert = await prisma.notification.findFirst({
-            where: {
-              userId: updatedProduct.floristId,
-              type: "LOW_STOCK_ALERT",
-              isRead: false,
-              message: { contains: updatedProduct.name },
-            },
-          });
-
-          if (!existingAlert) {
-            await prisma.notification.create({
-              data: {
-                userId: updatedProduct.floristId,
-                title: "Peringatan Stok Rendah!",
-                message: `Stok produk "${updatedProduct.name}" hanya tersisa ${updatedProduct.stock} unit. Segera lakukan restock untuk menghindari kehabisan stok.`,
-                type: "LOW_STOCK_ALERT",
-                link: `/florist/products`,
-                isRead: false,
-              },
-            });
-          }
+        // Jika order sudah bukan PENDING (sudah PAID atau sudah CANCELLED), abaikan mutasi
+        if (updateResult.count === 0) {
+          return { shouldNotify: false };
         }
-      }
 
-      // Notify each unique florist about successful payment
-      const floristMap = await prisma.product.findMany({
-        where: { id: { in: order.items.map((i) => i.productId) } },
-        select: { floristId: true },
-        distinct: ["floristId"],
+        await tx.payment.update({
+          where: { orderId: order.id },
+          data: {
+            status: "PAID",
+            method: payment_type || "midtrans",
+            transactionId: transaction_id,
+            paidAt: new Date(),
+          },
+        });
+
+        return { shouldNotify: true };
       });
-      const uniqueFloristIds = floristMap.map((p) => p.floristId);
-      if (uniqueFloristIds.length > 0) {
-        await prisma.notification.createMany({
-          data: uniqueFloristIds.map((floristId) => ({
-            userId: floristId,
-            title: "Pembayaran Diterima!",
-            message: `Order #${order.orderNumber} telah dibayar. Segera proses dan kirimkan pesanan.`,
-            type: "PAYMENT_SUCCESS" as const,
-            link: `/florist/orders`,
+
+      // Kirim notifikasi hanya jika order berhasil ditransisikan dari PENDING ke PAID
+      if (transitionResult.shouldNotify) {
+        const floristMap = await prisma.product.findMany({
+          where: { id: { in: order.items.map((i) => i.productId) } },
+          select: { floristId: true },
+          distinct: ["floristId"],
+        });
+        const uniqueFloristIds = floristMap.map((p) => p.floristId);
+        if (uniqueFloristIds.length > 0) {
+          await prisma.notification.createMany({
+            data: uniqueFloristIds.map((floristId) => ({
+              userId: floristId,
+              title: "Pembayaran Diterima!",
+              message: `Order #${order.orderNumber} telah dibayar. Segera proses dan kirimkan pesanan.`,
+              type: "PAYMENT_SUCCESS" as const,
+              link: `/florist/orders`,
+              isRead: false,
+            })),
+          });
+        }
+
+        await prisma.notification.create({
+          data: {
+            userId: order.userId,
+            title: "Pembayaran Berhasil!",
+            message: `Pembayaran untuk order #${order.orderNumber} telah berhasil dikonfirmasi. Pesanan Anda sedang diproses.`,
+            type: "PAYMENT_SUCCESS",
+            link: `/orders/${order.id}`,
             isRead: false,
-          })),
+          },
         });
       }
-
-      // Notify customer about payment success
-      await prisma.notification.create({
-        data: {
-          userId: order.userId,
-          title: "Pembayaran Berhasil!",
-          message: `Pembayaran untuk order #${order.orderNumber} telah berhasil dikonfirmasi. Pesanan Anda sedang diproses.`,
-          type: "PAYMENT_SUCCESS",
-          link: `/customer/orders`,
-          isRead: false,
-        },
-      });
     } else if (
       transaction_status === "deny" ||
       transaction_status === "expire" ||
       transaction_status === "cancel"
     ) {
-      await prisma.payment.update({
-        where: { orderId: order.id },
-        data: {
-          status: "FAILED",
-        },
-      });
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.updateMany({
+          where: { orderId: order.id },
+          data: {
+            status: "FAILED",
+          },
+        });
 
-      await prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: "CANCELLED",
-          cancelReason: `Payment ${transaction_status}`,
-        },
+        // Kembalikan reserved stock HANYA jika status order masih PENDING
+        const updateResult = await tx.order.updateMany({
+          where: {
+            id: order.id,
+            status: "PENDING",
+          },
+          data: {
+            status: "CANCELLED",
+            cancelReason: `Payment ${transaction_status}`,
+          },
+        });
+
+        if (updateResult.count > 0) {
+          for (const item of order.items) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: {
+                stock: {
+                  increment: item.quantity,
+                },
+              },
+            });
+          }
+        }
       });
     }
 

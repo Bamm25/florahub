@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { ArrowLeft, Package, User, MapPin, CreditCard, Truck, Loader2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
@@ -45,33 +45,22 @@ interface OrderDetail {
   shippingAddress: {
     recipientName: string;
     phone: string;
-    street: string;
+    fullAddress: string;
     city: string;
     province: string;
     postalCode: string;
   } | null;
 }
 
-export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
+export default function OrderDetailPage() {
+  const { id: orderId } = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
 
-  useEffect(() => {
-    params.then((p) => setOrderId(p.id));
-  }, [params]);
-
-  useEffect(() => {
-    if (orderId) {
-      fetchOrderDetail();
-    }
-  }, [orderId]);
-
-  const fetchOrderDetail = async () => {
+  async function fetchOrderDetail() {
     if (!orderId) return;
-    
+
     try {
       setIsLoading(true);
       setError(null);
@@ -89,7 +78,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     } finally {
       setIsLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (orderId) void fetchOrderDetail();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
 
   const formatRupiah = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -175,7 +170,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <h1 className="text-2xl font-semibold text-foreground">Detail Pesanan</h1>
           <p className="text-muted-foreground text-sm mt-1">{order.orderNumber}</p>
         </div>
-        {getStatusBadge(order.payment?.status || order.status)}
+        {getStatusBadge(order.status)}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -279,7 +274,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <div className="text-sm text-foreground space-y-1">
                 <p className="font-medium">{order.shippingAddress.recipientName}</p>
                 <p className="text-muted-foreground">{order.shippingAddress.phone}</p>
-                <p className="text-muted-foreground">{order.shippingAddress.street}</p>
+                <p className="text-muted-foreground">{order.shippingAddress.fullAddress}</p>
                 <p className="text-muted-foreground">
                   {order.shippingAddress.city}, {order.shippingAddress.province} {order.shippingAddress.postalCode}
                 </p>
@@ -337,7 +332,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
           {/* Quick Actions */}
           <div className="space-y-2">
-            {order.payment?.status === "PAID" && !order.shipment && (
+            {order.status === "PAID" && !order.shipment && (
               <Link href="/florist/shipments" className="btn-primary w-full text-center block">
                 Buat Pengiriman
               </Link>

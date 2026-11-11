@@ -80,6 +80,7 @@ export default function OrderDetailPage({
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -120,6 +121,25 @@ export default function OrderDetailPage({
       loadOrder();
     }
   }, [status, orderId, router]);
+
+  // Fungsi refresh manual untuk reload order status dari DB (no cache)
+  const handleRefreshOrder = async () => {
+    try {
+      setIsRefreshing(true);
+      const response = await fetch(`/api/customer/orders/${orderId}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setOrder(result.data.order);
+      }
+    } catch (error) {
+      console.error("Refresh order error:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Render loading skeleton untuk order detail
   if (status === "loading" || isLoading) {
@@ -266,6 +286,20 @@ export default function OrderDetailPage({
           >
             <Truck className="mr-2 h-5 w-5" />
             <span>Lacak Pengiriman Pesanan</span>
+          </button>
+
+          <button
+            onClick={handleRefreshOrder}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-surface-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Refresh status pembayaran"
+          >
+            {isRefreshing ? (
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            ) : (
+              <Package className="h-5 w-5" />
+            )}
+            {isRefreshing ? "Memuat..." : "Refresh Status"}
           </button>
 
           {order.status === "PENDING" && (

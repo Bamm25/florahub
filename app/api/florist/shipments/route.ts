@@ -73,16 +73,6 @@ export async function POST(request: Request) {
       );
     }
 
-    if (order.status !== "PAID") {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Tidak dapat membuat shipment: status order saat ini "${order.status}". Hanya order dengan status PAID yang dapat dikirim`,
-        },
-        { status: 400 },
-      );
-    }
-
     const isOwner = order.items.some(
       (item) => item.product.floristId === floristId,
     );
@@ -93,6 +83,16 @@ export async function POST(request: Request) {
           message: "Forbidden: Order ini bukan milik Anda",
         },
         { status: 403 },
+      );
+    }
+
+    if (order.status !== "PAID") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Tidak dapat membuat shipment: status order saat ini "${order.status}". Hanya order dengan status PAID yang dapat dikirim`,
+        },
+        { status: 400 },
       );
     }
 
@@ -136,14 +136,14 @@ export async function POST(request: Request) {
       }),
       prisma.order.update({
         where: { id: order.id },
-        data: { status: "SHIPPED" },
+        data: { status: "PROCESSING" },
       }),
       // Notify customer about shipment creation
       prisma.notification.create({
         data: {
           userId: order.userId,
-          title: "Pesanan Dikirim!",
-          message: `Pesanan #${order.orderNumber} telah dikirim via ${courier.trim()}${trackingNumber ? ` dengan nomor resi ${trackingNumber.trim()}` : ""}. Lacak pengiriman Anda di halaman detail pesanan.`,
+          title: "Pengiriman Disiapkan",
+          message: `Pengiriman pesanan #${order.orderNumber} telah dibuat via ${courier.trim()}${trackingNumber ? ` dengan nomor resi ${trackingNumber.trim()}` : ""}. Status pengiriman akan diperbarui saat paket benar-benar dikirim.`,
           type: "SHIPMENT_UPDATE",
           link: `/orders/${order.id}`,
           isRead: false,

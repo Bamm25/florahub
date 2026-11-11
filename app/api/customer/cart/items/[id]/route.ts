@@ -189,3 +189,6 @@ export async function DELETE(
     );
   }
 }
+
+// Alias PUT ke PATCH untuk fleksibilitas client dan automated testing
+export const PUT = PATCH;

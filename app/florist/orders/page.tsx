@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Package, Search, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
 
 interface Order {
   id: string;
@@ -47,27 +48,24 @@ export default function FloristOrdersPage() {
     fetchOrders();
   }, []);
 
-  const fetchOrders = async () => {
+  async function fetchOrders() {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await fetch("/api/florist/orders");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Gagal memuat pesanan");
-      setOrders(data.orders || []);
+      const data = await fetchPaginatedCollection<Order>("/api/florist/orders", "orders");
+      setOrders(data);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
       statusFilter === "ALL" ||
-      order.payment?.status === statusFilter ||
-      order.shipment?.status === statusFilter;
+      order.status === statusFilter;
     const matchesSearch =
       searchQuery === "" ||
       order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -156,7 +154,7 @@ export default function FloristOrdersPage() {
         <div className="card-elevated p-4 space-y-1">
           <p className="text-sm text-muted-foreground">Perlu Diproses</p>
           <p className="text-2xl font-semibold text-primary">
-            {orders.filter(o => o.payment?.status === "PAID" && !o.shipment).length}
+            {orders.filter(o => o.status === "PAID" && !o.shipment).length}
           </p>
         </div>
         <div className="card-elevated p-4 space-y-1">

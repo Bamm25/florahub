@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile } from "fs/promises";
-import { join } from "path";
 import { randomUUID } from "crypto";
 import { isR2Configured, uploadToR2 } from "@/lib/r2";
 
@@ -35,25 +33,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique filename
+    // Produk florist hanya menerima URL publik Cloudflare R2.
+    if (!isR2Configured || !process.env.R2_PUBLIC_URL?.trim()) {
+      return NextResponse.json(
+        { error: "Cloudflare R2 belum dikonfigurasi lengkap (termasuk R2_PUBLIC_URL)" },
+        { status: 503 }
+      );
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-
-    // Create unique filename: uuid_timestamp.extension
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const filename = `${randomUUID()}_${Date.now()}.${ext}`;
+    const publicUrl = await uploadToR2(buffer, filename, file.type);
 
-    let publicUrl = "";
-
-    // Gunakan Cloudflare R2 jika sudah dikonfigurasi
-    if (isR2Configured) {
-      publicUrl = await uploadToR2(buffer, filename, file.type);
-    } else {
-      // Fallback lokal jika R2 credentials belum diisi (untuk development)
-      const uploadDir = join(process.cwd(), "public", "uploads", "products");
-      const filepath = join(uploadDir, filename);
-      await writeFile(filepath, buffer);
-      publicUrl = `/uploads/products/${filename}`;
+    // Jangan tampilkan preview sukses bila URL publik belum bisa diakses.
+    let reachable = false;
+    try {
+      const image = await fetch(publicUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) });
+      reachable = image.ok && (image.headers.get("content-type")?.startsWith("image/") ?? false);
+    } catch (error) {
+      console.error("R2 public image verification failed:", error);
+    }
+    if (!reachable) {
+      return NextResponse.json(
+        { error: "Gambar belum tersedia melalui URL publik Cloudflare R2" },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json({
@@ -61,7 +67,7 @@ export async function POST(request: NextRequest) {
       filename: filename,
       size: file.size,
       type: file.type,
-      storage: isR2Configured ? "cloudflare-r2" : "local-fallback",
+      storage: "cloudflare-r2",
     });
   } catch (error) {
     console.error("Upload error:", error);

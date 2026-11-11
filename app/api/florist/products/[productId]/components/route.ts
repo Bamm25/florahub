@@ -127,6 +127,25 @@ export async function POST(
     const validatedData = createProductComponentSchema.parse(body);
     const { inventoryId, quantity } = validatedData;
 
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, floristId: true },
+    });
+
+    if (!product) {
+      return NextResponse.json(
+        { success: false, message: "Produk tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    if (userRole === "FLORIST" && product.floristId !== userId) {
+      return NextResponse.json(
+        { success: false, message: "Anda tidak memiliki akses ke produk ini" },
+        { status: 403 },
+      );
+    }
+
     const inventory = await prisma.floristInventory.findUnique({
       where: { id: inventoryId },
       select: {
@@ -155,12 +174,29 @@ export async function POST(
       );
     }
 
+    if (inventory.floristId !== product.floristId) {
+      return NextResponse.json(
+        { success: false, message: "Inventory bukan milik florist produk ini" },
+        { status: 403 },
+      );
+    }
+
     const existingComponent = await prisma.productComponent.findFirst({
       where: {
         productId,
         inventoryId,
       },
     });
+
+    if (existingComponent) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Komponen dengan inventory ini sudah ada di produk",
+        },
+        { status: 409 },
+      );
+    }
 
     const component = await prisma.productComponent.create({
       data: {

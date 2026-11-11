@@ -51,10 +51,12 @@ export default function ProductModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [previewError, setPreviewError] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = "";
 
     // Reset error
     setUploadError("");
@@ -85,13 +87,17 @@ export default function ProductModal({
         body: formData,
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data.error || "Upload gagal");
+        throw new Error(data?.error || `Upload gagal (${response.status})`);
       }
 
-      // Set image URL to form
+      if (data?.storage !== "cloudflare-r2" || typeof data.url !== "string" || !data.url.startsWith("https://")) {
+        throw new Error("Respon upload bukan URL publik Cloudflare R2");
+      }
+
+      setPreviewError(false);
       onChange("image", data.url);
     } catch (error) {
       console.error("Upload error:", error);
@@ -107,6 +113,7 @@ export default function ProductModal({
       fileInputRef.current.value = "";
     }
     setUploadError("");
+    setPreviewError(false);
   };
 
   return (
@@ -223,6 +230,10 @@ export default function ProductModal({
               <img
                 src={formData.image}
                 alt="Preview"
+                onError={() => {
+                  setPreviewError(true);
+                  setUploadError("Gambar tidak dapat ditampilkan. Unggah ulang gambar sebelum menyimpan.");
+                }}
                 className="w-full h-48 object-cover rounded-xl border border-border"
               />
               <button
@@ -320,7 +331,7 @@ export default function ProductModal({
           </button>
           <button
             type="submit"
-            disabled={isSubmitting || isUploading}
+            disabled={isSubmitting || isUploading || previewError}
             className="flex-1 btn-primary text-sm"
           >
             {isSubmitting ? (

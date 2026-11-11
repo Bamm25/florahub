@@ -26,8 +26,9 @@ interface ProductListProps {
   products: Product[];
   hasFilters: boolean;
   onEdit: (product: Product) => void;
-  onDelete: (product: Product) => void;
-  onViewComponents: (productId: string) => void;
+  onDelete: (id: string) => void;
+  onViewComponents: (product: Product) => void;
+  onProduce: (product: Product) => void;
 }
 
 export default function ProductList({
@@ -36,6 +37,7 @@ export default function ProductList({
   onEdit,
   onDelete,
   onViewComponents,
+  onProduce,
 }: ProductListProps) {
   if (products.length === 0) {
     return (
@@ -64,6 +66,7 @@ export default function ProductList({
           onEdit={onEdit}
           onDelete={onDelete}
           onViewComponents={onViewComponents}
+          onProduce={onProduce}
         />
       ))}
     </div>

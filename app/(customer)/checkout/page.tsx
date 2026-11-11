@@ -55,7 +55,18 @@ export default function CheckoutPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const shippingCost = 15000;
+  const [shippingCost, setShippingCost] = useState(15000);
+  const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
+  const [shippingRates, setShippingRates] = useState<Array<{
+    courier: string;
+    service: string;
+    price: number;
+    estimatedDays: string;
+  }>>([]);
+  const [selectedShipping, setSelectedShipping] = useState<{
+    courier: string;
+    service: string;
+  } | null>(null);
 
   // Validasi form checkout sebelum submit order
   const validateCheckout = (): boolean => {
@@ -115,6 +126,48 @@ export default function CheckoutPage() {
     setCouponError(null);
   };
 
+  // Calculate shipping cost saat address dipilih atau items berubah
+  const calculateShipping = async (addressId: string): Promise<void> => {
+    if (!addressId || items.length === 0) return;
+
+    try {
+      setIsCalculatingShipping(true);
+      const response = await fetch("/api/customer/shipping/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          addressId,
+          items: items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success && result.data.rates.length > 0) {
+        setShippingRates(result.data.rates);
+        const cheapest = result.data.cheapest;
+        setShippingCost(cheapest.price);
+        setSelectedShipping({
+          courier: cheapest.courier,
+          service: cheapest.service,
+        });
+      } else {
+        setShippingCost(15000);
+        setShippingRates([]);
+        setSelectedShipping(null);
+      }
+    } catch (error) {
+      console.error("Calculate shipping error:", error);
+      setShippingCost(15000);
+      setShippingRates([]);
+      setSelectedShipping(null);
+    } finally {
+      setIsCalculatingShipping(false);
+    }
+  };
+
   interface AddressFormData {
     label: string;
     recipientName: string;
@@ -169,8 +222,11 @@ export default function CheckoutPage() {
         const defaultAddress = addressList.find((a: Address) => a.isDefault);
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
+          // Calculate shipping untuk default address
+          void calculateShipping(defaultAddress.id);
         } else if (addressList.length > 0) {
           setSelectedAddressId(addressList[0].id);
+          void calculateShipping(addressList[0].id);
         }
       } catch (error) {
         setErrorMessage(

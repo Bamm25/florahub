@@ -141,6 +141,7 @@ export async function POST(request: Request) {
       message: "Link pembayaran berhasil dibuat",
       data: {
         token: transaction.token,
+        snapToken: transaction.token,
         redirectUrl: transaction.redirect_url,
       },
     });

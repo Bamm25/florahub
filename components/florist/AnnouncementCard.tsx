@@ -38,10 +38,11 @@ export default function AnnouncementCard({
   announcement,
   onCreatePreOrder,
 }: AnnouncementCardProps) {
-  // FIXME: Backend should return totalReservedQuantity (sum of quantities, not count)
-  const totalOrdered = announcement.totalReservedQuantity ?? announcement._count.preOrders ?? 0;
-  const available = announcement.estimatedQuantity - totalOrdered;
-  const percentBooked = (totalOrdered / announcement.estimatedQuantity) * 100;
+  const totalOrdered = announcement.totalReservedQuantity ?? 0;
+  const available = Math.max(0, announcement.estimatedQuantity - totalOrdered);
+  const percentBooked = announcement.estimatedQuantity > 0
+    ? Math.min(100, (totalOrdered / announcement.estimatedQuantity) * 100)
+    : 0;
 
   return (
     <div className="card-elevated p-0 overflow-hidden hover:shadow-xl transition-all">

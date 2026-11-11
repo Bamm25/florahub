@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { createHarvestAnnouncementSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 export async function GET(request: Request) {
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
-    const whereClause: any = {};
+    const whereClause: Prisma.HarvestAnnouncementWhereInput = {};
 
     if (supplierId) {
       whereClause.supplierId = supplierId;
@@ -54,11 +55,28 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    const reserved = announcements.length
+      ? await prisma.harvestPreOrder.groupBy({
+          by: ["announcementId"],
+          where: {
+            announcementId: { in: announcements.map((announcement) => announcement.id) },
+            status: { in: ["PENDING", "CONFIRMED"] },
+          },
+          _sum: { quantity: true },
+        })
+      : [];
+    const reservedByAnnouncement = new Map(
+      reserved.map((row) => [row.announcementId, row._sum.quantity ?? 0]),
+    );
+
     return NextResponse.json({
       success: true,
       message: "Daftar pengumuman panen berhasil diambil",
       data: {
-        announcements,
+        announcements: announcements.map((announcement) => ({
+          ...announcement,
+          totalReservedQuantity: reservedByAnnouncement.get(announcement.id) ?? 0,
+        })),
         pagination: {
           page,
           limit,

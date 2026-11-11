@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useCartStore } from "@/lib/stores/cartStore";
 import { useEffect, useState } from "react";
+import CustomerNotifications from "./CustomerNotifications";
 import {
   ShoppingCart,
   User,
@@ -14,6 +15,7 @@ import {
   Menu,
   X,
   Home,
+  Store,
 } from "lucide-react";
 
 export default function Navbar() {
@@ -24,7 +26,8 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Check if user is florist
-  const isFlorist = session?.user && (session.user as any).role === "FLORIST";
+  const isFlorist = session?.user && (session.user as { role?: string }).role === "FLORIST";
+  const isCustomer = session?.user && (session.user as { role?: string }).role === "CUSTOMER";
 
   useEffect(() => {
     setMounted(true);
@@ -58,6 +61,12 @@ export default function Navbar() {
             >
               Katalog
             </Link>
+            <Link
+              href="/stores"
+              className="text-muted-foreground transition-colors hover:text-primary"
+            >
+              Toko
+            </Link>
 
           </nav>
 
@@ -87,6 +96,8 @@ export default function Navbar() {
                 )}
               </Link>
             )}
+
+            {isCustomer && <CustomerNotifications />}
 
             {/* Authentication Section */}
             {status === "loading" ? (
@@ -198,6 +209,14 @@ export default function Navbar() {
             >
               <Flower2 className="h-5 w-5 text-muted-foreground" />
               Katalog
+            </Link>
+            <Link
+              href="/stores"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+            >
+              <Store className="h-5 w-5 text-muted-foreground" />
+              Toko
             </Link>
             {!isFlorist && (
               <Link

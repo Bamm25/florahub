@@ -59,6 +59,17 @@ export async function POST(request: Request) {
         );
       }
 
+      // Validasi integritas harga terhadap katalog database
+      if (item.price !== product.price) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Harga produk "${product.name}" tidak sesuai katalog`,
+          },
+          { status: 400 },
+        );
+      }
+
       if (product.stock < item.quantity) {
         return NextResponse.json(
           {
@@ -68,6 +79,17 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+    }
+
+    // Validasi ongkos kirim jika pengiriman ke alamat
+    if (addressId && shippingCost <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Ongkos kirim wajib diisi untuk pengiriman ke alamat",
+        },
+        { status: 400 },
+      );
     }
 
     const today = new Date();
@@ -86,15 +108,23 @@ export async function POST(request: Request) {
 
     let sequance = 1;
     if (lastOrder) {
-      const lastSequance = parseInt(lastOrder.orderNumber.slice(-3));
-      sequance = lastSequance + 1;
+      const parts = lastOrder.orderNumber.split("-");
+      if (parts.length >= 3) {
+        const parsed = parseInt(parts[2], 10);
+        if (!isNaN(parsed)) {
+          sequance = parsed + 1;
+        }
+      }
     }
 
-    const orderNumber = `ORD-${dateStr}-${sequance.toString().padStart(3, "0")}`;
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
+    const orderNumber = `ORD-${dateStr}-${sequance.toString().padStart(3, "0")}-${randomSuffix}`;
 
-    // Hitung subtotal dari items yang dikirim frontend
+    // Hitung subtotal authoritative dari database product price
     const subtotal = items.reduce((sum, item) => {
-      return sum + item.price * item.quantity;
+      const product = products.find((p) => p.id === item.productId);
+      const price = product ? product.price : item.price;
+      return sum + price * item.quantity;
     }, 0);
 
     let discount = 0;
@@ -222,68 +252,144 @@ export async function POST(request: Request) {
 
     const totalAmount = subtotal + shippingCost - discount;
 
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId,
-        addressId: addressId || null,
-        subtotal,
-        shippingCost,
-        discount,
-        totalAmount,
-        status: "PENDING",
-        notes: notes || null,
+    // Gunakan transaction untuk atomisitas: verifikasi dan kurangi stok, buat order, catat kupon
+    const { order, lowStockAlerts } = await prisma.$transaction(async (tx) => {
+      const alerts: { floristId: string; productName: string; remainingStock: number }[] = [];
 
-        items: {
-          create: items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
-            subtotal: item.price * item.quantity,
-          })),
-        },
-        payment: {
-          create: {
-            amount: totalAmount,
-            method: "pending",
-            status: "PENDING",
+      for (const item of items) {
+        // Atomic decrement dengan verifikasi ketersediaan stok di level database query
+        const updateResult = await tx.product.updateMany({
+          where: {
+            id: item.productId,
+            stock: { gte: item.quantity },
+            isActive: true,
           },
-        },
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              },
+          data: {
+            stock: {
+              decrement: item.quantity,
+            },
+          },
+        });
+
+        if (updateResult.count === 0) {
+          const currentProd = await tx.product.findUnique({
+            where: { id: item.productId },
+            select: { name: true, stock: true },
+          });
+          throw new Error(
+            `INSUFFICIENT_STOCK:${currentProd?.name || item.productId}:${currentProd?.stock ?? 0}`
+          );
+        }
+
+        const updatedProd = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: {
+            id: true,
+            name: true,
+            stock: true,
+            floristId: true,
+          },
+        });
+
+        // Trigger peringatan stok rendah jika stok berada di bawah ambang batas (10 unit)
+        const LOW_STOCK_THRESHOLD = 10;
+        if (updatedProd && updatedProd.stock < LOW_STOCK_THRESHOLD && updatedProd.stock >= 0) {
+          alerts.push({
+            floristId: updatedProd.floristId,
+            productName: updatedProd.name,
+            remainingStock: updatedProd.stock,
+          });
+        }
+      }
+
+      const createdOrder = await tx.order.create({
+        data: {
+          orderNumber,
+          userId,
+          addressId: addressId || null,
+          subtotal,
+          shippingCost,
+          discount,
+          totalAmount,
+          status: "PENDING",
+          notes: notes || null,
+
+          items: {
+            create: items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+              subtotal: item.price * item.quantity,
+            })),
+          },
+          payment: {
+            create: {
+              amount: totalAmount,
+              method: "pending",
+              status: "PENDING",
             },
           },
         },
-        payment: true,
-        address: true,
-      },
-    });
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                },
+              },
+            },
+          },
+          payment: true,
+          address: true,
+        },
+      });
 
-    if (appliedCoupon) {
-      await prisma.$transaction([
-        prisma.couponUsage.create({
+      if (appliedCoupon) {
+        await tx.couponUsage.create({
           data: {
             couponId: appliedCoupon.id,
-            orderId: order.id,
+            orderId: createdOrder.id,
             userId,
             discount,
           },
-        }),
-        prisma.coupon.update({
+        });
+        await tx.coupon.update({
           where: { id: appliedCoupon.id },
           data: {
             usageCount: { increment: 1 },
           },
-        }),
-      ]);
+        });
+      }
+
+      return { order: createdOrder, lowStockAlerts: alerts };
+    });
+
+    // Kirim notifikasi stok rendah ke florist terkait jika belum ada notifikasi yang belum dibaca
+    for (const alert of lowStockAlerts) {
+      const existingAlert = await prisma.notification.findFirst({
+        where: {
+          userId: alert.floristId,
+          type: "LOW_STOCK_ALERT",
+          isRead: false,
+          message: { contains: alert.productName },
+        },
+      });
+
+      if (!existingAlert) {
+        await prisma.notification.create({
+          data: {
+            userId: alert.floristId,
+            title: "Peringatan Stok Rendah!",
+            message: `Stok produk "${alert.productName}" hanya tersisa ${alert.remainingStock} unit. Segera lakukan restock untuk menghindari kehabisan stok.`,
+            type: "LOW_STOCK_ALERT",
+            link: `/florist/products`,
+            isRead: false,
+          },
+        });
+      }
     }
 
     // Notify each unique florist about the new order
@@ -300,6 +406,16 @@ export async function POST(request: Request) {
         })),
       });
     }
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title: "Pesanan Dibuat!",
+        message: `Pesanan #${order.orderNumber} berhasil dibuat. Lanjutkan pembayaran untuk diproses florist.`,
+        type: "ORDER_CREATED",
+        link: `/orders/${order.id}`,
+      },
+    });
 
     // Cart di-manage oleh frontend (localStorage), tidak perlu hapus dari database
 
@@ -355,6 +471,16 @@ export async function POST(request: Request) {
     if (error instanceof NextResponse) {
       return error;
     }
+    if (error instanceof Error && error.message.startsWith("INSUFFICIENT_STOCK:")) {
+      const [, productName, remaining] = error.message.split(":");
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Stok produk "${productName}" tidak mencukupi (tersisa ${remaining})`,
+        },
+        { status: 400 },
+      );
+    }
     if (error && typeof error === 'object' && 'name' in error && error.name === "ZodError" && 'issues' in error) {
       console.error("Zod validation error checkout:", error.issues);
       return NextResponse.json(
@@ -364,6 +490,15 @@ export async function POST(request: Request) {
           errors: error.issues,
         },
         { status: 400 },
+      );
+    }
+    if (error && typeof error === 'object' && ('code' in error && error.code === 'P2002' || (error instanceof Error && error.message.includes('Unique constraint failed')))) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Terjadi benturan nomor pesanan. Silakan coba kembali.",
+        },
+        { status: 409 },
       );
     }
     const message = error instanceof Error ? error.message : "Gagal membuat order";

@@ -28,6 +28,7 @@ model User {
   couponsCreated        Coupon[]              @relation("CouponCreator")
   couponUsages          CouponUsage[]
   floristInventories    FloristInventory[]    @relation("FloristInventories")
+  floristProfile        FloristProfile?
   harvestAnnouncements  HarvestAnnouncement[] @relation("SupplierAnnouncements")
   harvestPreOrders      HarvestPreOrder[]     @relation("FloristPreOrders")
   notifications         Notification[]
@@ -59,6 +60,7 @@ model Address {
   updatedAt     DateTime @updatedAt
   user          User     @relation("UserAddresses", fields: [userId], references: [id], onDelete: Cascade)
   orders        Order[]
+  pickupFor     FloristProfile[] @relation("FloristPickupAddress")
 
   @@index([userId])
   @@index([isDefault])
@@ -205,24 +207,27 @@ model Payment {
 }
 
 model Shipment {
-  id             String         @id @default(cuid()) @db.Char(25)
-  orderId        String         @unique @db.Char(25)
-  courier        String         @db.VarChar(50)
-  service        String?        @db.VarChar(20)
-  trackingNumber String?        @db.VarChar(100)
-  status         ShipmentStatus @default(PENDING)
-  estimatedDays  Int?           @db.SmallInt
-  shippingCost   Int
-  weight         Int?
-  shippedAt      DateTime?
-  deliveredAt    DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid()) @db.Char(25)
+  orderId          String         @unique @db.Char(25)
+  courier          String         @db.VarChar(50)
+  service          String?        @db.VarChar(20)
+  trackingNumber   String?        @db.VarChar(100)
+  status           ShipmentStatus @default(PENDING)
+  estimatedDays    Int?           @db.SmallInt
+  shippingCost     Int
+  weight           Int?
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  biteshipOrderId  String?        @db.VarChar(100)
+  biteshipLabelUrl String?        @db.VarChar(500)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([trackingNumber])
   @@index([orderId])
+  @@index([biteshipOrderId])
 }
 
 model Stock {
@@ -523,4 +528,22 @@ enum AuditAction {
   LOGOUT
   PAYMENT
   REFUND
+}
+
+model FloristProfile {
+  id               String   @id @default(cuid()) @db.Char(25)
+  userId           String   @unique @db.Char(25)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopName         String   @db.VarChar(200)
+  shopDescription  String?
+  logo             String?  @db.VarChar(500)
+  banner           String?  @db.VarChar(500)
+  defaultAddressId String?  @db.Char(25)
+  defaultAddress   Address? @relation("FloristPickupAddress", fields: [defaultAddressId], references: [id], onDelete: SetNull)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
 }

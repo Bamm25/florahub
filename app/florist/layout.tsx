@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Store,
+  Settings,
   ChevronRight,
   Bell,
   Truck,
@@ -42,7 +43,7 @@ const navigationSections: NavigationSection[] = [
     title: "PRODUCTS & INVENTORY",
     items: [
       { name: "Produk Saya", href: "/florist/products", icon: Package },
-      { name: "Inventori Bunga", href: "/florist/inventory", icon: Boxes },
+      { name: "Bahan Baku & Stok", href: "/florist/inventory", icon: Flower2 },
     ],
   },
   {
@@ -56,6 +57,12 @@ const navigationSections: NavigationSection[] = [
     title: "PROCUREMENT",
     items: [
       { name: "Rencana Panen", href: "/florist/harvest-plans", icon: Sprout },
+    ],
+  },
+  {
+    title: "PENGATURAN",
+    items: [
+      { name: "Profil & Alamat Toko", href: "/florist/settings/shop", icon: Settings },
     ],
   },
 ];
@@ -230,8 +237,9 @@ export default function FloristLayout({
 
           <div className="flex items-center gap-4">
             <Link
-              href="/"
+              href={`/stores/${(session?.user as { id?: string } | undefined)?.id}`}
               target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-surface-container transition-colors"
             >
               <Store className="h-4 w-4" />

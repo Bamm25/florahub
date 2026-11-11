@@ -8,6 +8,7 @@ import DataStateWrapper from "@/components/ui/DataStateWrapper";
 import AnnouncementCard from "@/components/florist/AnnouncementCard";
 import PreOrderTable from "@/components/florist/PreOrderTable";
 import PreOrderModal from "@/components/florist/PreOrderModal";
+import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
 
 interface HarvestAnnouncement {
   id: string;
@@ -60,6 +61,7 @@ export default function FloristHarvestPlansPage() {
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(true);
   const [isLoadingPreOrders, setIsLoadingPreOrders] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [preOrdersError, setPreOrdersError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"browse" | "my-orders">("browse");
@@ -67,10 +69,6 @@ export default function FloristHarvestPlansPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] =
     useState<HarvestAnnouncement | null>(null);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const fetchData = async () => {
     await Promise.all([fetchAnnouncements(), fetchMyPreOrders()]);
@@ -80,13 +78,8 @@ export default function FloristHarvestPlansPage() {
     try {
       setIsLoadingAnnouncements(true);
       setError(null);
-      const res = await fetch(
-        "/api/supplier/harvest-announcements?activeOnly=true",
-      );
-      const json = await res.json();
-      if (!res.ok)
-        throw new Error(json.message || "Gagal memuat announcements");
-      setAnnouncements(json.data?.announcements || []);
+      const data = await fetchPaginatedCollection<HarvestAnnouncement>("/api/supplier/harvest-announcements?activeOnly=true", "announcements");
+      setAnnouncements(data);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
@@ -98,17 +91,20 @@ export default function FloristHarvestPlansPage() {
   const fetchMyPreOrders = async () => {
     try {
       setIsLoadingPreOrders(true);
-      const res = await fetch("/api/florist/preorders");
-      const json = await res.json();
-      if (res.ok) {
-        setMyPreOrders(json.data?.preOrders || []);
-      }
+      setPreOrdersError(null);
+      const data = await fetchPaginatedCollection<PreOrder>("/api/florist/preorders", "preOrders");
+      setMyPreOrders(data);
     } catch (err) {
-      console.error("Failed to fetch pre-orders:", err);
+      setPreOrdersError(err instanceof Error ? err.message : "Gagal memuat pre-order");
     } finally {
       setIsLoadingPreOrders(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openPreOrderModal = (announcement: HarvestAnnouncement) => {
     setSelectedAnnouncement(announcement);
@@ -146,9 +142,6 @@ export default function FloristHarvestPlansPage() {
             .includes(searchQuery.toLowerCase()),
       )
     : [];
-
-  const isLoading =
-    activeTab === "browse" ? isLoadingAnnouncements : isLoadingPreOrders;
 
   const pendingCount = Array.isArray(myPreOrders)
     ? myPreOrders.filter((o) => o.status === "PENDING").length
@@ -222,12 +215,12 @@ export default function FloristHarvestPlansPage() {
           emptyTitle={
             searchQuery
               ? "Tidak ada jadwal panen yang sesuai pencarian"
-              : "Belum ada jadwal panen aktif"
+              : "Belum ada pengumuman panen dari supplier"
           }
           emptyDescription={
             searchQuery
               ? "Coba ubah kata kunci pencarian"
-              : "Jadwal panen dari supplier akan muncul di sini"
+              : "Pengumuman panen aktif dari supplier akan muncul di sini. Pre-order dapat dibuat setelah supplier mengumumkan panen."
           }
           onRetry={fetchData}
           loadingMessage="Memuat data..."
@@ -248,7 +241,7 @@ export default function FloristHarvestPlansPage() {
       {activeTab === "my-orders" && (
         <DataStateWrapper
           isLoading={isLoadingPreOrders && myPreOrders.length === 0}
-          error={null}
+          error={preOrdersError}
           isEmpty={filteredPreOrders.length === 0}
           emptyIcon={<Calendar className="w-16 h-16 text-muted-foreground" />}
           emptyTitle={

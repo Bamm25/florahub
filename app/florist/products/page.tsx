@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, AlertTriangle, Package } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import ProductModal from "@/components/florist/ProductModal";
+import BOMModal from "@/components/florist/BOMModal";
+import ProduceModal from "@/components/florist/ProduceModal";
 import ProductStats from "@/components/florist/ProductStats";
 import ProductFilters from "@/components/florist/ProductFilters";
 import ProductList from "@/components/florist/ProductList";
+import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
 
 interface Product {
   id: string;
@@ -26,24 +29,25 @@ interface Product {
     id: string;
     name: string;
   };
+  productComponents?: Array<{
+    id: string;
+    quantity: number;
+    inventory: {
+      id: string;
+      quantity: number;
+      stock: {
+        name: string;
+        variety: string | null;
+        unit: string;
+      };
+    };
+  }>;
 }
 
 interface Category {
   id: string;
   name: string;
   slug: string;
-}
-
-interface ProductComponent {
-  id: string;
-  quantity: number;
-  inventory: {
-    id: string;
-    stock: {
-      name: string;
-      variety: string | null;
-    };
-  };
 }
 
 export default function FloristProductsPage() {
@@ -61,9 +65,10 @@ export default function FloristProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const [isComponentModalOpen, setIsComponentModalOpen] = useState(false);
-  const [productComponents, setProductComponents] = useState<
-    ProductComponent[]
-  >([]);
+  const [selectedProductForBOM, setSelectedProductForBOM] = useState<Product | null>(null);
+
+  const [isProduceModalOpen, setIsProduceModalOpen] = useState(false);
+  const [selectedProductForProduce, setSelectedProductForProduce] = useState<Product | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -85,10 +90,8 @@ export default function FloristProductsPage() {
     setError(null);
     
     try {
-      const res = await fetch("/api/florist/products");
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Gagal memuat produk");
-      setProducts(json.data || []);
+      const productList = await fetchPaginatedCollection<Product>("/api/florist/products", "products");
+      setProducts(productList);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
@@ -116,18 +119,6 @@ export default function FloristProductsPage() {
     };
     fetchData();
   }, []);
-
-  const fetchProductComponents = async (productId: string) => {
-    try {
-      const res = await fetch(`/api/florist/products/${productId}/components`);
-      const json = await res.json();
-      if (res.ok) {
-        setProductComponents(json.data || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch components:", err);
-    }
-  };
 
   const openCreateModal = () => {
     setModalMode("create");
@@ -167,9 +158,26 @@ export default function FloristProductsPage() {
     setIsModalOpen(true);
   };
 
-  const openComponentsModal = (productId: string) => {
-    fetchProductComponents(productId);
+  const openComponentsModal = (product: Product) => {
+    setSelectedProductForBOM(product);
     setIsComponentModalOpen(true);
+  };
+
+  const openProduceModal = async (product: Product) => {
+    try {
+      // Fetch full product with BOM components
+      const res = await fetch(`/api/florist/products/${product.id}`);
+      const json = await res.json();
+      
+      if (res.ok && json.success) {
+        setSelectedProductForProduce(json.data);
+        setIsProduceModalOpen(true);
+      } else {
+        alert(json.message || "Gagal memuat data produk");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal memuat data produk");
+    }
   };
 
   const closeModal = () => {
@@ -179,7 +187,8 @@ export default function FloristProductsPage() {
 
   const closeComponentModal = () => {
     setIsComponentModalOpen(false);
-    setProductComponents([]);
+    setSelectedProductForBOM(null);
+    void fetchProducts();
   };
 
   const validateForm = (): boolean => {
@@ -187,23 +196,23 @@ export default function FloristProductsPage() {
 
     if (!formData.name.trim()) errors.name = "Nama produk wajib diisi";
 
-    const priceValue = parseFloat(formData.price);
-    const isPriceInvalid = !formData.price || isNaN(priceValue) || priceValue <= 0;
+    const priceValue = Number(formData.price);
+    const isPriceInvalid = !formData.price.trim() || !Number.isSafeInteger(priceValue) || priceValue <= 0;
     if (isPriceInvalid) errors.price = "Harga harus lebih dari 0";
 
-    const stockValue = parseInt(formData.stock, 10);
-    const isStockInvalid = !formData.stock || isNaN(stockValue) || stockValue < 0;
+    const stockValue = Number(formData.stock);
+    const isStockInvalid = !formData.stock.trim() || !Number.isSafeInteger(stockValue) || stockValue < 0;
     if (isStockInvalid) errors.stock = "Stok tidak boleh negatif";
     
     // Validate weight if provided
     const hasWeight = formData.weight && formData.weight.trim();
     if (hasWeight) {
-      const weightValue = parseInt(formData.weight, 10);
-      const isWeightInvalid = isNaN(weightValue) || weightValue < 0;
+      const weightValue = Number(formData.weight);
+      const isWeightInvalid = !Number.isSafeInteger(weightValue) || weightValue < 0;
       if (isWeightInvalid) errors.weight = "Berat harus berupa angka valid dan tidak negatif";
     }
 
-    if (!formData.image.trim()) errors.image = "URL gambar wajib diisi";
+    if (!formData.image.trim()) errors.image = "Gambar produk wajib diunggah";
     if (!formData.categoryId) errors.categoryId = "Kategori wajib dipilih";
 
     setFormErrors(errors);
@@ -219,13 +228,14 @@ export default function FloristProductsPage() {
     setIsSubmitting(true);
 
     try {
-      const priceValue = parseFloat(formData.price);
-      const stockValue = parseInt(formData.stock, 10);
-      const weightValue = formData.weight ? parseInt(formData.weight, 10) : null;
+      const priceValue = Number(formData.price);
+      const stockValue = Number(formData.stock);
+      const weightValue = formData.weight ? Number(formData.weight) : null;
       
       // Final validation before submission
-      if (isNaN(priceValue) || isNaN(stockValue) || (weightValue !== null && isNaN(weightValue))) {
-        throw new Error("Invalid numeric values");
+      if (!Number.isSafeInteger(priceValue) || !Number.isSafeInteger(stockValue) ||
+          (weightValue !== null && !Number.isSafeInteger(weightValue))) {
+        throw new Error("Nilai harga atau stok tidak valid");
       }
       
       const payload = {
@@ -261,10 +271,10 @@ export default function FloristProductsPage() {
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(json.message || "Gagal menyimpan produk");
+        throw new Error(json?.message || `Gagal menyimpan produk (${res.status})`);
       }
 
       await fetchProducts();
@@ -277,19 +287,19 @@ export default function FloristProductsPage() {
     }
   };
 
-  const handleDelete = async (product: Product) => {
-    if (!confirm(`Hapus produk "${product.name}"?`)) return;
+  const handleDelete = async (productId: string) => {
+    if (!confirm(`Hapus produk ini?`)) return;
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/florist/products/${product.id}`, {
+      const res = await fetch(`/api/florist/products/${productId}`, {
         method: "DELETE",
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(json.message || "Gagal menghapus produk");
+        throw new Error(json?.message || `Gagal menghapus produk (${res.status})`);
       }
 
       await fetchProducts();
@@ -388,6 +398,7 @@ export default function FloristProductsPage() {
         onEdit={openEditModal}
         onDelete={handleDelete}
         onViewComponents={openComponentsModal}
+        onProduce={openProduceModal}
       />
 
       <ProductModal
@@ -402,63 +413,27 @@ export default function FloristProductsPage() {
         onChange={handleFormChange}
       />
 
-      {isComponentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-          <div className="card-elevated w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
-              <div>
-                <h2 className="text-xl font-semibold">Komponen Produk (BOM)</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Bill of Materials - bahan baku penyusun produk
-                </p>
-              </div>
-              <button
-                onClick={closeComponentModal}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {isComponentModalOpen && selectedProductForBOM && (
+        <BOMModal
+          isOpen={isComponentModalOpen}
+          productId={selectedProductForBOM.id}
+          productName={selectedProductForBOM.name}
+          onClose={closeComponentModal}
+        />
+      )}
 
-            <div className="p-6 overflow-y-auto flex-1">
-              {!Array.isArray(productComponents) || productComponents.length === 0 ? (
-                <div className="text-center py-8">
-                  <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-sm font-medium text-foreground">
-                    Belum ada komponen untuk produk ini
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Komponen BOM menghubungkan produk dengan inventori bunga
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {productComponents.map((comp) => (
-                    <div
-                      key={comp.id}
-                      className="flex items-center justify-between p-4 border border-border rounded-xl bg-surface-container-low/40"
-                    >
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {comp.inventory?.stock?.name ?? 'Unknown'}
-                          {comp.inventory?.stock?.variety && (
-                            <span className="text-sm text-muted-foreground">
-                              {" "}
-                              ({comp.inventory.stock.variety})
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Quantity: {comp.quantity ?? 0}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {isProduceModalOpen && selectedProductForProduce && (
+        <ProduceModal
+          isOpen={isProduceModalOpen}
+          product={selectedProductForProduce}
+          onClose={() => {
+            setIsProduceModalOpen(false);
+            setSelectedProductForProduce(null);
+          }}
+          onSuccess={() => {
+            fetchProducts();
+          }}
+        />
       )}
     </div>
   );

@@ -86,7 +86,7 @@ export async function PUT(
 
     if (status && status !== existingShipment.status) {
       const validTransitions: Record<string, string[]> = {
-        PENDING: ["PROCESSING", "CANCELLED"],
+        PENDING: ["PROCESSING", "SHIPPED", "CANCELLED"],
         PROCESSING: ["SHIPPED", "CANCELLED"],
         SHIPPED: ["DELIVERED", "CANCELLED"],
       };
@@ -160,7 +160,8 @@ export async function PUT(
       prisma.order.update({
         where: { id: existingShipment.orderId },
         data: {
-          status: updateData.status || existingShipment.status,
+          status: updateData.status === "PENDING" ? "PROCESSING" :
+            updateData.status || (existingShipment.status === "PENDING" ? "PROCESSING" : existingShipment.status),
         },
       }),
     ]);
@@ -189,7 +190,7 @@ export async function PUT(
                 : "Update Status Pesanan",
             message,
             type: "SHIPMENT_UPDATE",
-            link: `/customer/orders/${existingShipment.orderId}`,
+            link: `/orders/${existingShipment.orderId}/tracking`,
             isRead: false,
           },
         });

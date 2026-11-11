@@ -52,10 +52,25 @@ graphify-out/
 app/globals.css.backup
 
 # Documentation and reports (local development only)
-# Ignore all .md files except README.md
+/docs/
+docs/
 *.md
 !README.md
-!/docs/ERD.txt
+
+# Local test data setup & ad-hoc scripts
+setup-*.ts
+prisma/seed-florist-*.ts
+prisma/SEED-FLORIST-TEST-DATA.txt
+prisma/check-*.ts
+/scripts/
+scripts/
+/tests/
+tests/
+
+# IDE and tool states
+.claude/
+.windsurf/
+.postman/
 
 # Temporary debug files
 COMMIT_MESSAGE.txt

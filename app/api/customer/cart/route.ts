@@ -55,6 +55,7 @@ export async function GET(request: Request) {
     // Calculate subtotal untuk setiap item
     const itemsWithSubtotal = cart.items.map((item) => ({
       id: item.id,
+      productId: item.productId,
       quantity: item.quantity,
       product: item.product,
       subtotal: item.product.price * item.quantity,

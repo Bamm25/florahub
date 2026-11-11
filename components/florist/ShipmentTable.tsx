@@ -1,8 +1,9 @@
-import { Edit } from "lucide-react";
+import { Edit, RefreshCw, FileText, Loader2 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { formatDateTime } from "@/lib/utils/formatters";
 
-interface Shipment {
+// Tipe data pengiriman untuk daftar shipment florist
+export interface Shipment {
   id: string;
   orderId: string;
   courier: string;
@@ -12,6 +13,8 @@ interface Shipment {
   estimatedDays: number | null;
   shippingCost: number;
   weight: number | null;
+  biteshipOrderId?: string | null;
+  biteshipLabelUrl?: string | null;
   shippedAt: string | null;
   deliveredAt: string | null;
   createdAt: string;
@@ -36,9 +39,11 @@ interface Shipment {
 interface ShipmentTableProps {
   shipments: Shipment[];
   onEdit: (shipment: Shipment) => void;
+  onSync?: (shipment: Shipment) => Promise<void> | void;
+  syncingId?: string | null;
 }
 
-export function ShipmentTable({ shipments, onEdit }: ShipmentTableProps) {
+export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: ShipmentTableProps) {
   const formatRupiah = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -74,7 +79,14 @@ export function ShipmentTable({ shipments, onEdit }: ShipmentTableProps) {
                   <p className="text-xs text-muted-foreground">{shipment.order?.user?.email ?? 'N/A'}</p>
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-sm font-medium text-foreground">{shipment.courier}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-medium text-foreground">{shipment.courier}</p>
+                    {shipment.biteshipOrderId && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-secondary/10 text-secondary">
+                        Auto
+                      </span>
+                    )}
+                  </div>
                   {shipment.service && <p className="text-xs text-muted-foreground">{shipment.service}</p>}
                 </td>
                 <td className="px-4 py-3">
@@ -87,7 +99,42 @@ export function ShipmentTable({ shipments, onEdit }: ShipmentTableProps) {
                   <p className="text-sm text-muted-foreground">{formatDateTime(shipment.createdAt)}</p>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                    {/* Tombol sinkron status pengiriman otomatis dari Biteship */}
+                    {shipment.biteshipOrderId && onSync && (
+                      <button
+                        onClick={() => onSync(shipment)}
+                        disabled={syncingId === shipment.id || shipment.status === "DELIVERED" || shipment.status === "CANCELLED"}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-primary bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Sinkronkan status dari Biteship"
+                      >
+                        {syncingId === shipment.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        )}
+                        Sinkron
+                      </button>
+                    )}
+
+                    {/* Tombol cetak shipping label untuk pengiriman Biteship */}
+                    {(shipment.biteshipOrderId || (shipment.biteshipLabelUrl && !shipment.biteshipLabelUrl.includes("undefined"))) && (
+                      <a
+                        href={
+                          shipment.biteshipLabelUrl && shipment.biteshipLabelUrl.includes("biteship.s3")
+                            ? shipment.biteshipLabelUrl
+                            : `/api/florist/shipments/${shipment.id}/label`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-muted-foreground bg-surface-container-low hover:bg-surface-container rounded-xl transition-colors"
+                        title="Buka label pengiriman Biteship"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Label
+                      </a>
+                    )}
+
                     {/* NOTE: CANCELLED shipments cannot be edited by design. For corrections, contact admin. */}
                     <button
                       onClick={() => onEdit(shipment)}
