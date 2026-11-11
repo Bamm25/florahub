@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { useCartStore } from "@/lib/stores/cartStore";
 import AddressSelector from "@/components/customer/AddressSelector";
 import { CheckoutSummary } from "@/components/customer/CheckoutSummary";
@@ -16,7 +17,7 @@ import {
   validateCoupon,
 } from "@/lib/api/customer";
 import { createAddress } from "@/lib/api/addresses";
-import { Truck, AlertCircle, MapPin, Plus } from "lucide-react";
+import { Truck, AlertCircle, MapPin, Plus, Loader2 } from "lucide-react";
 
 // Interface untuk data alamat pengiriman customer
 interface Address {
@@ -68,7 +69,7 @@ export default function CheckoutPage() {
     service: string;
   } | null>(null);
 
-  // Validasi form checkout sebelum submit order
+  // Validasi kelengkapan data formulir checkout sebelum pesanan dibuat
   const validateCheckout = (): boolean => {
     const errors: Record<string, string> = {};
 
@@ -127,7 +128,7 @@ export default function CheckoutPage() {
   };
 
   // Calculate shipping cost saat address dipilih atau items berubah
-  const calculateShipping = async (addressId: string): Promise<void> => {
+  const calculateShipping = useCallback(async (addressId: string): Promise<void> => {
     if (!addressId || items.length === 0) return;
 
     try {
@@ -166,7 +167,7 @@ export default function CheckoutPage() {
     } finally {
       setIsCalculatingShipping(false);
     }
-  };
+  }, [items]);
 
   interface AddressFormData {
     label: string;
@@ -185,15 +186,16 @@ export default function CheckoutPage() {
       const response = await createAddress(data);
       const newAddress = response.data.address;
       
-      // Refresh addresses list
+      // Perbarui daftar alamat pengguna
       const addressesResponse = await getCustomerAddresses();
       const addressList = addressesResponse.data.items;
       setAddresses(addressList);
       
-      // Auto-select newly added address
+      // Otomatis pilih alamat baru yang baru ditambahkan
       setSelectedAddressId(newAddress.id);
+      void calculateShipping(newAddress.id);
       
-      // Close form
+      // Tutup modal formulir alamat
       setShowAddressForm(false);
       setFormErrors({});
     } catch (error) {
@@ -222,7 +224,6 @@ export default function CheckoutPage() {
         const defaultAddress = addressList.find((a: Address) => a.isDefault);
         if (defaultAddress) {
           setSelectedAddressId(defaultAddress.id);
-          // Calculate shipping untuk default address
           void calculateShipping(defaultAddress.id);
         } else if (addressList.length > 0) {
           setSelectedAddressId(addressList[0].id);
@@ -238,7 +239,7 @@ export default function CheckoutPage() {
     if (status === "authenticated") {
       loadAddresses();
     }
-  }, [status, items, router]);
+  }, [status, items, router, calculateShipping]);
 
   // Handle checkout: create order, get Midtrans token, open payment popup
   const handleCheckout = async (): Promise<void> => {
@@ -252,7 +253,7 @@ export default function CheckoutPage() {
     setFormErrors({});
 
     try {
-      // order
+      // Buat pesanan baru di backend
       const checkoutResponse = await createCheckoutOrder({
         addressId: selectedAddressId!,
         shippingCost,
@@ -275,12 +276,11 @@ export default function CheckoutPage() {
         window.snap.pay(snapToken, {
           onSuccess: function (): void {
             clearCart();
-            // Gunakan window.location.href untuk hard navigation
-            window.location.href = `/orders/${orderId}`;
+            router.push(`/orders/${orderId}`);
           },
           onPending: function (): void {
             clearCart();
-            window.location.href = `/orders/${orderId}`;
+            router.push(`/orders/${orderId}`);
           },
           onError: function (): void {
             setErrorMessage("Pembayaran gagal. Silakan coba lagi.");
@@ -288,8 +288,7 @@ export default function CheckoutPage() {
           },
           onClose: function (): void {
             clearCart();
-            // Arahkan customer ke halaman detail pesanan agar dapat melanjutkan pembayaran kapan saja
-            window.location.href = `/orders/${orderId}`;
+            router.push(`/orders/${orderId}`);
           },
         });
       } else {
@@ -311,149 +310,262 @@ export default function CheckoutPage() {
   // Render loading skeleton saat checking auth status
   if (status === "loading") {
     return (
-      <div className="container-custom section-spacing">
-        <div className="h-10 w-64 animate-pulse rounded-xl bg-surface-container mb-8" />
-        <div className="h-96 animate-pulse rounded-xl bg-surface-container-low" />
+      <div className="container-custom py-12" role="status">
+        <span className="sr-only">Memuat halaman checkout...</span>
+        <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+        <div className="mt-3 h-10 w-72 animate-pulse rounded-xl bg-muted" />
+        <div className="mt-10 grid gap-8 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <div className="h-48 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-40 animate-pulse rounded-2xl bg-muted" />
+          </div>
+          <div className="h-80 animate-pulse rounded-2xl bg-muted" />
+        </div>
       </div>
     );
   }
 
+  const handleSelectAddress = (id: string) => {
+    setSelectedAddressId(id);
+    void calculateShipping(id);
+  };
+
   return (
-    <div className="container-custom section-spacing">
-      <h1 className="text-4xl font-bold text-foreground mb-8">
-        Checkout Pembayaran
-      </h1>
-      
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          {errorMessage && (
-            <div className="flex items-start gap-3 rounded-xl border border-error/30 bg-error/5 p-5 text-base text-error">
-              <AlertCircle className="h-6 w-6 shrink-0 mt-0.5" />
-              <span className="font-medium">{errorMessage}</span>
+    <div className="pb-16 sm:pb-24">
+      {/* Masthead */}
+      <section className="border-b border-border bg-surface py-10 sm:py-14">
+        <div className="container-custom">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Langkah 2 dari 2 · Konfirmasi & Pembayaran
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Checkout Pesanan
+              </h1>
+              <p className="mt-2 text-base text-muted-foreground">
+                Lengkapi alamat pengiriman dan konfirmasi pesanan bunga Anda.
+              </p>
             </div>
-          )}
+            <Link
+              href="/cart"
+              className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              ← Kembali ke Keranjang
+            </Link>
+          </div>
+        </div>
+      </section>
 
-          {/* Alamat Pengiriman */}
-          <div className="card-elevated">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Truck className="h-6 w-6 text-primary" />
+      <div className="container-custom pt-8 sm:pt-10">
+        <div className="grid gap-8 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <div aria-live="polite">
+              {errorMessage && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 rounded-2xl border border-error/30 bg-error/10 p-5 text-sm text-error"
+                >
+                  <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                  <span className="font-medium">{errorMessage}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Alamat Pengiriman */}
+            <div className="rounded-2xl border border-border bg-surface p-6 sm:p-7">
+              <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
+                <div className="flex items-center gap-2.5">
+                  <Truck className="h-5 w-5 text-foreground" aria-hidden="true" />
+                  <h2 className="text-lg font-bold text-foreground">
+                    Alamat Pengiriman
+                  </h2>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {addresses.length} alamat tersimpan
+                </span>
               </div>
-              <h2 className="text-xl font-bold text-foreground">
-                Alamat Pengiriman
-              </h2>
-            </div>
 
-            {addresses.length === 0 ? (
-              <div className="space-y-4">
-                {/* Empty state */}
-                <div className="rounded-xl border-2 border-dashed border-border bg-surface-container-low p-8 text-center">
-                  <div className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-surface-container mb-4">
-                    <MapPin className="h-8 w-8 text-muted-foreground" />
+              {addresses.length === 0 ? (
+                <div className="space-y-4">
+                  {/* Empty state */}
+                  <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+                    <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-muted">
+                      <MapPin className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                    </div>
+                    <h3 className="mb-1 text-base font-bold text-foreground">
+                      Belum ada alamat pengiriman
+                    </h3>
+                    <p className="mb-6 text-xs text-muted-foreground">
+                      Tambah alamat tujuan penerima untuk melanjutkan pesanan
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddressForm(true)}
+                      className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold"
+                    >
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      Tambah Alamat Sekarang
+                    </button>
                   </div>
-                  <h3 className="text-lg font-bold text-foreground mb-2">
-                    Belum ada alamat pengiriman
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    Tambah alamat untuk melanjutkan checkout
-                  </p>
+
+                  {/* Validation error */}
+                  {formErrors.address && (
+                    <div className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-xs font-medium text-warning">
+                      <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>{formErrors.address}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <AddressSelector
+                    addresses={addresses}
+                    selectedId={selectedAddressId}
+                    onSelect={handleSelectAddress}
+                  />
+
+                  {/* Add new address button */}
                   <button
                     type="button"
                     onClick={() => setShowAddressForm(true)}
-                    className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-base"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3 text-xs font-semibold text-foreground transition-colors hover:border-foreground/20 hover:bg-muted"
                   >
-                    <Plus className="h-5 w-5" />
-                    Tambah Alamat Sekarang
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Tambah Alamat Baru
                   </button>
+
+                  {/* Validation error */}
+                  {formErrors.address && (
+                    <div className="flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-xs font-medium text-warning">
+                      <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>{formErrors.address}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Opsi & Biaya Pengiriman */}
+            {selectedAddressId && (
+              <div className="rounded-2xl border border-border bg-surface p-6 sm:p-7">
+                <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Kurir</p>
+                    <h3 className="mt-0.5 text-base font-bold text-foreground">Metode & Biaya Pengiriman</h3>
+                  </div>
+                  {isCalculatingShipping && (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden="true" />
+                      Menghitung tarif...
+                    </span>
+                  )}
                 </div>
 
-                {/* Validation error */}
-                {formErrors.address && (
-                  <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
-                    <AlertCircle className="h-5 w-5 shrink-0" />
-                    <span className="font-medium">{formErrors.address}</span>
+                {shippingRates.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {shippingRates.map((rate, idx) => {
+                      const isSelected = selectedShipping?.courier === rate.courier && selectedShipping?.service === rate.service;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setSelectedShipping({ courier: rate.courier, service: rate.service });
+                            setShippingCost(rate.price);
+                          }}
+                          className={`flex w-full items-center justify-between rounded-xl p-4 text-left transition-all ${
+                            isSelected
+                              ? "border-2 border-foreground bg-muted/20"
+                              : "border border-border bg-surface hover:bg-muted/10"
+                          }`}
+                        >
+                          <div>
+                            <p className="text-sm font-bold text-foreground">
+                              {rate.courier.toUpperCase()} · {rate.service}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              Estimasi pengiriman: {rate.estimatedDays}
+                            </p>
+                          </div>
+                          <p className="text-sm font-extrabold text-foreground">
+                            Rp {rate.price.toLocaleString("id-ID")}
+                          </p>
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <AddressSelector
-                  addresses={addresses}
-                  selectedId={selectedAddressId}
-                  onSelect={setSelectedAddressId}
-                />
-
-                {/* Add new address button */}
-                <button
-                  type="button"
-                  onClick={() => setShowAddressForm(true)}
-                  className="w-full rounded-lg border-2 border-dashed border-border bg-surface-container-low p-4 text-sm font-medium text-foreground/70 hover:border-primary hover:bg-primary/5 hover:text-primary transition flex items-center justify-center gap-2"
-                >
-                  <Plus className="h-5 w-5" />
-                  Tambah Alamat Baru
-                </button>
-
-                {/* Validation error */}
-                {formErrors.address && (
-                  <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
-                    <AlertCircle className="h-5 w-5 shrink-0" />
-                    <span className="font-medium">{formErrors.address}</span>
+                ) : (
+                  <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-4 text-sm">
+                    <div>
+                      <p className="font-semibold text-foreground">Pengiriman Standar Florist</p>
+                      <p className="text-xs text-muted-foreground">Estimasi tiba: 1-2 hari kerja</p>
+                    </div>
+                    <p className="font-bold text-foreground">
+                      Rp {shippingCost.toLocaleString("id-ID")}
+                    </p>
                   </div>
                 )}
               </div>
             )}
-          </div>
 
-          <OrderItems items={items} />
+            <OrderItems items={items} />
 
-          <CouponInput
-            couponCode={couponCode}
-            isValidatingCoupon={isValidatingCoupon}
-            couponError={couponError}
-            appliedCoupon={appliedCoupon}
-            onCouponCodeChange={(v) => { setCouponCode(v); setCouponError(null); }}
-            onApply={handleApplyCoupon}
-            onRemove={handleRemoveCoupon}
-          />
-
-          {/* Catatan */}
-          <div className="card-elevated">
-            <label className="block text-base font-semibold text-foreground mb-3">
-              Catatan untuk Penjual (Opsional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => {
-                setNotes(e.target.value);
-                setFormErrors({ ...formErrors, notes: "" });
-              }}
-              placeholder="Contoh: Tolong kirim pagi hari"
-              rows={4}
-              className={`input-field w-full resize-none ${formErrors.notes ? "border-error" : ""}`}
-              maxLength={500}
+            <CouponInput
+              couponCode={couponCode}
+              isValidatingCoupon={isValidatingCoupon}
+              couponError={couponError}
+              appliedCoupon={appliedCoupon}
+              onCouponCodeChange={(v) => { setCouponCode(v); setCouponError(null); }}
+              onApply={handleApplyCoupon}
+              onRemove={handleRemoveCoupon}
             />
-            <div className="mt-1 flex items-center justify-between">
-              {formErrors.notes && (
-                <p className="text-sm text-error">{formErrors.notes}</p>
-              )}
-              <p className={`text-sm ${notes.length > 450 ? "text-warning" : "text-muted-foreground"} ml-auto`}>
-                {notes.length}/500 karakter
+
+            {/* Catatan */}
+            <div className="rounded-2xl border border-border bg-surface p-6 sm:p-7">
+              <label htmlFor="order-notes" className="mb-2 block text-base font-semibold text-foreground">
+                Catatan untuk Penjual (Opsional)
+              </label>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Misal: ucapan pada kartu bunga, petunjuk lokasi kurir, atau instruksi khusus perangkai.
               </p>
+              <textarea
+                id="order-notes"
+                value={notes}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  setFormErrors({ ...formErrors, notes: "" });
+                }}
+                placeholder="Tuliskan catatan pesanan Anda di sini..."
+                rows={4}
+                className={`w-full resize-none rounded-xl border border-border bg-input px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring ${formErrors.notes ? "border-error" : ""}`}
+                maxLength={500}
+              />
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <div>
+                  {formErrors.notes && (
+                    <p className="text-error">{formErrors.notes}</p>
+                  )}
+                </div>
+                <p className={notes.length > 450 ? "font-semibold text-warning" : "text-muted-foreground"}>
+                  {notes.length}/500 karakter
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Ringkasan Pembayaran - Sticky Sidebar */}
-        <div className="lg:col-span-1">
-          <CheckoutSummary
-            items={items}
-            subtotal={total}
-            shippingCost={shippingCost}
-            appliedCoupon={appliedCoupon}
-            onCheckout={handleCheckout}
-            isProcessing={isLoading}
-            isDisabled={!selectedAddressId}
-          />
+          {/* Ringkasan Pembayaran - Sticky Sidebar */}
+          <div className="lg:col-span-1">
+            <CheckoutSummary
+              items={items}
+              subtotal={total}
+              shippingCost={shippingCost}
+              appliedCoupon={appliedCoupon}
+              onCheckout={handleCheckout}
+              isProcessing={isLoading}
+              isDisabled={!selectedAddressId}
+            />
+          </div>
         </div>
       </div>
 

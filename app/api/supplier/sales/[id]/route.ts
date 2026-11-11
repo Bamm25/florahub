@@ -4,16 +4,20 @@ import { NextResponse } from "next/server";
 import { updateSaleSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP PUT untuk memperbarui status transaksi penjualan stok oleh supplier
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses supplier atau admin
     const { userId, userRole } = await requireAuth(request, [
       "SUPPLIER",
       "ADMIN",
     ]);
+    // Ambil parameter ID transaksi dari URL
     const { id } = await params;
+    // Cari data transaksi stok beserta informasi stok dan florist
     const transaction = await prisma.stockTransaction.findUnique({
       where: { id },
       include: {
@@ -34,6 +38,7 @@ export async function PUT(
       },
     });
 
+    // Validasi keberadaan data transaksi
     if (!transaction) {
       return NextResponse.json(
         {
@@ -44,6 +49,7 @@ export async function PUT(
       );
     }
 
+    // Validasi hak kepemilikan transaksi oleh supplier
     if (userRole === "SUPPLIER" && transaction.stock.supplierId !== userId) {
       return NextResponse.json(
         {
@@ -54,10 +60,12 @@ export async function PUT(
       );
     }
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updateSaleSchema.parse(body);
     const { status, deliveredAt } = validated;
 
+    // Validasi status transaksi yang sudah final
     if (transaction.status === "PAID" || transaction.status === "CANCELLED") {
       return NextResponse.json(
         {
@@ -68,10 +76,12 @@ export async function PUT(
       );
     }
 
+    // Siapkan objek pembaruan data transaksi
     const updatedData: any = {};
     if (status) updatedData.status = status;
     if (deliveredAt) updatedData.deliveredAt = new Date(deliveredAt);
 
+    // Proses konfirmasi pembayaran dan pengurangan kuantitas stok jika status PAID
     if (status === "PAID") {
       if (transaction.stock.quantity < transaction.quantity) {
         return NextResponse.json(
@@ -121,6 +131,7 @@ export async function PUT(
       });
     }
 
+    // Perbarui transaksi stok jika bukan perubahan ke status PAID
     const updatedTransaction = await prisma.stockTransaction.update({
       where: { id },
       data: updatedData,
@@ -140,12 +151,14 @@ export async function PUT(
         },
       },
     });
+    // Kembalikan respon sukses pembaruan transaksi
     return NextResponse.json({
       success: true,
       message: "Transaksi berhasil diupdate",
       data: updatedTransaction,
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -166,16 +179,20 @@ export async function PUT(
   }
 }
 
+// Handler HTTP GET untuk mengambil detail data transaksi penjualan berdasarkan ID
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses supplier atau admin
     const { userId, userRole } = await requireAuth(request, [
       "SUPPLIER",
       "ADMIN",
     ]);
+    // Ambil parameter ID transaksi dari URL
     const { id } = await params;
+    // Cari data transaksi stok beserta informasi stok dan florist
     const transaction = await prisma.stockTransaction.findUnique({
       where: { id },
       include: {
@@ -200,6 +217,7 @@ export async function GET(
       },
     });
 
+    // Validasi keberadaan data transaksi
     if (!transaction) {
       return NextResponse.json(
         {
@@ -210,6 +228,7 @@ export async function GET(
       );
     }
 
+    // Validasi hak kepemilikan transaksi oleh supplier
     if (userRole === "SUPPLIER" && transaction.stock.supplierId !== userId) {
       return NextResponse.json(
         {
@@ -219,12 +238,14 @@ export async function GET(
         { status: 403 },
       );
     }
+    // Kembalikan respon sukses detail transaksi penjualan
     return NextResponse.json({
       success: true,
       message: "Detail penjualan berhasil diambil",
       data: { transaction },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

@@ -4,17 +4,22 @@ import { NextResponse } from "next/server";
 import { createPurchaseSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP POST untuk membuat transaksi pembelian stok dari supplier
 export async function POST(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist
     const { userId } = await requireAuth(request, ["FLORIST"]);
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = createPurchaseSchema.parse(body);
     const { stockId, quantity } = validated;
 
+    // Cari data stok bunga supplier
     const stock = await prisma.stock.findUnique({
       where: { id: stockId },
     });
 
+    // Validasi keberadaan data stok
     if (!stock) {
       return NextResponse.json(
         { success: false, message: "Stok tidak ditemukan" },
@@ -22,6 +27,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validasi ketersediaan kuantitas stok supplier
     if (stock.quantity < quantity) {
       return NextResponse.json(
         {
@@ -32,8 +38,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // Hitung total harga transaksi pembelian stok
     const totalPrice = stock.pricePerUnit * quantity;
 
+    // Buat data transaksi pembelian stok baru di database
     const transaction = await prisma.stockTransaction.create({
       data: {
         stockId,
@@ -54,6 +62,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Kembalikan respon sukses pembuatan transaksi pembelian
     return NextResponse.json(
       {
         success: true,
@@ -63,6 +72,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -83,14 +93,18 @@ export async function POST(request: Request) {
   }
 }
 
+// Handler HTTP GET untuk mengambil riwayat transaksi pembelian stok florist
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist
     const { userId } = await requireAuth(request, ["FLORIST"]);
+    // Ambil parameter filter status, stok, dan paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
     const status = searchParams.get("status");
     const stockId = searchParams.get("stockId");
+    // Susun filter query riwayat pembelian
     const whereClause: any = {
       floristId: userId,
     };
@@ -98,6 +112,7 @@ export async function GET(request: Request) {
     if (status) whereClause.status = status;
     if (stockId) whereClause.stockId = stockId;
 
+    // Ambil data riwayat transaksi stok beserta relasi stok dan supplier
     const [transactions, total] = await Promise.all([
       prisma.stockTransaction.findMany({
         where: whereClause,
@@ -129,6 +144,7 @@ export async function GET(request: Request) {
 
     const totalPages = Math.ceil(total / limit);
 
+    // Kembalikan respon sukses riwayat pembelian stok
     return NextResponse.json({
       success: true,
       message: "Riwayat pembelian berhasil diambil",
@@ -141,6 +157,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

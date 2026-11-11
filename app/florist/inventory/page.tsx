@@ -2,22 +2,16 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import {
   Flower2,
   Plus,
   Search,
-  Filter,
-  Boxes,
   AlertTriangle,
   Layers,
   Edit,
   Trash2,
-  RefreshCw,
   Loader2,
   ArrowUpDown,
-  CheckCircle2,
-  PackageOpen,
   Info,
 } from "lucide-react";
 import Link from "next/link";
@@ -82,7 +76,6 @@ const QUICK_PRESETS = [
 
 export default function RawMaterialsPage() {
   const { status: authStatus } = useSession();
-  const router = useRouter();
 
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -157,8 +150,9 @@ export default function RawMaterialsPage() {
         lowStockCount: 0,
         usedInBOMCount: 0,
       });
-    } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan saat memuat data");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data";
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -166,7 +160,8 @@ export default function RawMaterialsPage() {
 
   useEffect(() => {
     if (authStatus === "authenticated") {
-      fetchRawMaterials();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void fetchRawMaterials();
     }
   }, [authStatus, fetchRawMaterials]);
 
@@ -226,8 +221,9 @@ export default function RawMaterialsPage() {
         location: "Gudang / Storage Florist",
       });
       await fetchRawMaterials();
-    } catch (err: any) {
-      setAddErrors({ submit: err.message || "Gagal menyimpan bahan baku" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gagal menyimpan bahan baku";
+      setAddErrors({ submit: message });
     } finally {
       setIsSubmittingAdd(false);
     }
@@ -263,8 +259,9 @@ export default function RawMaterialsPage() {
       setSelectedForAdjust(null);
       setAdjustReason("");
       await fetchRawMaterials();
-    } catch (err: any) {
-      alert(err.message || "Gagal memperbarui stok");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gagal memperbarui stok";
+      alert(message);
     } finally {
       setIsSubmittingAdjust(false);
     }
@@ -299,8 +296,9 @@ export default function RawMaterialsPage() {
       setIsEditModalOpen(false);
       setSelectedForEdit(null);
       await fetchRawMaterials();
-    } catch (err: any) {
-      alert(err.message || "Gagal menyimpan perubahan");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gagal menyimpan perubahan";
+      alert(message);
     } finally {
       setIsSubmittingEdit(false);
     }
@@ -329,8 +327,9 @@ export default function RawMaterialsPage() {
         throw new Error(json.message || "Gagal menghapus bahan baku");
       }
       await fetchRawMaterials();
-    } catch (err: any) {
-      alert(err.message || "Gagal menghapus bahan baku");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gagal menghapus bahan baku";
+      alert(message);
     }
   };
 
@@ -374,123 +373,97 @@ export default function RawMaterialsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Header Halaman */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-            <Flower2 className="w-7 h-7 text-primary" />
-            Inventori Bunga Segar (Bahan Baku)
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+            Operasional & Bahan Baku
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
+            Inventori Bunga Segar
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Pusat pengelolaan stok bunga potong segar (tangkai) untuk perakitan buket — baik dari panen supplier maupun stok mandiri florist.
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
+            Pantau ketersediaan stok bunga potong, kelola bahan baku mandiri, dan integrasikan dengan perakitan buket produk.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <Link
             href="/florist/products"
-            className="btn-secondary inline-flex items-center gap-2 text-sm"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10"
           >
-            <Layers className="w-4 h-4 text-muted-foreground" />
-            Ke Produk Jadi & BOM
+            <Layers className="w-3.5 h-3.5" />
+            Produk Jadi & BOM
           </Link>
           <button
+            type="button"
             onClick={() => setIsAddModalOpen(true)}
-            className="btn-primary inline-flex items-center gap-2 text-sm"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             Tambah Bahan Baku
           </button>
         </div>
       </div>
 
-      {/* Kartu Statistik */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card-elevated p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-              <Boxes className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Total Jenis Bunga</p>
-              <p className="text-xl font-bold text-foreground mt-0.5">{stats.totalItems}</p>
-            </div>
+      {/* Ringkasan stok */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[
+          { label: "Jenis bunga", value: stats.totalItems, sub: "Varian terdaftar" },
+          { label: "Stok fisik", value: stats.totalStock, unit: "tangkai", sub: "Siap dirangkai" },
+          { label: "Di bawah batas minimum", value: stats.lowStockCount, attention: true, sub: "Perlu restock" },
+          { label: "Terhubung ke BOM", value: stats.usedInBOMCount, sub: "Dipakai di buket" },
+        ].map((item) => (
+          <div key={item.label} className="rounded-2xl border border-border bg-surface p-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
+            <p className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${item.attention && item.value > 0 ? "text-amber-600" : "text-foreground"}`}>
+              {item.value.toLocaleString("id-ID")} {item.unit && <span className="text-xs font-normal text-muted-foreground ml-1">{item.unit}</span>}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p>
           </div>
-        </div>
-
-        <div className="card-elevated p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-secondary/10 text-secondary">
-              <PackageOpen className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Total Stok Bunga (Tangkai)</p>
-              <p className="text-xl font-bold text-foreground mt-0.5">{stats.totalStock}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card-elevated p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-warning/10 text-warning">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Stok Menipis (&lt; min)</p>
-              <p className="text-xl font-bold text-foreground mt-0.5">{stats.lowStockCount}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card-elevated p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-info/10 text-info">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Terhubung ke BOM</p>
-              <p className="text-xl font-bold text-foreground mt-0.5">{stats.usedInBOMCount} Bahan</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="card-elevated p-4">
-        <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
+      <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Daftar Bahan Baku</h2>
+            <p className="text-xs text-muted-foreground">Cari dan sesuaikan stok sebelum merakit produk buket.</p>
+          </div>
           <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               type="text"
               placeholder="Cari mawar, tulip, pita, kertas..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field pl-9 text-sm w-full"
+              className="w-full rounded-xl border border-border bg-surface-container-low py-2.5 pl-10 pr-4 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-            <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
-            {CATEGORY_OPTIONS.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors whitespace-nowrap ${
-                  categoryFilter === cat
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-surface-container-low text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {cat === "ALL" ? "Semua Kategori" : cat}
-              </button>
-            ))}
-          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full overflow-x-auto pt-3 mt-3 border-t border-border">
+          <span className="text-xs font-medium text-muted-foreground shrink-0 mr-1">Kategori:</span>
+          {CATEGORY_OPTIONS.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap ${
+                categoryFilter === cat
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface-container-low text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {cat === "ALL" ? "Semua Kategori" : cat}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Tabel Bahan Baku */}
-      <div className="card-elevated overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
         {isLoading ? (
           <div className="flex min-h-[40vh] items-center justify-center p-8">
             <div className="text-center">
@@ -508,76 +481,75 @@ export default function RawMaterialsPage() {
           </div>
         ) : rawMaterials.length === 0 ? (
           <div className="p-12 text-center max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 text-primary">
-              <Flower2 className="w-8 h-8" />
-            </div>
             <h3 className="text-base font-semibold text-foreground mb-1">
-              Belum Ada Bahan Baku
+              {searchQuery || categoryFilter !== "ALL" ? "Tidak ada bahan yang sesuai" : "Belum Ada Bahan Baku"}
             </h3>
             <p className="text-xs text-muted-foreground mb-6">
-              Tambahkan stok bunga segar, daun, atau material wrapping yang Anda miliki saat ini agar siap dirangkai menjadi produk buket.
+              {searchQuery || categoryFilter !== "ALL"
+                ? "Coba ubah kata kunci atau kategori untuk melihat stok lainnya."
+                : "Tambahkan stok bunga segar, daun, atau material wrapping agar siap dirangkai menjadi produk buket."}
             </p>
-            <button
+            {!(searchQuery || categoryFilter !== "ALL") && <button
               onClick={() => setIsAddModalOpen(true)}
               className="btn-primary inline-flex items-center gap-2 text-sm"
             >
               <Plus className="w-4 h-4" />
               Tambah Bahan Baku Pertama
-            </button>
+            </button>}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-surface-container-low border-b border-border">
+            <table className="w-full min-w-180 text-left text-sm">
+              <thead className="bg-[#181720] border-b border-zinc-800 text-xs font-semibold text-zinc-300 uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
+                  <th scope="col" className="px-5 py-3.5">
                     Nama Bahan Baku
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
+                  <th scope="col" className="px-5 py-3.5">
                     Kategori
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase">
+                  <th scope="col" className="px-5 py-3.5 text-center">
                     Sumber
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">
-                    Stok Fisik (Tangkai/Satuan)
+                  <th scope="col" className="px-5 py-3.5 text-right">
+                    Stok Fisik
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">
-                    Modal / Tangkai
+                  <th scope="col" className="px-5 py-3.5 text-right">
+                    Harga Modal
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase">
-                    Dipakai di BOM
+                  <th scope="col" className="px-5 py-3.5 text-center">
+                    BOM Buket
                   </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase">
+                  <th scope="col" className="px-5 py-3.5 text-center">
                     Aksi
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border text-sm">
+              <tbody className="divide-y divide-border">
                 {rawMaterials.map((material) => (
                   <tr key={material.id} className="hover:bg-surface-container-low/40 transition-colors">
                     {/* Nama & Lokasi */}
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-foreground">{material.name}</p>
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-foreground">{material.name}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Lokasi: {material.location}
                       </p>
                     </td>
 
                     {/* Kategori */}
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-surface-container-low text-muted-foreground border border-border">
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-container-low text-muted-foreground border border-border">
                         {material.category}
                       </span>
                     </td>
 
                     {/* Sumber */}
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-5 py-4 text-center">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           material.isSelfSupplied
-                            ? "bg-secondary/10 text-secondary border border-secondary/20"
-                            : "bg-tertiary/10 text-tertiary border border-tertiary/20"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-sky-50 text-sky-700 border border-sky-200"
                         }`}
                       >
                         {material.sourceLabel}
@@ -585,39 +557,40 @@ export default function RawMaterialsPage() {
                     </td>
 
                     {/* Stok & Satuan */}
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <span
-                          className={`font-mono font-semibold ${
+                          className={`font-mono text-base font-bold ${
                             material.isOutOfStock
-                              ? "text-error"
+                              ? "text-red-600"
                               : material.isLowStock
-                              ? "text-warning"
+                              ? "text-amber-600"
                               : "text-foreground"
                           }`}
                         >
                           {material.quantity}
                         </span>
-                        <span className="text-xs text-muted-foreground">{material.unit}</span>
+                        <span className="text-xs text-muted-foreground font-medium">{material.unit}</span>
                       </div>
                       {material.isLowStock && (
-                        <p className="text-[10px] text-warning font-medium">
-                          Stok menipis (min: {material.minThreshold})
+                        <p className="text-[10px] text-amber-600 font-medium">
+                          Batas min: {material.minThreshold}
                         </p>
                       )}
                     </td>
 
                     {/* Harga Modal */}
-                    <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
-                      {formatRupiah(material.pricePerUnit)} / {material.unit}
+                    <td className="px-5 py-4 text-right font-mono text-xs font-semibold text-foreground">
+                      {formatRupiah(material.pricePerUnit)} <span className="text-muted-foreground font-normal">/{material.unit}</span>
                     </td>
 
                     {/* Terhubung di BOM */}
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-5 py-4 text-center">
                       {material.usedInBOMCount > 0 ? (
                         <button
+                          type="button"
                           onClick={() => setSelectedBOMInfo(material)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                           title="Klik untuk melihat produk yang memakai bahan ini"
                         >
                           <Layers className="w-3.5 h-3.5" />
@@ -629,11 +602,12 @@ export default function RawMaterialsPage() {
                     </td>
 
                     {/* Aksi */}
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-5 py-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <button
+                          type="button"
                           onClick={() => openAdjustModal(material)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-xs"
                           title="Sesuaikan stok (tambah/kurang mandiri)"
                         >
                           <ArrowUpDown className="w-3.5 h-3.5" />
@@ -641,6 +615,7 @@ export default function RawMaterialsPage() {
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => openEditModal(material)}
                           className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-surface-container transition-colors"
                           title="Edit detail bahan baku"
@@ -649,8 +624,9 @@ export default function RawMaterialsPage() {
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => handleDelete(material)}
-                          className="p-1.5 text-error/70 hover:text-error rounded-lg hover:bg-error/10 transition-colors"
+                          className="p-1.5 text-rose-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                           title="Hapus bahan baku"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -668,44 +644,45 @@ export default function RawMaterialsPage() {
       {/* Modal Tambah Bahan Baku Baru */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-2xl bg-surface p-6 shadow-xl border border-border max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
+          <div className="relative w-full max-w-xl rounded-2xl bg-card shadow-xl border border-border max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center bg-[#181720] text-white p-5 sm:p-6 flex-shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-primary" />
-                  Tambah Bahan Baku Mandiri
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Input Mandiri</p>
+                <h3 className="text-lg font-bold text-white mt-1">
+                  Tambah Bahan Baku Florist
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Tambahkan bunga segar atau material pelengkap yang siap dipakai pada BOM produk.
+                <p className="text-xs text-zinc-300 mt-0.5">
+                  Bunga potong segar atau material wrapping untuk BOM produk buket.
                 </p>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
+                className="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
               >
                 ✕
               </button>
             </div>
 
-            {/* Pilihan Cepat Preset Bunga & Material */}
-            <div className="mb-5 p-3 rounded-xl bg-surface-container-low border border-border">
-              <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
-                <Info className="w-3.5 h-3.5 text-primary" />
-                Pilihan Cepat (Klik untuk mengisi otomatis):
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {QUICK_PRESETS.map((preset) => (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    onClick={() => applyPreset(preset)}
-                    className="text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-primary text-muted-foreground hover:text-primary transition-colors text-left"
-                  >
-                    + {preset.name}
-                  </button>
-                ))}
+            <div className="p-6 overflow-y-auto flex-1">
+              {/* Pilihan Cepat Preset Bunga & Material */}
+              <div className="mb-5 p-3 rounded-xl bg-surface-container-low border border-border">
+                <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-violet-500" />
+                  Pilihan Cepat (Klik untuk mengisi otomatis):
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => applyPreset(preset)}
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-violet-500 text-muted-foreground hover:text-violet-600 transition-colors text-left"
+                    >
+                      + {preset.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
             <form onSubmit={handleAddSubmit} className="space-y-4">
               {addErrors.submit && (
@@ -843,14 +820,14 @@ export default function RawMaterialsPage() {
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
                   disabled={isSubmittingAdd}
-                  className="btn-secondary text-sm"
+                  className="btn-secondary rounded-xl text-xs py-2 px-4"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingAdd}
-                  className="btn-primary text-sm inline-flex items-center gap-2"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
                 >
                   {isSubmittingAdd && <Loader2 className="w-4 h-4 animate-spin" />}
                   Simpan Bahan Baku
@@ -859,7 +836,8 @@ export default function RawMaterialsPage() {
             </form>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* Modal Sesuaikan Stok Mandiri */}
       {isAdjustModalOpen && selectedForAdjust && (
@@ -894,10 +872,10 @@ export default function RawMaterialsPage() {
                   <button
                     type="button"
                     onClick={() => setAdjustType("ADD")}
-                    className={`py-2 text-xs font-semibold rounded-xl border transition-colors ${
+                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
                       adjustType === "ADD"
-                        ? "bg-primary/10 border-primary text-primary"
-                        : "bg-surface-container-low border-border text-muted-foreground"
+                        ? "bg-violet-600 border-violet-600 text-white"
+                        : "bg-surface-container-low border-border text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     + Tambah Stok
@@ -905,10 +883,10 @@ export default function RawMaterialsPage() {
                   <button
                     type="button"
                     onClick={() => setAdjustType("SUBTRACT")}
-                    className={`py-2 text-xs font-semibold rounded-xl border transition-colors ${
+                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
                       adjustType === "SUBTRACT"
-                        ? "bg-warning/10 border-warning text-warning"
-                        : "bg-surface-container-low border-border text-muted-foreground"
+                        ? "bg-violet-600 border-violet-600 text-white"
+                        : "bg-surface-container-low border-border text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     - Kurang Stok
@@ -916,10 +894,10 @@ export default function RawMaterialsPage() {
                   <button
                     type="button"
                     onClick={() => setAdjustType("SET")}
-                    className={`py-2 text-xs font-semibold rounded-xl border transition-colors ${
+                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
                       adjustType === "SET"
-                        ? "bg-secondary/10 border-secondary text-secondary"
-                        : "bg-surface-container-low border-border text-muted-foreground"
+                        ? "bg-violet-600 border-violet-600 text-white"
+                        : "bg-surface-container-low border-border text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     Atur Total
@@ -966,7 +944,7 @@ export default function RawMaterialsPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingAdjust}
-                  className="btn-primary text-xs inline-flex items-center gap-1.5"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 px-3.5 py-2 text-xs font-semibold text-white transition-colors shadow-xs disabled:opacity-50"
                 >
                   {isSubmittingAdjust && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Simpan Penyesuaian
@@ -1093,7 +1071,7 @@ export default function RawMaterialsPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingEdit}
-                  className="btn-primary text-xs inline-flex items-center gap-1.5"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 px-3.5 py-2 text-xs font-semibold text-white transition-colors shadow-xs disabled:opacity-50"
                 >
                   {isSubmittingEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Simpan Perubahan

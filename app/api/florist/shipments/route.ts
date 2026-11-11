@@ -6,25 +6,30 @@ import { createShipmentSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 import { calculateEstimatedDays } from "@/lib/utils/estimateDelivery";
 
+// Handler HTTP POST untuk membuat pengiriman pesanan secara manual oleh florist
 export async function POST(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId: floristId } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil metadata IP address dan user-agent untuk audit log
     const ipAddress =
       request.headers.get("x-forwarded-for") ||
       request.headers.get("x-real-ip") ||
       "unknown";
     const userAgent = request.headers.get("user-agent") || "unknown";
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = createShipmentSchema.parse(body);
     const { orderId, courier, service, trackingNumber, estimatedDays, weight } = validated;
     
-    // Convert weight from kg to grams for database storage
+    // Konversi bobot pengiriman dari kg ke gram
     const weightInGrams = weight ? Math.round(weight * 1000) : null;
 
+    // Ambil data pesanan beserta relasi item dan alamat pengiriman
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -53,6 +58,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Validasi keberadaan data pesanan
     if (!order) {
       return NextResponse.json(
         {
@@ -63,6 +69,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validasi apakah pesanan sudah memiliki pengiriman
     if (order.shipment) {
       return NextResponse.json(
         {
@@ -73,6 +80,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validasi hak kepemilikan pesanan oleh florist
     const isOwner = order.items.some(
       (item) => item.product.floristId === floristId,
     );
@@ -86,6 +94,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validasi status pesanan harus PAID sebelum dapat dikirim
     if (order.status !== "PAID") {
       return NextResponse.json(
         {
@@ -96,11 +105,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Calculate estimatedDays if not provided
+    // Hitung estimasi hari pengiriman berdasarkan lokasi jika belum ditentukan
     let calculatedEstimatedDays = estimatedDays;
     
     if (!calculatedEstimatedDays && order.address) {
-      // Get florist location from first product's florist
+      // Ambil lokasi florist dari data produk pertama
       const firstProduct = order.items[0]?.product;
       const floristAddress = firstProduct?.florist?.addresses?.[0];
       
@@ -116,11 +125,12 @@ export async function POST(request: Request) {
           }
         );
       } else {
-        // Fallback to 2 days if location data is incomplete
+        // Nilai default estimasi 2 hari jika data lokasi belum lengkap
         calculatedEstimatedDays = 2;
       }
     }
 
+    // Simpan data pengiriman, perbarui status pesanan, dan buat notifikasi dalam transaksi atomic
     const [shipment] = await prisma.$transaction([
       prisma.shipment.create({
         data: {
@@ -138,7 +148,7 @@ export async function POST(request: Request) {
         where: { id: order.id },
         data: { status: "PROCESSING" },
       }),
-      // Notify customer about shipment creation
+      // Kirim notifikasi pembuatan pengiriman ke pembeli
       prisma.notification.create({
         data: {
           userId: order.userId,
@@ -151,6 +161,7 @@ export async function POST(request: Request) {
       }),
     ]);
 
+    // Catat pembuatan data pengiriman ke audit log
     await createAuditLog({
       userId: floristId,
       action: "CREATE",
@@ -167,6 +178,7 @@ export async function POST(request: Request) {
       userAgent,
     });
 
+    // Kembalikan respon sukses pembuatan pengiriman
     return NextResponse.json(
       {
         success: true,
@@ -176,6 +188,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -196,12 +209,15 @@ export async function POST(request: Request) {
   }
 }
 
+// Handler HTTP GET untuk mengambil daftar pengiriman florist
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId: floristId } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter filter dan paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
@@ -209,6 +225,7 @@ export async function GET(request: Request) {
     const orderId = searchParams.get("orderId");
     const trackingNumber = searchParams.get("trackingNumber");
 
+    // Susun filter query pengiriman florist
     const whereClause: any = {
       order: {
         items: {
@@ -229,6 +246,7 @@ export async function GET(request: Request) {
         mode: "insensitive",
       };
 
+    // Ambil daftar pengiriman beserta relasi order dan data pembeli
     const [shipments, total] = await Promise.all([
       prisma.shipment.findMany({
         where: whereClause,
@@ -257,6 +275,7 @@ export async function GET(request: Request) {
 
     const totalPages = Math.ceil(total / limit);
 
+    // Kembalikan respon sukses beserta data paginasi pengiriman
     return NextResponse.json({
       success: true,
       message: "Daftar shipment berhasil diambil",
@@ -273,6 +292,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

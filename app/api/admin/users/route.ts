@@ -3,9 +3,12 @@ import prisma from "@/lib/prisma";
 import { Role } from "@prisma/client";
 import { NextResponse } from "next/server";
 
+// Handler HTTP GET untuk mengambil daftar pengguna sistem oleh admin
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
+    // Ambil parameter filter peran dan paginasi dari query string
     const { searchParams } = new URL(request.url);
     const roleParams = searchParams.get("role");
     const page = parseInt(searchParams.get("page") || "1");
@@ -13,10 +16,12 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
     const whereClause: any = {};
 
+    // Filter berdasarkan peran pengguna jika valid
     if (roleParams && Object.values(Role).includes(roleParams as Role)) {
       whereClause.role = roleParams as Role;
     }
 
+    // Ambil daftar pengguna dan total data secara paralel
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where: whereClause,
@@ -41,6 +46,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Kembalikan respon sukses beserta data paginasi pengguna
     return NextResponse.json({
       success: true,
       message: "Daftar pengguna berhasil diambil",
@@ -57,6 +63,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

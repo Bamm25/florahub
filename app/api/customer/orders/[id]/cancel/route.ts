@@ -2,17 +2,17 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-// POST: Cancel order dengan status PENDING dan return stock
+// Handler HTTP POST untuk membatalkan pesanan berstatus PENDING dan mengembalikan kuota stok
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Validate user session dan parse order ID
+    // Validasi sesi pengguna dan ambil ID pesanan dari parameter rute
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
 
-    // Validate order ID parameter
+    // Validasi keberadaan parameter ID pesanan
     if (!id) {
       return NextResponse.json(
         { success: false, message: "Order ID tidak ditemukan" },
@@ -20,7 +20,7 @@ export async function POST(
       );
     }
 
-    // Fetch order dengan items untuk stock restoration
+    // Ambil data pesanan beserta item produk untuk pemulihan stok
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -32,7 +32,7 @@ export async function POST(
       },
     });
 
-    // Validate order existence
+    // Validasi keberadaan data pesanan
     if (!order) {
       return NextResponse.json(
         { success: false, message: "Order tidak ditemukan" },
@@ -40,7 +40,7 @@ export async function POST(
       );
     }
 
-    // Validate order ownership
+    // Validasi hak kepemilikan pesanan oleh pengguna
     if (order.userId !== userId) {
       return NextResponse.json(
         { success: false, message: "Forbidden: Order ini bukan milik Anda" },
@@ -48,7 +48,7 @@ export async function POST(
       );
     }
 
-    // Validate order status harus PENDING untuk cancel
+    // Pastikan pesanan masih berstatus PENDING sebelum dibatalkan
     if (order.status !== "PENDING") {
       return NextResponse.json(
         {
@@ -59,15 +59,21 @@ export async function POST(
       );
     }
 
-    // Cancel order dan return stock dalam transaction
+    // Eksekusi pembatalan pesanan dan pemulihan stok dalam transaksi basis data
     await prisma.$transaction(async (tx) => {
-      // Update order status ke CANCELLED
+      // Perbarui status pesanan menjadi CANCELLED
       await tx.order.update({
         where: { id },
         data: { status: "CANCELLED" },
       });
 
-      // Return stock untuk setiap item
+      // Perbarui status pembayaran menjadi FAILED
+      await tx.payment.updateMany({
+        where: { orderId: id },
+        data: { status: "FAILED" },
+      });
+
+      // Kembalikan stok untuk setiap item produk dalam pesanan
       for (const item of order.items) {
         await tx.product.update({
           where: { id: item.productId },
@@ -76,14 +82,14 @@ export async function POST(
       }
     });
 
-    // Return success response
+    // Kirim respons berhasil pembatalan pesanan
     return NextResponse.json({
       success: true,
       message: "Pesanan berhasil dibatalkan dan stok telah dikembalikan",
       data: { orderId: id },
     });
   } catch (error) {
-    // Handle auth errors
+    // Tangani galat otentikasi pengguna
     if (error instanceof NextResponse) {
       return error;
     }

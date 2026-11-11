@@ -3,13 +3,13 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
-// GET: Fetch user profile dengan stats
+// Handler HTTP GET untuk mengambil profil pelanggan beserta data statistik pesanan
 export async function GET(request: Request) {
   try {
-    // Validate user session dan extract user ID
+    // Validasi sesi otentikasi pengguna dan ambil ID pelanggan
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
 
-    // Fetch user profile dengan basic data
+    // Ambil data profil pengguna dasar dari database
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // Validate user existence
+    // Validasi keberadaan akun pengguna
     if (!user) {
       return NextResponse.json(
         {
@@ -32,11 +32,11 @@ export async function GET(request: Request) {
       );
     }
 
-    // Calculate date range untuk stats 12 months
+    // Tentukan rentang waktu 12 bulan terakhir untuk perhitungan statistik
     const twelveMonthsAgo = new Date();
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
-    // Query delivered orders untuk calculate total spent
+    // Ambil pesanan yang sudah selesai terkirim dalam 12 bulan terakhir
     const orders = await prisma.order.findMany({
       where: {
         userId: userId,
@@ -50,11 +50,11 @@ export async function GET(request: Request) {
       },
     });
 
-    // Calculate total spent dan total orders
+    // Hitung total pengeluaran dan jumlah pesanan yang diselesaikan
     const totalSpent = orders.reduce((sum, order) => sum + order.totalAmount, 0);
     const totalOrders = orders.length;
 
-    // Return response dengan profile dan stats
+    // Kirim respons berhasil beserta data profil dan statistik belanja
     return NextResponse.json(
       {
         success: true,
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
             name: user.name,
             email: user.email,
             phone: user.phone || "",
-            emailVerified: false, // Can be enhanced with email verification feature
+            emailVerified: false,
             createdAt: user.createdAt.toISOString(),
             totalOrders: totalOrders,
             totalSpent: totalSpent,
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
       { status: 200 },
     );
   } catch (error) {
-    // If error is already a NextResponse (from requireAuth), throw it
+    // Teruskan respons jika error merupakan objek NextResponse dari middleware
     if (error instanceof NextResponse) {
       throw error;
     }
@@ -90,15 +90,15 @@ export async function GET(request: Request) {
   }
 }
 
-// PATCH: Update user profile
+// Handler HTTP PATCH untuk memperbarui informasi profil pelanggan
 export async function PATCH(request: Request) {
   try {
-    // Validate user session dan extract user ID
+    // Validasi sesi otentikasi pengguna dan ambil ID pelanggan
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
 
     const body = await request.json();
 
-    // Validation schema untuk profile update
+    // Skema validasi data pembaruan profil pengguna
     const updateProfileSchema = z.object({
       name: z.string().min(3, "Nama minimal 3 karakter").max(100),
       phone: z.string().regex(/^\d{10,13}$/, "No HP harus 10-13 digit"),
@@ -106,7 +106,7 @@ export async function PATCH(request: Request) {
 
     const validatedData = updateProfileSchema.parse(body);
 
-    // Check jika phone sudah digunakan user lain
+    // Pastikan nomor telepon belum digunakan oleh pengguna lain
     if (validatedData.phone) {
       const existingPhone = await prisma.user.findFirst({
         where: {
@@ -128,7 +128,7 @@ export async function PATCH(request: Request) {
       }
     }
 
-    // Update user profile dengan data baru
+    // Perbarui data nama dan nomor telepon pengguna di database
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
@@ -144,7 +144,7 @@ export async function PATCH(request: Request) {
       },
     });
 
-    // Return response dengan updated user data
+    // Kirim respons data profil pengguna yang berhasil diperbarui
     return NextResponse.json(
       {
         success: true,
@@ -156,12 +156,12 @@ export async function PATCH(request: Request) {
       { status: 200 },
     );
   } catch (error) {
-    // If error is already a NextResponse (from requireAuth), throw it
+    // Teruskan respons jika error merupakan objek NextResponse dari middleware
     if (error instanceof NextResponse) {
       throw error;
     }
 
-    // Handle validation errors
+    // Tangani galat validasi skema masukan
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

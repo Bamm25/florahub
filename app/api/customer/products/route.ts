@@ -2,12 +2,12 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 
-// GET: Fetch products dengan filter category, search, rating dan sorting
+// Handler HTTP GET untuk mengambil katalog produk pelanggan dengan filter kategori, pencarian, rating, dan pengurutan
 export async function GET(request: Request) {
   try {
-    // Parse query parameters untuk filtering dan pagination
+    // Urai parameter query untuk penyaringan dan penomoran halaman
     const { searchParams } = new URL(request.url);
-    const categoryId = searchParams.get("categoryId") || searchParams.get("categiryId"); // Support both spellings
+    const categoryId = searchParams.get("categoryId") || searchParams.get("categiryId"); // Dukung kedua variasi penulisan
     const search = searchParams.get("search");
     const minRating = searchParams.get("minRating");
     const sortBy = searchParams.get("sortBy") || "newest";
@@ -15,17 +15,17 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
 
-    // Build where clause dengan active products only
+    // Susun klausa filter hanya untuk produk yang berstatus aktif
     const whereClause: Prisma.ProductWhereInput = {
       isActive: true,
     };
 
-    // Apply category filter jika ada
+    // Terapkan penyaringan berdasarkan kategori produk jika tersedia
     if (categoryId) {
       whereClause.categoryId = categoryId;
     }
 
-    // Apply search filter untuk name, description, dan tags
+    // Terapkan penyaringan kata kunci pencarian pada nama, deskripsi, dan tag
     if (search) {
       whereClause.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       ];
     }
 
-    // Apply rating filter menggunakan review aggregation
+    // Terapkan batas minimum rating ulasan produk
     if (minRating && minRating !== "all") {
       const minRatingNum = parseFloat(minRating);
       if (!isNaN(minRatingNum)) {
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Determine sort order berdasarkan sortBy parameter
+    // Tentukan urutan pengurutan data berdasarkan parameter sortBy
     let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: "desc" };
     switch (sortBy) {
       case "price-asc":
@@ -69,7 +69,7 @@ export async function GET(request: Request) {
         break;
     }
 
-    // Query products dengan category, florist, dan reviews
+    // Ambil data produk beserta relasi kategori, florist, dan ulasan secara paralel
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where: whereClause,
@@ -101,7 +101,7 @@ export async function GET(request: Request) {
       prisma.product.count({ where: whereClause }),
     ]);
 
-    // Calculate average rating dan review count untuk setiap product
+    // Hitung rating rata-rata dan total ulasan untuk masing-masing produk
     const productsWithRatings = products.map((product) => {
       const reviews = product.reviews;
       const reviewCount = reviews.length;
@@ -117,7 +117,7 @@ export async function GET(request: Request) {
       };
     });
 
-    // Return response dengan products dan pagination metadata
+    // Kirim respons berhasil beserta data produk dan metadata paginasi
     return NextResponse.json(
       {
         success: true,
@@ -135,10 +135,10 @@ export async function GET(request: Request) {
       { status: 200 },
     );
   } catch (error) {
-        // Handle errors dan return generic error response
-        if (error instanceof NextResponse) {
-          return error;
-        }
+    // Tangani galat dan kembalikan respons kesalahan server
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
       {
         success: false,

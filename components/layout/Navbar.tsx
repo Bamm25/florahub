@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useCartStore } from "@/lib/stores/cartStore";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import CustomerNotifications from "./CustomerNotifications";
 import {
   ShoppingCart,
   User,
-  Flower2,
   LogOut,
   Package,
   MapPin,
@@ -18,30 +17,25 @@ import {
   Store,
 } from "lucide-react";
 
+// Komponen navigasi utama aplikasi dengan menu responsif dan autentikasi peran
 export default function Navbar() {
   const { data: session, status } = useSession();
   const itemCount = useCartStore((state) => state.getItemCount());
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Check if user is florist
-  const isFlorist = session?.user && (session.user as { role?: string }).role === "FLORIST";
-  const isCustomer = session?.user && (session.user as { role?: string }).role === "CUSTOMER";
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  const isBusiness = role === "FLORIST" || role === "SUPPLIER" || role === "ADMIN";
+  const isCustomer = role === "CUSTOMER";
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-outline-variant bg-surface/95 shadow-sm backdrop-blur supports-backdrop-filter:bg-surface/80">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/95">
       <div className="container-custom">
-        <div className="flex h-20 items-center justify-between">
+        <div className="flex h-16 items-center justify-between">
           {/* Brand Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="rounded-xl bg-primary/10 p-2 transition-colors group-hover:bg-primary/20">
-              <Flower2 className="h-6 w-6 text-primary" />
-            </div>
             <span className="text-xl font-bold tracking-tight text-foreground">
               Flora<span className="text-primary">Hub</span>
             </span>
@@ -76,13 +70,14 @@ export default function Navbar() {
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="md:hidden flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-container hover:text-primary"
-              aria-label="Toggle Menu"
+              aria-label={isMobileMenuOpen ? "Tutup menu" : "Buka menu"}
+              aria-expanded={isMobileMenuOpen}
             >
               {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
 
             {/* Cart Icon & Badge - Only for non-florist users */}
-            {!isFlorist && (
+            {!isBusiness && (
               <Link
                 href="/cart"
                 aria-label="Keranjang Belanja"
@@ -125,14 +120,14 @@ export default function Navbar() {
                         {session.user?.name || "Akun"}
                       </strong>
                     </div>
-                    {isFlorist ? (
+                    {isBusiness ? (
                       <Link
-                        href="/florist/dashboard"
+                        href={role === "FLORIST" ? "/florist/dashboard" : "/"}
                         onClick={() => setIsDropdownOpen(false)}
                         className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
                       >
                         <Home className="h-4 w-4 text-muted-foreground" />
-                        Dashboard Florist
+                        {role === "FLORIST" ? "Area florist" : "Beranda"}
                       </Link>
                     ) : (
                       <>
@@ -181,7 +176,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/auth/login"
-                className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-primary/90 hover:scale-105"
+                className="rounded-full bg-primary px-6 py-2 text-sm font-semibold text-white transition-all hover:bg-primary/90 "
               >
                 Masuk
               </Link>
@@ -207,7 +202,7 @@ export default function Navbar() {
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
             >
-              <Flower2 className="h-5 w-5 text-muted-foreground" />
+              <Store className="h-5 w-5 text-muted-foreground" />
               Katalog
             </Link>
             <Link
@@ -218,7 +213,7 @@ export default function Navbar() {
               <Store className="h-5 w-5 text-muted-foreground" />
               Toko
             </Link>
-            {!isFlorist && (
+            {!isBusiness && (
               <Link
                 href="/cart"
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -237,14 +232,14 @@ export default function Navbar() {
             {session && (
               <>
                 <div className="h-px bg-border my-2" />
-                {isFlorist ? (
+                {isBusiness ? (
                   <Link
-                    href="/florist/dashboard"
+                    href={role === "FLORIST" ? "/florist/dashboard" : "/"}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
                   >
                     <Home className="h-5 w-5 text-muted-foreground" />
-                    Dashboard Florist
+                    {role === "FLORIST" ? "Area florist" : "Beranda"}
                   </Link>
                 ) : (
                   <>

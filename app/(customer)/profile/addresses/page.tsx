@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import {
   getAddresses,
   createAddress,
@@ -11,7 +12,7 @@ import {
 } from "@/lib/api/addresses";
 import AddressForm from "@/components/customer/AddressForm";
 import { AddressCard } from "@/components/customer/AddressCard";
-import { MapPin, Plus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 // Interface untuk data alamat pengiriman customer
 interface Address {
@@ -104,63 +105,86 @@ export default function AddressManagementPage() {
 
   if (status === "loading" || isLoading) {
     return (
-      <div className="container-custom section-spacing">
-        <div className="h-10 w-64 animate-pulse rounded-xl bg-surface-container mb-8" />
-        <div className="space-y-4">
+      <main className="container-custom section-spacing">
+        <div className="h-6 w-36 animate-pulse rounded bg-surface-container mb-6" />
+        <div className="h-10 w-56 animate-pulse rounded-lg bg-surface-container mb-8" />
+        <div className="grid gap-4 md:grid-cols-2">
           {[1, 2].map((i) => (
             <div
               key={i}
-              className="h-40 animate-pulse rounded-xl bg-surface-container-low"
+              className="h-44 animate-pulse rounded-2xl bg-surface-container-low"
             />
           ))}
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="container-custom section-spacing">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-foreground">Alamat Saya</h1>
+    <main className="container-custom section-spacing">
+      {/* Navigasi Balik ke Profil */}
+      <nav aria-label="Navigasi" className="mb-6">
+        <Link
+          href="/profile"
+          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Kembali ke Profil
+        </Link>
+      </nav>
+
+      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Buku Alamat
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Alamat Pengiriman
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Kelola alamat penerima untuk mempercepat pengiriman dan checkout.
+          </p>
+        </div>
         <button
           onClick={() => {
             setEditingAddress(null);
             setShowForm(true);
           }}
-          className="btn-primary"
+          className="btn-primary h-11 px-5 py-0 text-sm"
         >
-          <Plus className="mr-2 h-5 w-5" />
           Tambah Alamat
         </button>
-      </div>
+      </header>
 
       {errorMessage && (
-        <div className="mb-6 rounded-xl border border-error/30 bg-error/5 p-5 text-base text-error">
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-error/30 bg-error/5 p-4 text-sm text-error"
+        >
           {errorMessage}
         </div>
       )}
 
       {addresses.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-border bg-surface-container-low p-16 text-center">
-          <div className="inline-flex h-24 w-24 items-center justify-center rounded-2xl bg-surface-container mb-6">
-            <MapPin className="h-12 w-12 text-muted-foreground" />
-          </div>
-          <h3 className="text-2xl font-bold text-foreground mb-3">
+        <section
+          aria-label="Belum ada alamat"
+          className="rounded-2xl border border-dashed border-border bg-surface-container-low/60 p-12 text-center"
+        >
+          <h2 className="text-lg font-bold text-foreground">
             Belum ada alamat tersimpan
-          </h3>
-          <p className="text-base text-muted-foreground mb-8 max-w-md mx-auto">
-            Tambahkan alamat pengiriman untuk memudahkan proses checkout.
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            Tambahkan alamat rumah, kantor, atau penerima hadiah agar proses checkout lebih mudah.
           </p>
           <button
             onClick={() => setShowForm(true)}
-            className="btn-primary"
+            className="btn-primary mt-6 h-11 px-6 py-0 text-sm"
           >
-            <Plus className="mr-2 h-5 w-5" />
             Tambah Alamat Pertama
           </button>
-        </div>
+        </section>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-2">
           {addresses.map((address) => (
             <AddressCard
               key={address.id}
@@ -186,6 +210,6 @@ export default function AddressManagementPage() {
           }}
         />
       )}
-    </div>
+    </main>
   );
 }

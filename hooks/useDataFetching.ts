@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type React from "react";
 
+// Interface nilai kembalian untuk hook useDataFetching
 interface UseDataFetchingReturn<T> {
   data: T | null;
   isLoading: boolean;
@@ -8,10 +9,7 @@ interface UseDataFetchingReturn<T> {
   refetch: () => Promise<void>;
 }
 
-/**
- * useDataFetching hook
- * Reusable data fetching with loading/error states
- */
+// Hook kustom untuk pengambilan data asinkron beserta status pemuatan dan galat
 export function useDataFetching<T>(
   fetchFn: () => Promise<T>,
   deps: React.DependencyList = []

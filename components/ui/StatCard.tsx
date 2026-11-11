@@ -1,5 +1,6 @@
 import React from "react";
 
+// Props interface untuk komponen kartu statistik metrik
 interface StatCardProps {
   label: string;
   value: string | number;
@@ -7,29 +8,13 @@ interface StatCardProps {
   icon?: React.ReactNode;
 }
 
-/**
- * StatCard component
- * Reusable statistics card for dashboard metrics
- */
-export default function StatCard({ label, value, color, icon }: StatCardProps) {
-  const colorClasses: Record<string, string> = {
-    primary: "text-primary",
-    success: "text-success",
-    warning: "text-warning",
-    error: "text-error",
-    info: "text-info",
-    tertiary: "text-tertiary",
-  };
-
-  const valueColor = color ? colorClasses[color] : "";
+// Komponen kartu metrik statistik ringkas untuk dasbor
+export default function StatCard({ label, value }: StatCardProps) {
 
   return (
-    <div className="card-elevated p-4 space-y-1">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        {icon && <div className="text-muted-foreground">{icon}</div>}
-      </div>
-      <p className={`text-2xl font-semibold ${valueColor}`}>{value}</p>
+    <div className="card-elevated p-5">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-4 text-2xl font-semibold tabular-nums text-foreground">{value}</p>
     </div>
   );
 }

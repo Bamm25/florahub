@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "./prisma";
 
+// Fungsi untuk mencatat aktivitas log audit pengguna dan entitas ke database
 export async function createAuditLog({
   userId,
   action,

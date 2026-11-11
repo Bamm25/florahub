@@ -3,23 +3,21 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-// Schema validasi update bahan baku atau penyesuaian stok
+// Skema validasi pembaruan bahan baku atau penyesuaian stok
 const updateRawMaterialSchema = z.object({
   action: z.enum(["UPDATE_DETAILS", "ADJUST_STOCK"]).default("UPDATE_DETAILS"),
-  // Field untuk UPDATE_DETAILS
   name: z.string().min(2, "Nama minimal 2 karakter").optional(),
   category: z.string().optional(),
   unit: z.string().optional(),
   pricePerUnit: z.number().int().min(0).optional(),
   minThreshold: z.number().int().min(0).optional(),
   location: z.string().optional().nullable(),
-  // Field untuk ADJUST_STOCK
   adjustmentType: z.enum(["ADD", "SUBTRACT", "SET"]).optional(),
   amount: z.number().int().min(0).optional(),
   reason: z.string().optional(),
 });
 
-// GET: Ambil detail satu bahan baku
+// Handler HTTP GET untuk mengambil detail bahan baku florist berdasarkan ID
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -68,22 +66,27 @@ export async function GET(
   }
 }
 
-// PUT: Perbarui informasi atau sesuaikan stok bahan baku
+// Handler HTTP PUT untuk memperbarui informasi atau menyesuaikan stok bahan baku
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Ambil parameter ID inventaris dari URL
     const { id } = await params;
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updateRawMaterialSchema.parse(body);
 
+    // Cari data inventaris bahan baku florist
     const inventory = await prisma.floristInventory.findUnique({
       where: { id },
       include: { stock: true },
     });
 
+    // Validasi keberadaan dan hak akses bahan baku
     if (!inventory || inventory.floristId !== userId) {
       return NextResponse.json(
         { success: false, message: "Bahan baku tidak ditemukan" },
@@ -91,6 +94,7 @@ export async function PUT(
       );
     }
 
+    // Tangani penyesuaian kuantitas stok bahan baku
     if (validated.action === "ADJUST_STOCK") {
       const type = validated.adjustmentType || "ADD";
       const amount = validated.amount ?? 0;
@@ -104,6 +108,7 @@ export async function PUT(
         newQuantity = Math.max(0, amount);
       }
 
+      // Mutasi penyesuaian kuantitas dalam transaksi database atomic
       const updated = await prisma.$transaction(async (tx) => {
         // Update stok di inventory florist
         const updatedInv = await tx.floristInventory.update({
@@ -137,9 +142,9 @@ export async function PUT(
       });
     }
 
-    // Aksi UPDATE_DETAILS: Update metadata bahan baku
+    // Perbarui metadata informasi bahan baku
     const updated = await prisma.$transaction(async (tx) => {
-      // 1. Update data inventori florist
+      // Perbarui data inventaris florist
       const updatedInv = await tx.floristInventory.update({
         where: { id: inventory.id },
         data: {
@@ -148,7 +153,7 @@ export async function PUT(
         },
       });
 
-      // 2. Update data stock jika dimiliki florist
+      // Perbarui data stok jika dimiliki florist secara mandiri
       if (inventory.stock.supplierId === userId) {
         await tx.stock.update({
           where: { id: inventory.stockId },
@@ -165,6 +170,7 @@ export async function PUT(
       return updatedInv;
     });
 
+    // Kembalikan respon sukses pembaruan data bahan baku
     return NextResponse.json({
       success: true,
       message: "Data bahan baku berhasil diperbarui",
@@ -185,7 +191,7 @@ export async function PUT(
   }
 }
 
-// DELETE: Hapus bahan baku mandiri dengan validasi keterkaitan BOM
+// Handler HTTP DELETE untuk menghapus bahan baku mandiri florist
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },

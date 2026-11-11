@@ -1,4 +1,4 @@
-// Endpoint untuk cek ongkos kirim via Biteship API (sebelum create shipment)
+// Endpoint untuk memeriksa tarif ongkos kirim melalui Biteship API
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -7,8 +7,10 @@ import { getFloristPickupAddress } from "@/lib/florist-pickup-address";
 import { getBiteshipClient } from "@/lib/biteship";
 import type { BiteshipRateItem } from "@/lib/biteship";
 
+// Handler HTTP POST untuk mengecek tarif ongkos kirim pesanan melalui Biteship
 export async function POST(req: NextRequest) {
   try {
+    // Autentikasi sesi pengguna
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -21,6 +23,7 @@ export async function POST(req: NextRequest) {
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
 
+    // Verifikasi peran pengguna harus florist
     if (userRole !== "FLORIST") {
       return NextResponse.json(
         { success: false, message: "Hanya florist yang dapat cek ongkir" },
@@ -28,8 +31,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Parsing dan validasi request body
     const body = await req.json();
-    const { orderId, couriers } = body; // couriers optional: ["jne", "jnt", "sicepat"]
+    const { orderId, couriers } = body;
 
     if (!orderId) {
       return NextResponse.json(
@@ -38,7 +42,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get order dengan relasi
+    // Ambil data pesanan beserta relasi pembeli dan produk
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -69,7 +73,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate ownership (cek dari product florist)
+    // Validasi hak kepemilikan pesanan oleh florist
     const floristId = order.items[0]?.product?.florist?.id;
     if (!floristId || floristId !== userId) {
       return NextResponse.json(
@@ -78,7 +82,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Gunakan alamat pickup yang dipilih pada profil florist.
+    // Gunakan alamat penjemputan dari profil florist
     const floristAddress = await getFloristPickupAddress(userId);
 
     if (!floristAddress || !floristAddress.postalCode) {
@@ -88,7 +92,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get customer address
+    // Ambil alamat default pembeli
     const customerAddress = order.user.addresses[0];
     if (!customerAddress) {
       return NextResponse.json(
@@ -97,26 +101,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Prepare items untuk Biteship rates API
+    // Siapkan data barang untuk perhitungan tarif ongkir Biteship
     const items: BiteshipRateItem[] = order.items.map((item: any) => ({
       name: item.product?.name || "Produk Florist",
-      value: Math.round(item.price), // IDR
+      value: Math.round(item.price),
       quantity: item.quantity,
-      height: 10, // cm (default)
-      length: 15, // cm
-      width: 10, // cm
-      weight: 500 * item.quantity, // gram (default 500g per produk)
+      height: 10,
+      length: 15,
+      width: 10,
+      weight: 500 * item.quantity,
     }));
 
-    // Get rates dari Biteship
+    // Ambil kalkulasi tarif ongkos kirim dari Biteship
     const biteshipClient = getBiteshipClient();
     const rates = await biteshipClient.getRates(
       parseInt(floristAddress.postalCode),
       parseInt(customerAddress.postalCode),
       items,
-      couriers || ["jne", "jnt", "sicepat", "anteraja", "ninja"] // Default kurir populer
+      couriers || ["jne", "jnt", "sicepat", "anteraja", "ninja"]
     );
 
+    // Kembalikan respon sukses daftar tarif ongkos kirim
     return NextResponse.json({
       success: true,
       message: "Ongkos kirim berhasil diambil",
@@ -139,6 +144,7 @@ export async function POST(req: NextRequest) {
       destination: rates.destination,
     });
   } catch (error: any) {
+    // Tangani error internal server
     console.error("[GET_RATES_ERROR]", error);
     return NextResponse.json(
       {

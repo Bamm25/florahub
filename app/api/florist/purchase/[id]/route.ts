@@ -4,14 +4,18 @@ import { NextResponse } from "next/server";
 import { updatePurchaseSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP PUT untuk mengunggah bukti pembayaran transaksi pembelian stok
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist
     const { userId } = await requireAuth(request, ["FLORIST"]);
+    // Ambil parameter ID transaksi dari URL
     const { id } = await params;
 
+    // Cari data transaksi stok beserta informasi stok dan supplier
     const transaction = await prisma.stockTransaction.findUnique({
       where: { id },
       include: {
@@ -29,6 +33,7 @@ export async function PUT(
       },
     });
 
+    // Validasi keberadaan data transaksi
     if (!transaction) {
       return NextResponse.json(
         {
@@ -39,6 +44,7 @@ export async function PUT(
       );
     }
 
+    // Validasi hak kepemilikan transaksi oleh florist
     if (transaction.floristId !== userId) {
       return NextResponse.json(
         {
@@ -49,6 +55,7 @@ export async function PUT(
       );
     }
 
+    // Validasi status transaksi harus PENDING untuk upload bukti pembayaran
     if (transaction.status !== "PENDING") {
       return NextResponse.json(
         {
@@ -59,10 +66,12 @@ export async function PUT(
       );
     }
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updatePurchaseSchema.parse(body);
     const { paymentProof } = validated;
 
+    // Perbarui URL bukti pembayaran pada data transaksi
     const updatedTransaction = await prisma.stockTransaction.update({
       where: { id },
       data: {
@@ -77,6 +86,7 @@ export async function PUT(
         },
       },
     });
+    // Kembalikan respon sukses pengunggahan bukti bayar
     return NextResponse.json({
       success: true,
       message:
@@ -84,6 +94,7 @@ export async function PUT(
       data: updatedTransaction,
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -104,14 +115,18 @@ export async function PUT(
   }
 }
 
+// Handler HTTP GET untuk mengambil detail data transaksi pembelian stok berdasarkan ID
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist
     const { userId } = await requireAuth(request, ["FLORIST"]);
+    // Ambil parameter ID transaksi dari URL
     const { id } = await params;
 
+    // Cari data transaksi stok beserta informasi stok dan supplier
     const transaction = await prisma.stockTransaction.findUnique({
       where: { id },
       include: {
@@ -135,6 +150,7 @@ export async function GET(
       },
     });
 
+    // Validasi keberadaan data transaksi
     if (!transaction) {
       return NextResponse.json(
         {
@@ -145,6 +161,7 @@ export async function GET(
       );
     }
 
+    // Validasi hak kepemilikan transaksi oleh florist
     if (transaction.floristId !== userId) {
       return NextResponse.json(
         {
@@ -155,12 +172,14 @@ export async function GET(
       );
     }
 
+    // Kembalikan respon sukses data detail transaksi pembelian
     return NextResponse.json({
       success: true,
       message: "Detail transaksi berhasil diambil",
       data: { transaction },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

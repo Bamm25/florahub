@@ -5,7 +5,7 @@ import type {
   ProductFormData,
 } from "@/types";
 
-// Response type dari API GET product by slug
+// Interface respons API untuk rincian data produk berdasarkan slug
 interface ProductDetailResponse {
   success: boolean;
   data: {
@@ -33,6 +33,7 @@ interface ProductDetailResponse {
   };
 }
 
+// Interface data ulasan dan penilaian produk dari pengguna
 export interface Review {
   id: string;
   rating: number;
@@ -43,12 +44,14 @@ export interface Review {
   };
 }
 
+// Interface masukan data untuk membuat ulasan produk baru
 export interface CreateReviewInput {
   rating: number;
   comment: string;
   images?: string[];
 }
 
+// Interface respons API setelah pengiriman ulasan produk
 export interface CreateReviewResponse {
   success: boolean;
   message: string;
@@ -57,6 +60,7 @@ export interface CreateReviewResponse {
   };
 }
 
+// Fungsi pembantu untuk menentukan URL dasar API sesuai lingkungan aplikasi
 function getBaseUrl(): string {
   if (typeof window !== "undefined") {
     return "";
@@ -70,7 +74,7 @@ function getBaseUrl(): string {
   return "http://localhost:3000";
 }
 
-// Fetch semua products dengan filter dan pagination
+// Fungsi untuk mengambil daftar produk dengan filter pencarian dan paginasi
 export async function getProducts(params?: {
   page?: number;
   limit?: number;
@@ -100,7 +104,7 @@ export async function getProducts(params?: {
   return res.json();
 }
 
-// Fetch detail product berdasarkan ID
+// Fungsi untuk mengambil detail data produk berdasarkan ID
 export async function getProductById(
   id: string,
 ): Promise<ApiResponse<Product>> {
@@ -123,7 +127,7 @@ export async function getProductById(
   return res.json();
 }
 
-// Post create product florist
+// Fungsi untuk menambahkan produk baru florist melalui API
 export async function createProduct(
   data: ProductFormData,
 ): Promise<ApiResponse<Product>> {
@@ -146,7 +150,7 @@ export async function createProduct(
   return res.json();
 }
 
-// Put update product optional value florist
+// Fungsi untuk memperbarui data produk florist berdasarkan ID
 export async function updateProduct(
   id: string,
   data: Partial<ProductFormData>,
@@ -170,7 +174,7 @@ export async function updateProduct(
   return res.json();
 }
 
-// delete product florist
+// Fungsi untuk menghapus produk florist berdasarkan ID
 export async function deleteProduct(
   id: string,
 ): Promise<ApiResponse<{ id: string }>> {
@@ -192,7 +196,7 @@ export async function deleteProduct(
   return res.json();
 }
 
-// Fetch detail produk berdasarkan slug untuk SEO
+// Fungsi untuk mengambil data rincian produk berdasarkan slug
 export async function getProductBySlug(
   slug: string,
 ): Promise<ProductDetailResponse> {
@@ -208,7 +212,7 @@ export async function getProductBySlug(
   return response.json();
 }
 
-// Fetch reviews dan rating stats untuk productId
+// Fungsi untuk mengambil daftar ulasan dan statistik rating produk
 export async function getProductReviews(productId: string) {
   const response = await fetch(`/api/products/${productId}/reviews`, {
     method: "GET",
@@ -230,7 +234,7 @@ export async function getProductReviews(productId: string) {
   };
 }
 
-// Submit review baru untuk productId dengan rating dan comment
+// Fungsi untuk mengirimkan ulasan dan rating produk baru
 export async function createProductReview(
   productId: string,
   data: CreateReviewInput,

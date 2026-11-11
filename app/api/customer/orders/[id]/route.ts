@@ -2,16 +2,16 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-// GET: Fetch detail order by ID dengan items dan payment
+// Handler HTTP GET untuk mengambil detail pesanan pelanggan berdasarkan ID
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Validate user session dan parse order ID
+    // Validasi sesi pengguna dan ambil ID pesanan dari parameter rute
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
-    // Validate order ID parameter
+    // Validasi keberadaan parameter ID pesanan
     if (!id) {
       return NextResponse.json(
         {
@@ -22,7 +22,7 @@ export async function GET(
       );
     }
 
-    // Query order dengan items, payment, address, shipment, dan user details (no cache untuk real-time status)
+    // Ambil data pesanan lengkap beserta relasi produk, alamat, pengiriman, dan pembayaran
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -52,7 +52,7 @@ export async function GET(
       },
     });
 
-    // Validate order existence
+    // Validasi keberadaan data pesanan
     if (!order) {
       return NextResponse.json(
         {
@@ -62,7 +62,7 @@ export async function GET(
         { status: 404 },
       );
     }
-    // Validate order ownership
+    // Validasi hak kepemilikan pesanan oleh pengguna
     if (order.userId !== userId) {
       return NextResponse.json(
         {
@@ -73,7 +73,7 @@ export async function GET(
       );
     }
 
-    // Transform data untuk response format
+    // Transformasi data pesanan ke dalam format respons klien
     const orderDetail = {
       id: order.id,
       orderNumber: order.orderNumber,
@@ -126,7 +126,7 @@ export async function GET(
       updatedAt: order.updatedAt,
     };
 
-    // Return response dengan order detail lengkap
+    // Kirim respons data detail pesanan lengkap
     return NextResponse.json({
       success: true,
       message: "Detail order berhasil diambil",
@@ -135,7 +135,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    // Handle auth errors
+    // Tangani galat otentikasi pengguna
     if (error instanceof NextResponse) {
       return error;
     }

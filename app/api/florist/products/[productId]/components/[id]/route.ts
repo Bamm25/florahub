@@ -4,17 +4,21 @@ import { NextResponse } from "next/server";
 import { updateProductComponentSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP PUT untuk memperbarui kuantitas komponen bahan baku pada produk
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ productId: string; id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter ID produk dan ID komponen dari URL
     const { productId, id: componentId } = await params;
 
+    // Cari data produk untuk memverifikasi kepemilikan
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: {
@@ -23,6 +27,7 @@ export async function PUT(
       },
     });
 
+    // Validasi keberadaan data produk
     if (!product) {
       return NextResponse.json(
         {
@@ -33,6 +38,7 @@ export async function PUT(
       );
     }
 
+    // Validasi hak kepemilikan produk oleh florist
     if (userRole === "FLORIST" && product.floristId !== userId) {
       return NextResponse.json(
         {
@@ -43,10 +49,12 @@ export async function PUT(
       );
     }
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validatedData = updateProductComponentSchema.parse(body);
     const { quantity } = validatedData;
 
+    // Cari data komponen produk eksisting di database
     const existingComponent = await prisma.productComponent.findUnique({
       where: { id: componentId },
       select: {
@@ -55,6 +63,7 @@ export async function PUT(
       },
     });
 
+    // Validasi keberadaan data komponen
     if (!existingComponent) {
       return NextResponse.json(
         {
@@ -65,6 +74,7 @@ export async function PUT(
       );
     }
 
+    // Validasi relasi keterkaitan komponen dengan produk
     if (existingComponent.productId !== productId) {
       return NextResponse.json(
         {
@@ -75,6 +85,7 @@ export async function PUT(
       );
     }
 
+    // Perbarui kuantitas komponen produk di database
     const component = await prisma.productComponent.update({
       where: { id: componentId },
       data: {
@@ -95,6 +106,7 @@ export async function PUT(
       },
     });
 
+    // Kembalikan respon sukses pembaruan komponen produk
     return NextResponse.json({
       success: true,
       message: "Komponen produk berhasil diperbarui",
@@ -114,6 +126,7 @@ export async function PUT(
       },
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -134,17 +147,21 @@ export async function PUT(
   }
 }
 
+// Handler HTTP DELETE untuk menghapus komponen bahan baku dari produk
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ productId: string; id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter ID produk dan ID komponen dari URL
     const { productId, id: componentId } = await params;
 
+    // Cari data produk untuk memverifikasi kepemilikan
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: {
@@ -153,6 +170,7 @@ export async function DELETE(
       },
     });
 
+    // Validasi keberadaan data produk
     if (!product) {
       return NextResponse.json(
         {
@@ -163,6 +181,7 @@ export async function DELETE(
       );
     }
 
+    // Validasi hak kepemilikan produk oleh florist
     if (userRole === "FLORIST" && product.floristId !== userId) {
       return NextResponse.json(
         {
@@ -173,6 +192,7 @@ export async function DELETE(
       );
     }
 
+    // Cari data komponen produk eksisting di database
     const existingComponent = await prisma.productComponent.findUnique({
       where: { id: componentId },
       select: {
@@ -181,6 +201,7 @@ export async function DELETE(
       },
     });
 
+    // Validasi keberadaan data komponen
     if (!existingComponent) {
       return NextResponse.json(
         {
@@ -191,6 +212,7 @@ export async function DELETE(
       );
     }
 
+    // Validasi relasi keterkaitan komponen dengan produk
     if (existingComponent.productId !== productId) {
       return NextResponse.json(
         {
@@ -201,15 +223,18 @@ export async function DELETE(
       );
     }
 
+    // Hapus data komponen produk dari database
     await prisma.productComponent.delete({
       where: { id: componentId },
     });
 
+    // Kembalikan respon sukses penghapusan komponen produk
     return NextResponse.json({
       success: true,
       message: "Komponen produk berhasil dihapus",
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import ProductModal from "@/components/florist/ProductModal";
 import BOMModal from "@/components/florist/BOMModal";
 import ProduceModal from "@/components/florist/ProduceModal";
@@ -105,7 +105,7 @@ export default function FloristProductsPage() {
       const res = await fetch("/api/categories");
       const json = await res.json();
       if (res.ok) {
-        // API returns { data: { items: [...], pagination: {...} } }
+        // Simpan daftar kategori dari respon API
         setCategories(json.data?.items || []);
       }
     } catch (err) {
@@ -165,7 +165,7 @@ export default function FloristProductsPage() {
 
   const openProduceModal = async (product: Product) => {
     try {
-      // Fetch full product with BOM components
+      // Ambil data lengkap produk beserta komponen BOM
       const res = await fetch(`/api/florist/products/${product.id}`);
       const json = await res.json();
       
@@ -204,7 +204,7 @@ export default function FloristProductsPage() {
     const isStockInvalid = !formData.stock.trim() || !Number.isSafeInteger(stockValue) || stockValue < 0;
     if (isStockInvalid) errors.stock = "Stok tidak boleh negatif";
     
-    // Validate weight if provided
+    // Validasi berat produk jika diisi (harus bilangan bulat positif)
     const hasWeight = formData.weight && formData.weight.trim();
     if (hasWeight) {
       const weightValue = Number(formData.weight);
@@ -232,7 +232,7 @@ export default function FloristProductsPage() {
       const stockValue = Number(formData.stock);
       const weightValue = formData.weight ? Number(formData.weight) : null;
       
-      // Final validation before submission
+      // Validasi akhir nilai numerik sebelum dikirim ke server
       if (!Number.isSafeInteger(priceValue) || !Number.isSafeInteger(stockValue) ||
           (weightValue !== null && !Number.isSafeInteger(weightValue))) {
         throw new Error("Nilai harga atau stok tidak valid");
@@ -369,14 +369,31 @@ export default function FloristProductsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-foreground">
-          Kelola Produk
-        </h1>
-        <p className="text-muted-foreground">
-          Atur katalog produk buket & karangan yang dijual ke customer
-        </p>
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Header Halaman */}
+      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+            Katalog & Perakitan
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
+            Kelola Produk Toko
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
+            Atur katalog buket bunga, susun formula bahan baku (BOM), dan lakukan perakitan stok produk siap jual.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b4aeff]"
+          >
+            <Plus className="w-4 h-4" />
+            Tambah Produk Baru
+          </button>
+        </div>
       </div>
 
       <ProductStats products={products} />

@@ -1,16 +1,15 @@
 import React from "react";
 
+// Antarmuka properti lencana status
 interface StatusBadgeProps {
   status: string;
   variant: "inventory" | "shipment" | "preorder" | "product";
   size?: "sm" | "md";
 }
 
-/**
- * StatusBadge component
- * Reusable status badge with variant-specific color mappings
- */
+// Komponen lencana status reusable dengan pemetaan warna berdasarkan varian entitas
 export default function StatusBadge({ status, variant, size = "md" }: StatusBadgeProps) {
+  // Ambil konfigurasi label teks dan gaya warna berdasarkan jenis varian dan status
   const getConfig = () => {
     const configs: Record<string, Record<string, { label: string; className: string }>> = {
       inventory: {
@@ -86,9 +85,11 @@ export default function StatusBadge({ status, variant, size = "md" }: StatusBadg
     };
   };
 
+  // Evaluasi konfigurasi status aktif dan penentuan ukuran lencana
   const config = getConfig();
   const sizeClasses = size === "sm" ? "px-2 py-0.5 text-xs" : "px-2.5 py-0.5 text-xs";
 
+  // Render elemen lencana status berupa badge kapsul
   return (
     <span
       className={`inline-flex items-center rounded-full font-medium border ${sizeClasses} ${config.className}`}

@@ -1,6 +1,6 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
-// Inisialisasi S3Client yang dikonfigurasi untuk Cloudflare R2
+// Status ketersediaan konfigurasi variabel lingkungan Cloudflare R2
 const isR2Configured = Boolean(
   process.env.R2_ACCOUNT_ID &&
   process.env.R2_ACCESS_KEY_ID &&
@@ -8,6 +8,7 @@ const isR2Configured = Boolean(
   process.env.R2_BUCKET_NAME
 );
 
+// Inisialisasi klien S3 yang terhubung ke penyimpanan objek Cloudflare R2
 export const r2Client = isR2Configured
   ? new S3Client({
       region: "auto",
@@ -19,10 +20,7 @@ export const r2Client = isR2Configured
     })
   : null;
 
-/**
- * Upload file buffer langsung ke Cloudflare R2 bucket.
- * Mengembalikan public URL dari file yang di-upload.
- */
+// Fungsi untuk mengunggah buffer berkas ke Cloudflare R2 dan mengembalikan URL publik
 export async function uploadToR2(
   fileBuffer: Buffer,
   filename: string,

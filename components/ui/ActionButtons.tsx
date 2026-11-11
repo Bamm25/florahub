@@ -1,6 +1,7 @@
 import React from "react";
 import { Edit, Trash2 } from "lucide-react";
 
+// Antarmuka properti kumpulan tombol aksi
 interface ActionButtonsProps {
   onEdit?: () => void;
   onDelete?: () => void;
@@ -15,10 +16,7 @@ interface ActionButtonsProps {
   disabled?: boolean;
 }
 
-/**
- * ActionButtons component
- * Reusable action buttons group (Edit, Delete, View, Custom)
- */
+// Komponen grup tombol aksi reusable untuk melihat, mengedit, menghapus, atau aksi kustom
 export default function ActionButtons({
   onEdit,
   onDelete,
@@ -27,15 +25,18 @@ export default function ActionButtons({
   size = "md",
   disabled = false,
 }: ActionButtonsProps) {
+  // Penentuan ukuran ikon dan jarak dalam tombol berdasarkan prop ukuran
   const iconSize = size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4";
   const buttonPadding = size === "sm" ? "px-2 py-1" : "px-3 py-1.5";
 
+  // Pemetaan kelas gaya berdasarkan varian warna aksi kustom
   const variantClasses: Record<string, string> = {
     primary: "text-primary bg-primary/5 hover:bg-primary/10",
     error: "text-error bg-error/5 hover:bg-error/10",
     tertiary: "text-tertiary bg-tertiary/5 hover:bg-tertiary/10",
   };
 
+  // Render wadah flex horizontal berisi kumpulan tombol aksi
   return (
     <div className="flex items-center justify-center gap-2">
       {onView && (

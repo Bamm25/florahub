@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 
+// Handler HTTP POST webhook untuk memproses notifikasi pembayaran dari Midtrans
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
 
     const serverKey = process.env.MIDTRANS_SERVER_KEY || "";
 
+    // Verifikasi validitas kunci tanda tangan SHA512 dari Midtrans
     const expectedSignature = crypto
       .createHash("sha512")
       .update(order_id + status_code + gross_amount + serverKey)
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Cari data pesanan berdasarkan nomor pesanan
     const order = await prisma.order.findFirst({
       where: { orderNumber: order_id },
       include: {
@@ -134,6 +137,7 @@ export async function POST(request: Request) {
       transaction_status === "expire" ||
       transaction_status === "cancel"
     ) {
+      // Perbarui status pembayaran menjadi gagal dan kembalikan kuota stok pesanan
       await prisma.$transaction(async (tx: any) => {
         await tx.payment.updateMany({
           where: { orderId: order.id },

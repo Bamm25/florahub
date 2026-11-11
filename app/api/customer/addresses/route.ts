@@ -4,17 +4,17 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import { createAddressSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
-// GET: Fetch semua addresses customer dengan pagination
+// Handler HTTP GET untuk mengambil daftar alamat pelanggan dengan paginasi
 export async function GET(request: Request) {
   try {
-    // Validate user session dan parse pagination params
+    // Validasi sesi pengguna dan parameter paginasi
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
 
-    // Query addresses dengan default first ordering
+    // Ambil data alamat dengan mendahulukan alamat utama
     const [addresses, total] = await Promise.all([
       prisma.address.findMany({
         where: { userId },
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       prisma.address.count({ where: { userId } }),
     ]);
 
-    // Return response dengan pagination metadata
+    // Kirim respons daftar alamat beserta metadata paginasi
     return NextResponse.json({
       success: true,
       message: "Daftar alamat berhasil diambil",
@@ -40,24 +40,25 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    // Handle auth errors
-    if (error instanceof NextResponse) {
+    // Tangani galat otentikasi pengguna
+    if (error instanceof Response || error instanceof NextResponse) {
       return error;
     }
+    console.error("[GET /api/customer/addresses error]:", error);
     return NextResponse.json(
       {
         success: false,
-        message: "Internal server error",
+        message: error instanceof Error ? error.message : "Internal server error",
       },
       { status: 500 },
     );
   }
 }
 
-// POST: Create new address untuk customer
+// Handler HTTP POST untuk menambahkan alamat baru pelanggan
 export async function POST(request: Request) {
   try {
-    // Validate user session dan parse request body
+    // Validasi sesi pengguna dan muatan permintaan pembuatan alamat
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const validatedData = createAddressSchema.parse(body);
@@ -74,16 +75,16 @@ export async function POST(request: Request) {
       isDefault,
     } = validatedData;
 
-    // Check existing addresses count
+    // Periksa jumlah alamat yang sudah tersimpan
     const existingAddressCount = await prisma.address.count({
       where: { userId },
     });
 
-    // First address harus default
+    // Tetapkan sebagai alamat utama jika belum ada alamat lain
     const shouldBeDefault =
       existingAddressCount === 0 ? true : Boolean(isDefault);
 
-    // Unset default dari addresses lain jika ini default
+    // Nonaktifkan status utama pada alamat lain jika alamat baru dijadikan utama
     if (shouldBeDefault && existingAddressCount > 0) {
       await prisma.address.updateMany({
         where: { userId },
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Create new address
+    // Simpan data alamat baru ke database
     const newAddress = await prisma.address.create({
       data: {
         userId,
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Return response dengan new address data
+    // Kirim respons sukses beserta data alamat yang dibuat
     return NextResponse.json(
       {
         success: true,
@@ -118,25 +119,26 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    // Handle validation errors
+    // Tangani galat otentikasi pengguna
+    if (error instanceof Response || error instanceof NextResponse) {
+      return error;
+    }
+    // Tangani kesalahan validasi skema input
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
           success: false,
-          message: "Validation error",
+          message: error.issues[0]?.message || "Validation error",
           errors: error.issues,
         },
         { status: 400 },
       );
     }
-    // Handle auth errors
-    if (error instanceof NextResponse) {
-      return error;
-    }
+    console.error("[POST /api/customer/addresses error]:", error);
     return NextResponse.json(
       {
         success: false,
-        message: "Internal server error",
+        message: error instanceof Error ? error.message : "Internal server error",
       },
       { status: 500 },
     );

@@ -4,21 +4,21 @@ import { NextResponse } from "next/server";
 import { updateInventorySchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
-// type RouteParams = {
-//   id: Promise<{ id: string }>;
-// };
-
+// Handler HTTP GET untuk mengambil detail inventaris florist berdasarkan ID
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter ID inventaris dari URL
     const { id } = await params;
 
+    // Cari data inventaris beserta relasi stok supplier dan komponen produk
     const inventory = await prisma.floristInventory.findUnique({
       where: { id },
       include: {
@@ -50,6 +50,7 @@ export async function GET(
       },
     });
 
+    // Validasi keberadaan data inventaris
     if (!inventory) {
       return NextResponse.json(
         {
@@ -60,6 +61,7 @@ export async function GET(
       );
     }
 
+    // Validasi hak kepemilikan inventaris oleh florist
     if (userRole === "FLORIST" && inventory.floristId !== userId) {
       return NextResponse.json(
         {
@@ -70,6 +72,7 @@ export async function GET(
       );
     }
 
+    // Kembalikan respon sukses data detail inventaris beserta status stok menipis
     return NextResponse.json({
       success: true,
       message: "Detail inventory berhasil diambil",
@@ -81,6 +84,7 @@ export async function GET(
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -91,24 +95,30 @@ export async function GET(
   }
 }
 
+// Handler HTTP PUT untuk memperbarui data kuantitas atau lokasi inventaris florist
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter ID inventaris dari URL
     const { id } = await params;
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validatedData = updateInventorySchema.parse(body);
     const { quantity, location, notes } = validatedData;
 
+    // Cari data inventaris eksisting di database
     const existingInventory = await prisma.floristInventory.findUnique({
       where: { id },
     });
 
+    // Validasi keberadaan data inventaris
     if (!existingInventory) {
       return NextResponse.json(
         {
@@ -119,6 +129,7 @@ export async function PUT(
       );
     }
 
+    // Validasi hak kepemilikan inventaris oleh florist
     if (userRole === "FLORIST" && existingInventory.floristId !== userId) {
       return NextResponse.json(
         {
@@ -129,6 +140,7 @@ export async function PUT(
       );
     }
 
+    // Siapkan objek perubahan data inventaris
     const updateData: any = {};
 
     if (quantity !== undefined) {
@@ -138,6 +150,7 @@ export async function PUT(
     if (location !== undefined) updateData.location = location;
     if (notes !== undefined) updateData.notes = notes;
 
+    // Perbarui data inventaris di database
     const inventory = await prisma.floristInventory.update({
       where: { id },
       data: updateData,
@@ -157,12 +170,12 @@ export async function PUT(
       },
     });
 
-    // Trigger low stock notification if quantity dropped below threshold
+    // Kirim notifikasi peringatan jika kuantitas inventaris turun di bawah ambang batas minimum
     if (
       quantity !== undefined &&
       inventory.quantity < inventory.minThreshold
     ) {
-      // Only create notification if no unread low-stock alert already exists for this inventory
+      // Periksa apakah notifikasi peringatan serupa yang belum dibaca sudah ada
       const existingAlert = await prisma.notification.findFirst({
         where: {
           userId: inventory.floristId,
@@ -187,6 +200,7 @@ export async function PUT(
       }
     }
 
+    // Kembalikan respon sukses pembaruan data inventaris
     return NextResponse.json({
       success: true,
       message: "Inventory berhasil diperbarui",
@@ -198,6 +212,7 @@ export async function PUT(
       },
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -218,21 +233,26 @@ export async function PUT(
   }
 }
 
+// Handler HTTP DELETE untuk menghapus inventaris florist beserta relasi komponennya
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter ID inventaris dari URL
     const { id } = await params;
 
+    // Cari data inventaris eksisting di database
     const existingInventory = await prisma.floristInventory.findUnique({
       where: { id },
     });
 
+    // Validasi keberadaan data inventaris
     if (!existingInventory) {
       return NextResponse.json(
         {
@@ -243,6 +263,7 @@ export async function DELETE(
       );
     }
 
+    // Validasi hak kepemilikan inventaris oleh florist
     if (userRole === "FLORIST" && existingInventory.floristId !== userId) {
       return NextResponse.json(
         {
@@ -253,16 +274,19 @@ export async function DELETE(
       );
     }
 
+    // Hitung jumlah komponen produk terkait yang akan terhapus
     const componentsCount = await prisma.productComponent.count({
       where: {
         inventoryId: id,
       },
     });
 
+    // Hapus data inventaris dari database
     await prisma.floristInventory.delete({
       where: { id },
     });
 
+    // Kembalikan respon sukses penghapusan inventaris
     return NextResponse.json({
       success: true,
       message:
@@ -271,6 +295,7 @@ export async function DELETE(
           : "Inventory berhasil dihapus",
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

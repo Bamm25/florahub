@@ -1,7 +1,9 @@
 import React from "react";
 
+// Tipe elemen input formulir
 type FormFieldType = "text" | "number" | "email" | "textarea" | "select" | "date";
 
+// Antarmuka properti komponen FormField
 interface FormFieldProps {
   label: string;
   name: string;
@@ -19,10 +21,7 @@ interface FormFieldProps {
   disabled?: boolean;
 }
 
-/**
- * FormField component
- * Reusable form field with label, input/textarea/select, and error message
- */
+// Komponen input formulir reusable dengan label dan pesan kesalahan
 export default function FormField({
   label,
   name,
@@ -41,7 +40,9 @@ export default function FormField({
 }: FormFieldProps) {
   const inputClasses = `input-field ${error ? "border-error" : ""}`;
 
+  // Render elemen input sesuai tipe yang ditentukan
   const renderInput = () => {
+    // Render textarea untuk input teks multibaris
     if (type === "textarea") {
       return (
         <textarea
@@ -57,6 +58,7 @@ export default function FormField({
       );
     }
 
+    // Render dropdown pilihan jika tipe select
     if (type === "select" && options) {
       return (
         <select
@@ -77,6 +79,7 @@ export default function FormField({
       );
     }
 
+    // Render elemen input standar
     return (
       <input
         id={name}
@@ -94,6 +97,7 @@ export default function FormField({
     );
   };
 
+  // Render bidang formulir beserta label dan pesan error
   return (
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-foreground mb-2">

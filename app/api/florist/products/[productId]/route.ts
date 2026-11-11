@@ -2,14 +2,18 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// Handler HTTP GET untuk mengambil detail data produk florist berdasarkan ID
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ productId: string }> }
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Ambil parameter ID produk dari URL
     const { productId } = await params;
 
+    // Cari data produk beserta kategori, florist, dan komponen bahan baku
     const product = await prisma.product.findUnique({
       where: { id: productId },
       include: {
@@ -39,6 +43,7 @@ export async function GET(
       },
     });
 
+    // Validasi keberadaan data produk
     if (!product) {
       return NextResponse.json(
         {
@@ -49,6 +54,7 @@ export async function GET(
       );
     }
 
+    // Validasi hak kepemilikan produk oleh florist
     if (userRole === "FLORIST" && product.floristId !== userId) {
       return NextResponse.json(
         {
@@ -59,12 +65,14 @@ export async function GET(
       );
     }
 
+    // Kembalikan respon sukses data detail produk
     return NextResponse.json({
       success: true,
       message: "Detail produk berhasil diambil",
       data: product,
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -75,18 +83,23 @@ export async function GET(
   }
 }
 
+// Handler HTTP PUT untuk memperbarui data produk florist berdasarkan ID
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ productId: string }> }
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Ambil parameter ID produk dari URL
     const { productId } = await params;
 
+    // Cari data produk eksisting di database
     const existingProduct = await prisma.product.findUnique({
       where: { id: productId },
     });
 
+    // Validasi keberadaan data produk
     if (!existingProduct) {
       return NextResponse.json(
         { success: false, message: "Produk tidak ditemukan" },
@@ -94,6 +107,7 @@ export async function PUT(
       );
     }
 
+    // Validasi hak kepemilikan produk oleh florist
     if (userRole === "FLORIST" && existingProduct.floristId !== userId) {
       return NextResponse.json(
         {
@@ -104,6 +118,7 @@ export async function PUT(
       );
     }
 
+    // Parsing dan validasi format JSON request body
     let body: any;
     try {
       body = await request.json();
@@ -130,7 +145,7 @@ export async function PUT(
 
     const updateData: any = {};
 
-    // Use the same strict data types as POST; coercion silently changes stock and flags.
+    // Validasi kesesuaian tipe data nilai pembaruan
     if ((price !== undefined && (typeof price !== "number" || !Number.isSafeInteger(price) || price < 0)) ||
         (stock !== undefined && (typeof stock !== "number" || !Number.isSafeInteger(stock) || stock < 0)) ||
         (weight !== undefined && weight !== null && (typeof weight !== "number" || !Number.isSafeInteger(weight) || weight < 0)) ||
@@ -142,6 +157,7 @@ export async function PUT(
       return NextResponse.json({ success: false, message: "Data produk tidak valid" }, { status: 400 });
     }
 
+    // Validasi nama produk jika diperbarui
     if (name !== undefined) {
       if (typeof name !== "string" || !name.trim()) {
         return NextResponse.json(
@@ -152,6 +168,7 @@ export async function PUT(
       updateData.name = name.trim();
     }
 
+    // Validasi harga produk jika diperbarui
     if (price !== undefined) {
       const numPrice = Number(price);
       if (isNaN(numPrice) || numPrice < 0) {
@@ -163,6 +180,7 @@ export async function PUT(
       updateData.price = price;
     }
 
+    // Validasi stok produk jika diperbarui
     if (stock !== undefined) {
       const numStock = Number(stock);
       if (isNaN(numStock) || numStock < 0) {
@@ -174,6 +192,7 @@ export async function PUT(
       updateData.stock = stock;
     }
 
+    // Validasi kategori produk jika diperbarui
     if (categoryId !== undefined) {
       if (typeof categoryId !== "string" || !categoryId.trim()) {
         return NextResponse.json(
@@ -193,6 +212,7 @@ export async function PUT(
       updateData.categoryId = categoryId.trim();
     }
 
+    // Validasi URL gambar produk jika diperbarui
     if (image !== undefined) {
       if (typeof image !== "string" || !image.trim()) {
         return NextResponse.json(
@@ -217,33 +237,40 @@ export async function PUT(
       }
     }
 
+    // Format daftar gambar tambahan jika ada
     if (images !== undefined && Array.isArray(images)) {
       updateData.images = images;
     }
 
+    // Format deskripsi produk jika ada
     if (description !== undefined) {
       updateData.description =
         description && typeof description === "string" ? description.trim() : null;
     }
 
+    // Format berat produk jika ada
     if (weight !== undefined) {
       updateData.weight = weight;
     }
 
+    // Format tag produk jika ada
     if (tags !== undefined) {
       updateData.tags = Array.isArray(tags)
         ? tags.map((t: any) => String(t).trim()).filter(Boolean)
         : [];
     }
 
+    // Format status keaktifan produk
     if (isActive !== undefined) {
       updateData.isActive = isActive;
     }
 
+    // Format status produk unggulan
     if (isFeatured !== undefined) {
       updateData.isFeatured = isFeatured;
     }
 
+    // Perbarui data produk di database
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
       data: updateData,
@@ -264,12 +291,14 @@ export async function PUT(
       },
     });
 
+    // Kembalikan respon sukses pembaruan produk
     return NextResponse.json({
       success: true,
       message: "Produk berhasil diperbarui",
       data: updatedProduct,
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -281,18 +310,23 @@ export async function PUT(
   }
 }
 
+// Handler HTTP DELETE untuk menghapus produk florist berdasarkan ID
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ productId: string }> }
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Ambil parameter ID produk dari URL
     const { productId } = await params;
 
+    // Cari data produk eksisting di database
     const existingProduct = await prisma.product.findUnique({
       where: { id: productId },
     });
 
+    // Validasi keberadaan data produk
     if (!existingProduct) {
       return NextResponse.json(
         { success: false, message: "Produk tidak ditemukan" },
@@ -300,6 +334,7 @@ export async function DELETE(
       );
     }
 
+    // Validasi hak kepemilikan produk oleh florist
     if (userRole === "FLORIST" && existingProduct.floristId !== userId) {
       return NextResponse.json(
         {
@@ -310,16 +345,19 @@ export async function DELETE(
       );
     }
 
+    // Hapus data produk dari database
     await prisma.product.delete({
       where: { id: productId },
     });
 
+    // Kembalikan respon sukses penghapusan produk
     return NextResponse.json({
       success: true,
       message: "Produk berhasil dihapus",
       data: { id: productId },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

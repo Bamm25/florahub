@@ -2,20 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  TrendingUp,
-  ShoppingBag,
-  Package,
-  AlertTriangle,
-  ArrowRight,
-  Clock,
-  CheckCircle2,
-  Boxes,
-  Truck,
-  MapPin,
-  RotateCcw,
-} from "lucide-react";
 
+// Interface data ringkasan metrik dasbor toko florist
 interface DashboardData {
   summary: {
     totalRevenue: number;
@@ -56,11 +44,13 @@ interface DashboardData {
   };
 }
 
+// Halaman dasbor utama operasional toko florist
 export default function FloristDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Ambil data ringkasan metrik toko dari endpoint API
   useEffect(() => {
     async function fetchDashboard() {
       try {
@@ -96,51 +86,30 @@ export default function FloristDashboardPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PAID":
-        return {
-          label: "Perlu Diproses",
-          color: "bg-primary/10 text-primary border-primary/20",
-        };
+        return { label: "Perlu diproses", color: "bg-amber-50 text-amber-800 border-amber-200" };
       case "PROCESSING":
-        return {
-          label: "Sedang Dirakit",
-          color: "bg-tertiary/10 text-tertiary border-tertiary/20",
-        };
+        return { label: "Sedang disiapkan", color: "bg-blue-50 text-blue-800 border-blue-200" };
       case "READY_TO_SHIP":
-        return {
-          label: "Siap Dikirim",
-          color: "bg-secondary/15 text-secondary border-secondary/30",
-        };
+        return { label: "Siap dikirim", color: "bg-blue-50 text-blue-800 border-blue-200" };
       case "SHIPPED":
-        return {
-          label: "Dalam Pengiriman",
-          color: "bg-tertiary/15 text-tertiary border-tertiary/30",
-        };
+        return { label: "Dalam pengiriman", color: "bg-blue-50 text-blue-800 border-blue-200" };
       case "DELIVERED":
-        return {
-          label: "Selesai",
-          color: "bg-success/10 text-success border-success/20",
-        };
+        return { label: "Selesai", color: "bg-green-50 text-green-800 border-green-200" };
       case "PENDING":
-        return {
-          label: "Menunggu Bayar",
-          color: "bg-warning/10 text-warning border-warning/20",
-        };
+        return { label: "Menunggu pembayaran", color: "bg-amber-50 text-amber-800 border-amber-200" };
+      case "CANCELLED":
+        return { label: "Dibatalkan", color: "bg-surface-container-low text-muted-foreground border-border" };
       default:
-        return {
-          label: status,
-          color: "bg-muted text-muted-foreground border-border",
-        };
+        return { label: status.replaceAll("_", " "), color: "bg-surface-container-low text-muted-foreground border-border" };
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex min-h-100 items-center justify-center">
+      <div className="flex min-h-100 items-center justify-center" role="status">
         <div className="text-center">
-          <div className="inline-flex h-12 w-12 animate-spin rounded-full border-4 border-surface-container border-t-primary"></div>
-          <p className="mt-4 text-sm font-medium text-muted-foreground">
-            Memuat ringkasan performa toko...
-          </p>
+          <div className="inline-flex h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
+          <p className="mt-4 text-sm text-muted-foreground">Memuat ringkasan toko...</p>
         </div>
       </div>
     );
@@ -148,18 +117,15 @@ export default function FloristDashboardPage() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-error/20 bg-error/5 p-8 text-center max-w-xl mx-auto">
-        <AlertTriangle className="h-10 w-10 text-error mx-auto mb-3" />
-        <h2 className="text-lg font-bold text-foreground mb-1">
-          Gagal Memuat Dashboard
-        </h2>
-        <p className="text-sm text-muted-foreground mb-6">{error}</p>
+      <div className="mx-auto max-w-xl rounded-2xl border border-border bg-surface p-8">
+        <h1 className="text-xl font-semibold text-foreground">Ringkasan belum dapat dimuat</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{error}</p>
         <button
+          type="button"
           onClick={() => window.location.reload()}
-          className="btn-primary inline-flex items-center gap-2"
+          className="mt-6 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          <RotateCcw className="h-4 w-4" />
-          <span>Coba Muat Ulang</span>
+          Coba lagi
         </button>
       </div>
     );
@@ -179,213 +145,125 @@ export default function FloristDashboardPage() {
   const floristInfo = data?.floristInfo;
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="mx-auto max-w-7xl space-y-8 lg:space-y-10">
+      <div className="flex flex-col gap-8 rounded-[24px] bg-[#10121b] px-6 py-9 text-white sm:px-9 sm:py-10 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground lg:text-3xl">
-            Ringkasan Operasional
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+            {floristInfo?.shopName || "Toko florist"}
+          </p>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-white lg:text-4xl">
+            Ringkasan toko
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Pantau arus pesanan, pendapatan toko, dan ketersediaan stok bunga
-            secara real-time.
+          <p className="mt-3 max-w-lg text-sm leading-6 text-white/70">
+            Pesanan, produk, dan stok yang perlu Anda pantau.
           </p>
-          {floristInfo?.address && (
-            <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1.5">
-              <MapPin className="h-4 w-4 shrink-0" />
-              <span>
-                {floristInfo.shopName} • {floristInfo.address.fullAddress}, {floristInfo.address.city}, {floristInfo.address.province} {floristInfo.address.postalCode}
-              </span>
-            </p>
-          )}
-          <Link href="/florist/settings/shop" className="mt-2 inline-flex text-xs font-semibold text-primary hover:underline">
-            Kelola profil & alamat toko
-          </Link>
         </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/florist/orders"
-            className="btn-primary inline-flex items-center gap-2 text-sm"
-          >
-            <ShoppingBag className="h-4 w-4" />
-            <span>Kelola Pesanan</span>
-          </Link>
-          <Link
-            href="/florist/inventory"
-            className="btn-secondary inline-flex items-center gap-2 text-sm"
-          >
-            <Boxes className="h-4 w-4" />
-            <span>Inventori Bunga</span>
-          </Link>
-        </div>
+        <Link
+          href="/florist/orders"
+          className="inline-flex min-h-12 w-fit items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b4aeff]"
+        >
+          Kelola pesanan
+        </Link>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="card-elevated p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Total Pendapatan
-            </span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <TrendingUp className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold text-foreground tracking-tight">
-            {formatRupiah(summary.totalRevenue)}
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Dari {summary.totalOrders} total pesanan customer
-          </p>
-        </div>
-
-        <div className="card-elevated p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Perlu Diproses
-            </span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-tertiary/10 text-tertiary">
-              <Clock className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold text-foreground tracking-tight">
-            {summary.pendingOrders}
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Pesanan masuk yang siap dirakit & dikirim
-          </p>
-        </div>
-
-        <div className="card-elevated p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Katalog Produk
-            </span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/15 text-secondary">
-              <Package className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold text-foreground tracking-tight">
-            {summary.activeProducts}
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Produk buket & karangan aktif di etalase
-          </p>
-        </div>
-
-        <div className="card-elevated p-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Peringatan Stok
-            </span>
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                summary.lowStockProducts > 0
-                  ? "bg-warning/15 text-warning"
-                  : "bg-success/15 text-success"
-              }`}
-            >
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="text-2xl font-extrabold text-foreground tracking-tight">
-            {summary.lowStockProducts}
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {summary.lowStockProducts > 0
-              ? "Bahan baku mendekati batas minimum"
-              : "Semua persediaan bunga dalam kondisi aman"}
-          </p>
-        </div>
-      </div>
-
-      <div className="card-elevated overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border p-6">
+      <section aria-labelledby="prioritas-heading">
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold text-foreground">
-              Pesanan Masuk Terbaru
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              5 pesanan terakhir yang dipesan oleh customer
-            </p>
+            <h2 id="prioritas-heading" className="text-lg font-semibold text-foreground">Perlu diperhatikan</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Jumlah pesanan mencakup yang menunggu pembayaran dan sedang diproses.</p>
           </div>
-          <Link
-            href="/florist/orders"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
-          >
-            <span>Semua Pesanan</span>
-            <ArrowRight className="h-3.5 w-3.5" />
+          <Link href="/florist/inventory" className="text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            Cek stok
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link href="/florist/orders" className="group rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            <p className="text-sm font-medium text-muted-foreground">Pesanan belum selesai</p>
+            <p className="mt-3 text-4xl font-bold tracking-tight text-foreground">{summary.pendingOrders}</p>
+            <p className="mt-3 text-sm font-semibold text-primary group-hover:underline">Lihat pesanan</p>
+          </Link>
+          <Link href="/florist/products" className="group rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            <p className="text-sm font-medium text-muted-foreground">Produk dengan stok di bawah 10</p>
+            <p className="mt-3 text-4xl font-bold tracking-tight text-foreground">{summary.lowStockProducts}</p>
+            <p className="mt-3 text-sm font-semibold text-primary group-hover:underline">Periksa produk</p>
+          </Link>
+        </div>
+      </section>
+
+      <section aria-labelledby="kinerja-heading">
+        <h2 id="kinerja-heading" className="mb-4 text-lg font-semibold text-foreground">Kinerja toko</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-surface p-6">
+            <p className="text-sm text-muted-foreground">Pendapatan dari pesanan selesai</p>
+            <p className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{formatRupiah(summary.totalRevenue)}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Bukan total seluruh pesanan</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-surface p-6">
+            <p className="text-sm text-muted-foreground">Total pesanan</p>
+            <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">{summary.totalOrders}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Semua status</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-surface p-6">
+            <p className="text-sm text-muted-foreground">Produk aktif</p>
+            <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">{summary.activeProducts}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Tampil di katalog</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="recent-heading" className="overflow-hidden rounded-2xl border border-border bg-surface">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-5 sm:px-6">
+          <div>
+            <h2 id="recent-heading" className="text-lg font-semibold text-foreground">Pesanan terbaru</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Lima pesanan terakhir, termasuk yang belum dibayar.</p>
+          </div>
+          <Link href="/florist/orders" className="text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            Semua pesanan
           </Link>
         </div>
 
         {recentOrders.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container text-muted-foreground mb-3">
-              <CheckCircle2 className="h-6 w-6" />
-            </div>
-            <p className="text-sm font-semibold text-foreground">
-              Belum ada pesanan masuk
-            </p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-              Pesanan dari customer akan otomatis muncul di sini begitu
-              pembayaran berhasil dikonfirmasi.
-            </p>
+          <div className="px-6 py-12">
+            <p className="text-sm font-semibold text-foreground">Belum ada pesanan</p>
+            <p className="mt-1 text-sm text-muted-foreground">Pesanan baru akan muncul di sini.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-surface-container-low/50 text-xs uppercase text-muted-foreground border-b border-border">
+            <table className="w-full min-w-160 text-left text-sm">
+              <thead className="border-b border-border bg-surface-container-low/50 text-muted-foreground">
                 <tr>
-                  <th className="px-6 py-3.5 font-semibold">No. Pesanan</th>
-                  <th className="px-6 py-3.5 font-semibold">Customer</th>
-                  <th className="px-6 py-3.5 font-semibold">Tanggal</th>
-                  <th className="px-6 py-3.5 font-semibold">Total Tagihan</th>
-                  <th className="px-6 py-3.5 font-semibold">Status</th>
-                  <th className="px-6 py-3.5 font-semibold text-right">Aksi</th>
+                  <th scope="col" className="px-5 py-3 font-medium sm:px-6">Pesanan</th>
+                  <th scope="col" className="px-5 py-3 font-medium sm:px-6">Pembeli</th>
+                  <th scope="col" className="px-5 py-3 font-medium sm:px-6">Tanggal</th>
+                  <th scope="col" className="px-5 py-3 font-medium sm:px-6">Total pesanan</th>
+                  <th scope="col" className="px-5 py-3 font-medium sm:px-6">Status</th>
+                  <th scope="col" className="px-5 py-3 text-right font-medium sm:px-6">Detail</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {recentOrders.map((order) => {
                   const badge = getStatusBadge(order.status);
                   return (
-                    <tr
-                      key={order.id}
-                      className="hover:bg-surface-container-low/40 transition-colors"
-                    >
-                      <td className="px-6 py-4 font-bold text-foreground">
-                        {order.orderNumber}
+                    <tr key={order.id} className="hover:bg-surface-container-low/40">
+                      <td className="px-5 py-4 font-semibold text-foreground sm:px-6">{order.orderNumber}</td>
+                      <td className="px-5 py-4 sm:px-6">
+                        <p className="font-medium text-foreground">{order.user.name}</p>
+                        <p className="text-xs text-muted-foreground">{order.user.email}</p>
                       </td>
-                      <td className="px-6 py-4">
-                        <p className="font-semibold text-foreground">
-                          {order.user.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {order.user.email}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4 text-xs text-muted-foreground">
+                      <td className="whitespace-nowrap px-5 py-4 text-muted-foreground sm:px-6">
                         {new Date(order.createdAt).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
+                          day: "numeric", month: "short", year: "numeric",
                         })}
                       </td>
-                      <td className="px-6 py-4 font-bold text-foreground">
-                        {formatRupiah(order.totalAmount)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badge.color}`}
-                        >
+                      <td className="whitespace-nowrap px-5 py-4 font-medium text-foreground sm:px-6">{formatRupiah(order.totalAmount)}</td>
+                      <td className="px-5 py-4 sm:px-6">
+                        <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${badge.color}`}>
                           {badge.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <Link
-                          href={`/florist/orders/${order.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-                        >
-                          <span>Lihat Detail</span>
-                          <ArrowRight className="h-3.5 w-3.5" />
+                      <td className="px-5 py-4 text-right sm:px-6">
+                        <Link href={`/florist/orders/${order.id}`} className="whitespace-nowrap text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                          Lihat detail
                         </Link>
                       </td>
                     </tr>
@@ -395,7 +273,21 @@ export default function FloristDashboardPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
+
+      {floristInfo?.address && (
+        <p className="border-t border-border pt-5 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Alamat toko:</span>{" "}
+          {floristInfo.address.fullAddress}, {floristInfo.address.city}, {floristInfo.address.province} {floristInfo.address.postalCode}
+          {" · "}
+          <Link href="/florist/settings/shop" className="font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Ubah alamat</Link>
+        </p>
+      )}
+      {!floristInfo?.address && (
+        <p className="border-t border-border pt-5 text-sm text-muted-foreground">
+          Alamat toko belum tersedia. <Link href="/florist/settings/shop" className="font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Lengkapi profil toko</Link>
+        </p>
+      )}
     </div>
   );
 }

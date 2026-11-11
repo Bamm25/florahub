@@ -2,9 +2,12 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// Handler HTTP GET untuk mengambil statistik keseluruhan sistem oleh admin
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
+    // Ambil metrik ringkasan pengguna, produk, kategori, pesanan, dan total pendapatan secara paralel
     const [
       totalUsers,
       totalAdmins,
@@ -42,6 +45,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Susun objek data statistik sistem
     const stats = {
       users: {
         total: totalUsers,
@@ -63,11 +67,13 @@ export async function GET(request: Request) {
       },
     };
 
+    // Kembalikan respon sukses data statistik sistem
     return NextResponse.json({
       success: true,
       data: stats,
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

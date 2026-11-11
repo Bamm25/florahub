@@ -5,17 +5,22 @@ import { NextResponse } from "next/server";
 import { updatePreorderSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Tipe parameter rute URL
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
+// Handler HTTP PATCH untuk memperbarui status pre-order panen oleh supplier
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
+    // Autentikasi dan verifikasi hak akses supplier atau admin
     const { userId, userRole } = await requireAuth(request, [
       "SUPPLIER",
       "ADMIN",
     ]);
+    // Ambil parameter ID pre-order dari URL
     const { id: preOrderId } = await params;
+    // Cari data pre-order beserta pengumuman dan informasi florist
     const existingPreOrder = await prisma.harvestPreOrder.findUnique({
       where: { id: preOrderId },
       include: {
@@ -30,6 +35,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       },
     });
 
+    // Validasi keberadaan data pre-order
     if (!existingPreOrder) {
       return NextResponse.json(
         {
@@ -40,6 +46,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Validasi hak kepemilikan pengumuman panen oleh supplier
     if (
       userRole === "SUPPLIER" &&
       existingPreOrder.announcement.supplierId !== userId
@@ -54,10 +61,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updatePreorderSchema.parse(body);
     const { status, cancelReason } = validated;
 
+    // Validasi status pre-order yang sudah final tidak dapat diubah lagi
     if (
       existingPreOrder.status === "CONFIRMED" ||
       existingPreOrder.status === "CANCELLED"
@@ -71,6 +80,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Validasi alasan pembatalan saat membatalkan pre-order
     if (status === "CANCELLED") {
       if (!cancelReason || cancelReason.trim() === "") {
         return NextResponse.json(
@@ -84,6 +94,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       }
     }
 
+    // Perbarui status pre-order di database
     const now = new Date();
     const updatedPreOrder = await prisma.harvestPreOrder.update({
       where: { id: preOrderId },
@@ -111,11 +122,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     let notificationTitle = "";
     let notificationMessage = "";
 
+    // Cari informasi nama supplier untuk notifikasi
     const supplier = await prisma.user.findUnique({
       where: { id: userId },
       select: { name: true },
     });
 
+    // Susun pesan notifikasi untuk florist sesuai perubahan status
     if (status === "CONFIRMED") {
       notificationTitle = "Pre-Order Anda Dikonfirmasi!";
       notificationMessage = `Supplier ${supplier?.name || "Petani"} telah menerima pre-order Anda untuk ${existingPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName}.`;
@@ -124,6 +137,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       notificationMessage = `Pre-order Anda untuk ${existingPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName} dibatalkan${cancelReason ? `. Alasan: ${cancelReason.trim()}` : ""}.`;
     }
 
+    // Buat notifikasi baru untuk florist jika ada perubahan status
     if (notificationTitle && notificationMessage) {
       await prisma.notification.create({
         data: {
@@ -137,12 +151,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       });
     }
 
+    // Kembalikan respon sukses pembaruan status pre-order
     return NextResponse.json({
       success: true,
       message: `Status pre-order berhasil diubah menjadi ${status}`,
       data: { preOrder: updatedPreOrder },
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

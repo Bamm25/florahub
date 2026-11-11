@@ -1,5 +1,6 @@
 import React from "react";
 
+// Antarmuka properti navigasi tab
 interface TabNavigationProps {
   tabs: Array<{
     id: string;
@@ -10,11 +11,9 @@ interface TabNavigationProps {
   onChange: (tabId: string) => void;
 }
 
-/**
- * TabNavigation component
- * Reusable tab navigation with badge support
- */
+// Komponen navigasi tab reusable dengan dukungan lencana angka
 export default function TabNavigation({ tabs, activeTab, onChange }: TabNavigationProps) {
+  // Render deretan tab navigasi horizontal beserta lencana indikator jika tersedia
   return (
     <div className="flex gap-2 border-b border-border">
       {tabs.map((tab) => (

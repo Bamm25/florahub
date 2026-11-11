@@ -1,4 +1,4 @@
-// Interface untuk data detail order lengkap dengan relasi
+// Interface rincian lengkap data pesanan beserta relasinya
 interface OrderDetail {
   id: string;
   orderNumber: string;
@@ -46,7 +46,7 @@ interface OrderDetail {
   };
 }
 
-// Response type dari API GET order detail
+// Interface respons API untuk rincian pesanan
 interface OrderDetailResponse {
   success: boolean;
   message: string;
@@ -55,7 +55,7 @@ interface OrderDetailResponse {
   };
 }
 
-// Interface untuk data order summary di list riwayat
+// Interface ringkasan data pesanan untuk riwayat belanja
 interface OrderSummary {
   id: string;
   orderNumber: string;
@@ -77,7 +77,7 @@ interface OrderSummary {
   };
 }
 
-// Response type dari API GET order history dengan pagination
+// Interface respons API untuk riwayat pesanan dengan paginasi
 interface OrderHistoryResponse {
   success: boolean;
   message: string;
@@ -94,7 +94,7 @@ interface OrderHistoryResponse {
   };
 }
 
-// Interface untuk data shipment tracking order
+// Interface data pengiriman dan pelacakan pesanan
 export interface Shipment {
   id: string;
   courier: string;
@@ -107,7 +107,7 @@ export interface Shipment {
   deliveredAt: string | null;
 }
 
-// Response type dari API GET shipment by order
+// Interface respons API untuk data pengiriman pesanan
 interface ShipmentResponse {
   success: boolean;
   message: string;
@@ -116,7 +116,7 @@ interface ShipmentResponse {
   };
 }
 
-// Fetch detail order lengkap berdasarkan orderId
+// Fungsi untuk mengambil rincian pesanan berdasarkan ID
 export async function getOrderDetail(
   orderId: string,
 ): Promise<OrderDetailResponse> {
@@ -133,7 +133,7 @@ export async function getOrderDetail(
   return response.json();
 }
 
-// Fetch order history dengan filter status dan pagination
+// Fungsi untuk mengambil riwayat pesanan dengan filter status dan paginasi
 export async function getOrderHistory(params?: {
   status?: string;
   page?: number;
@@ -157,7 +157,7 @@ export async function getOrderHistory(params?: {
   return response.json();
 }
 
-// Cancel order dengan status PENDING
+// Fungsi untuk membatalkan pesanan yang berstatus pending
 export async function cancelOrder(orderId: string): Promise<{
   success: boolean;
   message: string;
@@ -176,7 +176,7 @@ export async function cancelOrder(orderId: string): Promise<{
   return data;
 }
 
-// Fetch data shipment berdasarkan orderId
+// Fungsi untuk mengambil informasi status pengiriman berdasarkan ID pesanan
 export async function getOrderShipment(
   orderId: string,
 ): Promise<ShipmentResponse> {

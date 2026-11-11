@@ -16,51 +16,160 @@ export default async function PublicStorePage({ params }: { params: Promise<{ id
   const location = store.floristProfile?.defaultAddress;
 
   return (
-    <main className="min-h-screen bg-surface">
-      <section className="border-b border-border bg-gradient-to-br from-surface via-surface-container-low to-primary/5">
+    <main className="pb-16 sm:pb-24">
+      {/* Store Header Section */}
+      <section className="border-b border-border bg-surface">
         {banner && (
-          <div className="relative h-44 w-full bg-surface-container sm:h-64">
-            <Image src={banner} alt={`Banner ${shopName}`} fill className="object-cover" sizes="100vw" unoptimized />
+          <div className="relative h-48 w-full bg-surface-container-low sm:h-72">
+            <Image
+              src={banner}
+              alt={`Banner ${shopName}`}
+              fill
+              className="object-cover"
+              sizes="100vw"
+              priority
+              unoptimized
+            />
           </div>
         )}
-        <div className="container-custom py-12">
-          <Link href="/products" className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary">
-            <ArrowLeft className="h-4 w-4" /> Kembali ke Katalog
-          </Link>
-          <div className="flex items-center gap-5">
-            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary/10 text-primary">
-              {logo ? <Image src={logo} alt={shopName} fill className="object-cover" sizes="80px" unoptimized /> : <Store className="h-10 w-10" />}
+
+        <div className="container-custom py-8 sm:py-10">
+          <nav aria-label="Navigasi" className="mb-6">
+            <Link
+              href="/stores"
+              className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Semua Toko Florist
+            </Link>
+          </nav>
+
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-surface-container-low sm:h-24 sm:w-24">
+              {logo ? (
+                <Image
+                  src={logo}
+                  alt={shopName}
+                  fill
+                  className="object-cover"
+                  sizes="96px"
+                  unoptimized
+                />
+              ) : (
+                <Store className="h-10 w-10 text-muted-foreground" />
+              )}
             </div>
-            <div>
-              <p className="mb-1 text-sm font-semibold text-primary">Toko Florist</p>
-              <h1 className="text-3xl font-bold text-foreground">{shopName}</h1>
-              {location && <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" /> {location.city}, {location.province}</p>}
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-border bg-surface-container-low px-3 py-0.5 text-xs font-semibold text-foreground">
+                  Toko Florist Terverifikasi
+                </span>
+                {location && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-3 py-0.5 text-xs text-muted-foreground">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    {location.city}, {location.province}
+                  </span>
+                )}
+              </div>
+
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-4xl">
+                {shopName}
+              </h1>
+
               {store.floristProfile?.shopDescription && (
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">{store.floristProfile.shopDescription}</p>
+                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                  {store.floristProfile.shopDescription}
+                </p>
               )}
             </div>
           </div>
         </div>
       </section>
-      <section className="container-custom py-10">
-        <h2 className="mb-6 text-2xl font-bold text-foreground">Produk dari {shopName}</h2>
+
+      {/* Catalog Grid */}
+      <section className="container-custom mt-10 sm:mt-12">
+        <div className="mb-8 flex items-end justify-between border-b border-border pb-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              Koleksi Rangkaian Bunga
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Rangkaian bunga segar siap kirim dari {shopName}
+            </p>
+          </div>
+          <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+            {store.products.length} produk
+          </span>
+        </div>
+
         {store.products.length === 0 ? (
-          <div className="rounded-xl border border-border bg-surface-container-low px-6 py-14 text-center text-muted-foreground">
-            <Flower2 className="mx-auto mb-3 h-10 w-10 text-primary" />
-            Belum ada produk aktif di toko ini.
+          <div className="rounded-2xl border border-dashed border-border bg-surface-container-low/60 px-6 py-16 text-center">
+            <Flower2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground opacity-50" />
+            <h3 className="text-base font-bold text-foreground">
+              Belum ada produk aktif di toko ini
+            </h3>
+            <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+              Florist ini sedang mempersiapkan koleksi bunga terbaru. Silakan periksa kembali nanti.
+            </p>
+            <Link href="/products" className="btn-secondary mt-6 inline-flex h-11 px-6 text-sm">
+              Jelajahi Bunga Lainnya
+            </Link>
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {store.products.map((product) => (
-              <Link key={product.id} href={`/products/${product.slug}`} className="group overflow-hidden rounded-xl border border-border bg-surface shadow-sm transition-shadow hover:shadow-md">
-                <div className="relative aspect-square bg-surface-container">
-                  {product.image ? <Image src={product.image} alt={product.name} fill className="object-cover transition-transform group-hover:scale-105" sizes="(max-width: 768px) 100vw, 33vw" /> : <div className="flex h-full items-center justify-center text-muted-foreground">Gambar tidak tersedia</div>}
+              <Link
+                key={product.id}
+                href={`/products/${product.slug}`}
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-foreground/30"
+              >
+                <div>
+                  <div className="relative aspect-square w-full bg-surface-container-low">
+                    {product.image ? (
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-102"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                        Gambar tidak tersedia
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <h3 className="text-base font-bold text-foreground transition-colors group-hover:text-primary">
+                      {product.name}
+                    </h3>
+                    {product.description && (
+                      <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {product.description}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="p-5">
-                  <h3 className="text-lg font-bold text-foreground group-hover:text-primary">{product.name}</h3>
-                  {product.description && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{product.description}</p>}
-                  <p className="mt-3 text-xl font-bold text-primary">Rp {product.price.toLocaleString("id-ID")}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{product.stock > 0 ? `Stok: ${product.stock}` : "Stok habis"}</p>
+
+                <div className="flex items-center justify-between border-t border-border px-5 py-4">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Harga</span>
+                    <p className="text-lg font-bold tabular-nums text-foreground">
+                      Rp {product.price.toLocaleString("id-ID")}
+                    </p>
+                  </div>
+                  <div>
+                    {product.stock > 0 ? (
+                      <span className="rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
+                        Stok {product.stock}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-error/10 px-2.5 py-1 text-xs font-semibold text-error">
+                        Stok habis
+                      </span>
+                    )}
+                  </div>
                 </div>
               </Link>
             ))}

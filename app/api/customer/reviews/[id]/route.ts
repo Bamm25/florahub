@@ -4,23 +4,24 @@ import { NextResponse } from "next/server";
 import { updateReviewSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Tipe parameter rute dengan ID ulasan
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-// PUT: Update review by ID
+// Handler HTTP PUT untuk memperbarui ulasan produk pelanggan berdasarkan ID
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
-    // Validate user session dan parse review ID
+    // Validasi sesi pengguna dan ambil ID ulasan dari parameter rute
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id: reviewId } = await params;
 
-    // Query existing review untuk validation
+    // Cari data ulasan yang akan diperbarui
     const existingReview = await prisma.review.findUnique({
       where: { id: reviewId },
     });
 
-    // Validate review existence
+    // Validasi keberadaan data ulasan
     if (!existingReview) {
       return NextResponse.json(
         { success: false, message: "Ulasan tidak ditemukan" },
@@ -28,7 +29,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Validate ownership
+    // Validasi hak kepemilikan ulasan oleh pengguna terkait
     if (existingReview.userId !== userId) {
       return NextResponse.json(
         {
@@ -40,12 +41,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Parse dan validate request body
+    // Parse dan validasi muatan pembaruan ulasan
     const body = await request.json();
     const validatedData = updateReviewSchema.parse(body);
     const { rating, comment, images } = validatedData;
 
-    // Update review dengan data baru
+    // Simpan perubahan ulasan produk ke database
     const updatedReview = await prisma.review.update({
       where: { id: reviewId },
       data: {
@@ -65,7 +66,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
 
-    // Return response dengan updated review
+    // Kirim respons berhasil beserta data ulasan yang diperbarui
     return NextResponse.json({
       success: true,
       message: "Ulasan berhasil diperbarui",
@@ -74,7 +75,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    // Handle validation errors
+    // Tangani galat validasi skema masukan
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -85,7 +86,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         { status: 400 },
       );
     }
-    // Handle auth errors
+    // Tangani galat otentikasi pengguna
     if (error instanceof NextResponse) {
       return error;
     }
@@ -99,19 +100,19 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 }
 
-// DELETE: Remove review by ID
+// Handler HTTP DELETE untuk menghapus ulasan produk pelanggan berdasarkan ID
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
-    // Validate user session dan parse review ID
+    // Validasi sesi pengguna dan ambil ID ulasan dari parameter rute
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id: reviewId } = await params;
 
-    // Query existing review untuk validation
+    // Cari data ulasan yang akan dihapus
     const existingReview = await prisma.review.findUnique({
       where: { id: reviewId },
     });
 
-    // Validate review existence
+    // Validasi keberadaan data ulasan
     if (!existingReview) {
       return NextResponse.json(
         {
@@ -121,7 +122,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
         { status: 404 },
       );
     }
-    // Validate ownership
+    // Validasi hak kepemilikan ulasan oleh pengguna terkait
     if (existingReview.userId !== userId) {
       return NextResponse.json(
         {
@@ -133,18 +134,18 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Delete review dari database
+    // Hapus data ulasan dari basis data
     await prisma.review.delete({
       where: { id: reviewId },
     });
 
-    // Return success response
+    // Kirim respons berhasil penghapusan ulasan
     return NextResponse.json({
       success: true,
       message: "Ulasan berhasil dihapus",
     });
   } catch (error) {
-    // Handle auth errors
+    // Tangani galat otentikasi pengguna
     if (error instanceof NextResponse) {
       return error;
     }

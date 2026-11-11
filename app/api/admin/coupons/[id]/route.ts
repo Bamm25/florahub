@@ -5,15 +5,20 @@ import { NextResponse } from "next/server";
 import { updateCouponSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Tipe parameter rute URL
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
+// Handler HTTP GET untuk mengambil detail data kupon berdasarkan ID
 export async function GET(request: Request, { params }: RouteParams) {
   try {
+    // Autentikasi dan verifikasi hak akses admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
+    // Ambil parameter ID kupon dari URL
     const { id: couponId } = await params;
 
+    // Cari data kupon beserta pembuat dan riwayat penggunaan
     const coupon = await prisma.coupon.findUnique({
       where: { id: couponId },
       include: {
@@ -49,6 +54,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       },
     });
 
+    // Validasi keberadaan data kupon
     if (!coupon) {
       return NextResponse.json(
         {
@@ -59,12 +65,14 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Kembalikan respon sukses data detail kupon
     return NextResponse.json({
       success: true,
       message: "Detail kupon berhasil diambil",
       data: { coupon },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -78,15 +86,20 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
+// Handler HTTP PUT untuk memperbarui data kupon berdasarkan ID
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
+    // Autentikasi dan verifikasi hak akses admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
+    // Ambil parameter ID kupon dari URL
     const { id: couponId } = await params;
 
+    // Cari data kupon eksisting di database
     const existingCoupon = await prisma.coupon.findUnique({
       where: { id: couponId },
     });
 
+    // Validasi keberadaan data kupon
     if (!existingCoupon) {
       return NextResponse.json(
         {
@@ -97,6 +110,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validatedData = updateCouponSchema.parse(body);
     const {
@@ -113,7 +127,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       isActive,
     } = validatedData;
 
-    // Business logic validation: PERCENTAGE value range
+    // Validasi rentang nilai diskon untuk tipe persentase
     const targetType = type !== undefined ? type : existingCoupon.type;
     if (value !== undefined && targetType === "PERCENTAGE" && (value < 1 || value > 100)) {
       return NextResponse.json(
@@ -126,7 +140,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Business logic validation: date comparison
+    // Validasi rentang waktu masa berlaku kupon
     let startDate = existingCoupon.validFrom;
     let endDate = existingCoupon.validUntil;
 
@@ -148,6 +162,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Perbarui data kupon di database
     const updatedCoupon = await prisma.coupon.update({
       where: { id: couponId },
       data: {
@@ -189,12 +204,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
         applicableFor: existingCoupon.applicableFor,
       },
     });
+    // Kembalikan respon sukses pembaruan data kupon
     return NextResponse.json({
       success: true,
       message: "Data kupon berhasil diperbarui",
       data: { coupon: updatedCoupon },
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, message: "Validation error", errors: error.issues },
@@ -214,15 +231,20 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 }
 
+// Handler HTTP DELETE untuk menghapus kupon berdasarkan ID
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
+    // Autentikasi dan verifikasi hak akses admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
+    // Ambil parameter ID kupon dari URL
     const { id: couponId } = await params;
 
+    // Cari data kupon eksisting di database
     const existingCoupon = await prisma.coupon.findUnique({
       where: { id: couponId },
     });
 
+    // Validasi keberadaan data kupon
     if (!existingCoupon) {
       return NextResponse.json(
         {
@@ -233,15 +255,18 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Hapus data kupon dari database
     await prisma.coupon.delete({
       where: { id: couponId },
     });
 
+    // Kembalikan respon sukses penghapusan kupon
     return NextResponse.json({
       success: true,
       message: "Kupon berhasil dihapus",
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

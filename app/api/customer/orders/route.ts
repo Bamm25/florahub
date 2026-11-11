@@ -3,10 +3,10 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 
-// GET: Fetch semua orders customer dengan pagination dan filter status
+// Handler HTTP GET untuk mengambil riwayat pesanan pelanggan dengan filter status dan paginasi
 export async function GET(request: Request) {
   try {
-    // Validate user session dan extract user ID
+    // Validasi sesi pengguna dan ambil ID pelanggan
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       "REFUNDED",
     ];
 
-    // Validate status parameter jika ada
+    // Validasi nilai parameter status pesanan
     if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
         {
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Build where clause dengan user ID dan optional status filter
+    // Bangun klausa filter pencarian pesanan berdasarkan status dan ID pelanggan
     const whereClause: Prisma.OrderWhereInput = {
       userId: userId,
     };
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       whereClause.status = status as Prisma.EnumOrderStatusFilter;
     }
 
-    // Query orders dengan items, payment, dan shipment details
+    // Ambil daftar pesanan beserta rincian item, pembayaran, dan pengiriman
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where: whereClause,
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
-    // Transform data untuk response format
+    // Format data ringkasan pesanan untuk konsumsi klien
     const ordersSummary = orders.map((order) => ({
       id: order.id,
       orderNumber: order.orderNumber,
@@ -112,25 +112,25 @@ export async function GET(request: Request) {
         : null,
     }));
 
-        // Return response dengan pagination metadata
-        return NextResponse.json({
-          success: true,
-          message: "Riwayat order berhasil diambil",
-          data: {
-            orders: ordersSummary,
-            pagination: {
-              page,
-              limit,
-              total,
-              totalPages: Math.ceil(total / limit),
-              hasNext: page * limit < total,
-              hasPrev: page > 1,
-            },
-          },
-        });
+    // Kirim respons daftar pesanan beserta metadata paginasi
+    return NextResponse.json({
+      success: true,
+      message: "Riwayat order berhasil diambil",
+      data: {
+        orders: ordersSummary,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
+        },
+      },
+    });
 
   } catch (error) {
-    // Handle auth errors dan return generic error response
+    // Tangani galat otentikasi dan kegagalan pengambilan data pesanan
     if (error instanceof NextResponse) {
       return error;
     }

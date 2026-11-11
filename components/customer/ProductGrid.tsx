@@ -11,13 +11,13 @@ export default function ProductGrid({ products }: ProductGridProps) {
   // Tampilkan empty state jika tidak ada produk
   if (products.length === 0) {
     return (
-      <div className="flex min-h-100 items-center justify-center">
+      <div className="flex min-h-[280px] items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 p-8 sm:p-12">
         <div className="text-center">
-          <p className="text-lg font-semibold text-foreground">
+          <p className="text-base font-semibold text-foreground">
             Tidak ada produk ditemukan
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Coba sesuaikan pencarian atau filter Anda
+          <p className="mt-1 text-sm text-muted-foreground">
+            Coba sesuaikan kata kunci pencarian atau filter kategori Anda.
           </p>
         </div>
       </div>

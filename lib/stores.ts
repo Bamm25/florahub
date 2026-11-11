@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 
-// Fetch semua toko florist yang aktif dengan FloristProfile
+// Fungsi untuk mengambil semua profil toko florist aktif yang memiliki produk
 export async function getAllPublicStores() {
   const florists = await prisma.user.findMany({
     where: {

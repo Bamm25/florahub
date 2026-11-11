@@ -1,20 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Package,
-  Clock,
-  CheckCircle,
-  Truck,
-  XCircle,
-  ChevronRight,
-  AlertTriangle,
-  CreditCard,
-  type LucideIcon,
-} from "lucide-react";
-import { cancelOrder } from "@/lib/api/orders";
-import { createPaymentToken } from "@/lib/api/customer";
+import { ChevronRight } from "lucide-react";
 
 // Props interface untuk komponen card display order
 interface OrderCardProps {
@@ -39,49 +26,14 @@ interface OrderCardProps {
   onCancelled?: (orderId: string) => void;
 }
 
-// Card component untuk display order dengan status dan action cancel
-export function OrderCard({ order, onClick, onCancelled }: OrderCardProps) {
+// Card component untuk display order di halaman riwayat pesanan (klik untuk lihat detail)
+export function OrderCard({ order, onClick }: OrderCardProps) {
   const router = useRouter();
   // Get konfigurasi UI berdasarkan order status
   const statusConfig = getStatusConfig(order.status);
-  const StatusIcon = statusConfig.icon;
-
-  const [showModal, setShowModal] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [cancelError, setCancelError] = useState<string | null>(null);
-  const [isPaying, setIsPaying] = useState(false);
-
-  // Bayar langsung via popup Midtrans dari list pesanan
-  const handlePayNow = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      setIsPaying(true);
-      const res = await createPaymentToken(order.id);
-      const snapToken = res.data.token;
-      if (typeof window !== "undefined" && (window as any).snap) {
-        (window as any).snap.pay(snapToken, {
-          onSuccess: function (): void {
-            router.push(`/orders/${order.id}`);
-          },
-          onPending: function (): void {
-            router.push(`/orders/${order.id}`);
-          },
-          onError: function (): void {
-            alert("Pembayaran gagal. Silakan coba lagi.");
-          },
-          onClose: function (): void {
-            // Popup ditutup oleh customer
-          },
-        });
-      } else {
-        alert("Script pembayaran Midtrans belum siap dimuat. Silakan refresh halaman.");
-      }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal menyiapkan pembayaran");
-    } finally {
-      setIsPaying(false);
-    }
-  };
+  const items = order.items ?? [];
+  const visibleItems = items.slice(0, 2);
+  const remainingItems = items.slice(2);
 
   // Navigate ke detail order menggunakan callback atau router
   const handleClick = () => {
@@ -92,259 +44,147 @@ export function OrderCard({ order, onClick, onCancelled }: OrderCardProps) {
     }
   };
 
-  // Show confirmation modal untuk cancel order
-  const handleCancelClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCancelError(null);
-    setShowModal(true);
-  };
-
-  // Call API untuk cancel order dan update UI
-  const handleConfirmCancel = async () => {
-    try {
-      setIsCancelling(true);
-      setCancelError(null);
-      await cancelOrder(order.id);
-      setShowModal(false);
-      if (onCancelled) {
-        onCancelled(order.id);
-      } else {
-        router.refresh();
-      }
-    } catch (error) {
-      setCancelError(
-        error instanceof Error ? error.message : "Gagal membatalkan pesanan",
-      );
-    } finally {
-      setIsCancelling(false);
-    }
-  };
-
   return (
-    <>
-      <div className="card-elevated w-full hover:shadow-lg transition-all hover:scale-[1.01]">
-        <button
-          onClick={handleClick}
-          className="w-full text-left"
+    <button
+      type="button"
+      onClick={handleClick}
+      className="group block w-full overflow-hidden rounded-2xl border border-border bg-card text-left transition-colors hover:border-foreground/25 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      aria-label={`Lihat detail pesanan ${order.orderNumber}`}
+    >
+      {/* Header: nomor pesanan, tanggal, status */}
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="min-w-0">
+          <p className="break-all font-mono text-sm font-semibold text-foreground">
+            {order.orderNumber}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {new Date(order.createdAt).toLocaleDateString("id-ID", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+        </div>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${statusConfig.bgColor} ${statusConfig.color}`}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2 flex-wrap">
-                <h3 className="text-lg font-bold text-foreground">
-                  {order.orderNumber}
-                </h3>
-                <span
-                  className={`badge flex items-center gap-1.5 ${statusConfig.bgColor} ${statusConfig.color}`}
-                >
-                  <StatusIcon className="h-4 w-4" />
-                  {statusConfig.label}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                {new Date(order.createdAt).toLocaleDateString("id-ID", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-
-              {/* Daftar Produk di Pesanan */}
-              {order.items && order.items.length > 0 && (
-                <div className="mb-3 space-y-2 rounded-xl bg-surface-container-low p-3 border border-border/60">
-                  {order.items.slice(0, 2).map((item, idx) => (
-                    <div key={item.id || idx} className="flex items-center gap-3">
-                      {item.product.image ? (
-                        <img
-                          src={item.product.image}
-                          alt={item.product.name}
-                          className="h-10 w-10 rounded-lg object-cover border border-border shrink-0"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-muted-foreground border border-border">
-                          <Package className="h-5 w-5" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">
-                          {item.product.name}
-                        </p>
-                        {item.quantity ? (
-                          <p className="text-xs text-muted-foreground">
-                            {item.quantity} barang
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                  {order.items.length > 2 && (
-                    <p className="text-xs text-muted-foreground pt-1.5 border-t border-border/40 font-medium">
-                      +{order.items.length - 2} produk lainnya:{" "}
-                      <span className="text-foreground/80 font-normal">
-                        {order.items.slice(2).map((i) => i.product.name).join(", ")}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <p className="text-base font-semibold text-foreground">
-                Total Belanja: Rp{" "}
-                {order.totalAmount.toLocaleString("id-ID")}
-                <span className="text-xs text-muted-foreground font-normal ml-2">
-                  ({order.itemCount} item)
-                </span>
-              </p>
-            </div>
-            <ChevronRight className="h-6 w-6 text-muted-foreground flex-shrink-0 ml-4 mt-1" />
-          </div>
-        </button>
-
-        {/* Actions for PENDING orders */}
-        {order.status === "PENDING" && (
-          <div className="mt-4 pt-4 border-t border-border flex items-center justify-end gap-3">
-            <button
-              onClick={handleCancelClick}
-              className="flex items-center gap-1.5 rounded-xl border border-error/40 bg-error/10 px-3.5 py-2 text-xs font-semibold text-error hover:bg-error/20 transition-colors"
-            >
-              <XCircle className="h-4 w-4" />
-              Batalkan
-            </button>
-            <button
-              onClick={handlePayNow}
-              disabled={isPaying}
-              className="btn-primary flex items-center gap-1.5 px-4 py-2 text-xs font-bold shadow-sm"
-            >
-              {isPaying ? (
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              ) : (
-                <CreditCard className="h-4 w-4" />
-              )}
-              <span>{isPaying ? "Menyiapkan..." : "Bayar Sekarang"}</span>
-            </button>
-          </div>
-        )}
+          <span className={`h-1.5 w-1.5 rounded-full ${statusConfig.dot}`} aria-hidden="true" />
+          {statusConfig.label}
+        </span>
       </div>
 
-      {/* Confirmation Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => !isCancelling && setShowModal(false)}
-          />
-
-          {/* Modal */}
-          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl border border-border">
-            <div className="mb-4 flex justify-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-error/10">
-                <AlertTriangle className="h-8 w-8 text-error" />
+      {/* Daftar Produk di Pesanan */}
+      {items.length > 0 && (
+        <div className="space-y-3 px-5 py-4">
+          {visibleItems.map((item, idx) => (
+            <div key={item.id || idx} className="flex items-center gap-3">
+              {item.product.image ? (
+                <img
+                  src={item.product.image}
+                  alt={item.product.name}
+                  className="h-12 w-12 shrink-0 rounded-lg border border-border object-cover"
+                />
+              ) : (
+                <div
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-container-low text-xs font-semibold text-muted-foreground"
+                  aria-hidden="true"
+                >
+                  {item.product.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {item.product.name}
+                </p>
+                {item.quantity ? (
+                  <p className="text-xs text-muted-foreground">
+                    {item.quantity} barang
+                  </p>
+                ) : null}
               </div>
             </div>
-
-            <h2 className="mb-2 text-center text-xl font-bold text-foreground">
-              Batalkan Pesanan?
-            </h2>
-            <p className="mb-2 text-center text-sm text-muted-foreground">
-              Pesanan{" "}
-              <span className="font-semibold text-foreground">
-                #{order.orderNumber}
-              </span>{" "}
-              akan dibatalkan dan stok produk akan dikembalikan.
+          ))}
+          {remainingItems.length > 0 && (
+            <p className="truncate text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">
+                +{remainingItems.length} produk lainnya
+              </span>
+              {" · "}
+              {remainingItems.map((i) => i.product.name).join(", ")}
             </p>
-            <p className="mb-6 text-center text-sm font-medium text-warning">
-              Tindakan ini tidak dapat dibatalkan.
-            </p>
-
-            {cancelError && (
-              <div className="mb-4 rounded-xl bg-error/10 border border-error/30 p-3 text-sm text-error text-center">
-                {cancelError}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                disabled={isCancelling}
-                className="flex-1 btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Tidak, Kembali
-              </button>
-              <button
-                onClick={handleConfirmCancel}
-                disabled={isCancelling}
-                className="flex-1 rounded-xl bg-error px-4 py-2.5 text-sm font-semibold text-white hover:bg-error/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isCancelling ? (
-                  <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Membatalkan...
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-4 w-4" />
-                    Ya, Batalkan
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       )}
-    </>
+
+      {/* Footer: total dan ajakan lihat detail */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-container-low px-5 py-3.5">
+        <div>
+          <p className="text-xs text-muted-foreground">
+            Total belanja · {order.itemCount} item
+          </p>
+          <p className="text-base font-semibold tabular-nums text-foreground">
+            Rp {order.totalAmount.toLocaleString("id-ID")}
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+          Lihat detail
+          <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        </span>
+      </div>
+    </button>
   );
 }
 
-// Map order status ke icon, label, dan warna UI
+// Map order status ke label dan warna UI
 function getStatusConfig(status: string) {
   const configs: Record<
     string,
-    { icon: LucideIcon; label: string; color: string; bgColor: string }
+    { label: string; color: string; bgColor: string; dot: string }
   > = {
     PENDING: {
-      icon: Clock,
       label: "Menunggu Pembayaran",
       color: "text-warning",
       bgColor: "bg-warning/10",
+      dot: "bg-warning",
     },
     PAID: {
-      icon: CheckCircle,
       label: "Dibayar",
       color: "text-success",
       bgColor: "bg-success/10",
+      dot: "bg-success",
     },
     PROCESSING: {
-      icon: Package,
       label: "Diproses",
       color: "text-info",
       bgColor: "bg-info/10",
+      dot: "bg-info",
     },
     SHIPPED: {
-      icon: Truck,
       label: "Dikirim",
       color: "text-tertiary",
       bgColor: "bg-tertiary/10",
+      dot: "bg-tertiary",
     },
     DELIVERED: {
-      icon: CheckCircle,
       label: "Selesai",
       color: "text-success",
       bgColor: "bg-success/10",
+      dot: "bg-success",
     },
     CANCELLED: {
-      icon: XCircle,
       label: "Dibatalkan",
       color: "text-error",
       bgColor: "bg-error/10",
+      dot: "bg-error",
     },
   };
   return (
     configs[status] || {
-      icon: Clock,
       label: status,
       color: "text-muted-foreground",
-      bgColor: "bg-surface-container",
+      bgColor: "bg-surface-container-low",
+      dot: "bg-muted-foreground",
     }
   );
 }

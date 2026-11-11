@@ -5,16 +5,16 @@ import { NextResponse } from "next/server";
 import { createPaymentSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
-// POST: Create Midtrans payment link untuk order
+// Handler HTTP POST untuk membuat tautan pembayaran Midtrans bagi pesanan
 export async function POST(request: Request) {
   try {
-    // Validate user session dan parse request body
+    // Validasi sesi pengguna dan parse muatan permintaan
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const validated = createPaymentSchema.parse(body);
     const { orderId } = validated;
 
-    // Query order dengan items, payment, dan user details
+    // Ambil data pesanan beserta relasi item produk, pembayaran, dan informasi pelanggan
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Validate order existence
+    // Validasi keberadaan data pesanan
     if (!order) {
       return NextResponse.json(
         {
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate order ownership
+    // Validasi hak kepemilikan pesanan oleh pengguna
     if (order.userId !== userId) {
       return NextResponse.json(
         {
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate payment data existence
+    // Validasi keberadaan catatan data pembayaran
     if (!order.payment) {
       return NextResponse.json(
         {
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate payment belum dibayar
+    // Pastikan pesanan belum pernah dibayar sebelumnya
     if (order.payment.status === "PAID") {
       return NextResponse.json(
         {
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Build item details untuk Midtrans
+    // Susun daftar rincian item pesanan untuk payload Midtrans
     const itemDetails = order.items.map((item) => ({
       id: item.product.id,
       price: item.price,
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       name: item.product.name,
     }));
 
-    // Add shipping cost ke item details
+    // Tambahkan biaya pengiriman ke dalam daftar rincian transaksi
     if (order.shippingCost > 0) {
       itemDetails.push({
         id: "SHIPPING",
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Add discount sebagai item negatif untuk Midtrans validation
+    // Tambahkan nilai diskon kupon sebagai pengurang harga transaksi
     if (order.discount > 0) {
       itemDetails.push({
         id: "DISCOUNT",
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Create Midtrans transaction
+    // Buat sesi transaksi pembayaran melalui Midtrans Snap
     const transaction = await snap.createTransaction({
       transaction_details: {
         order_id: order.orderNumber,
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Update payment dengan transaction details
+    // Perbarui data pembayaran dengan token dan URL pengalihan Midtrans
     await prisma.payment.update({
       where: { orderId },
       data: {
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Return response dengan payment token dan URL
+    // Kirim respons berhasil beserta token transaksi dan URL pembayaran
     return NextResponse.json({
       success: true,
       message: "Link pembayaran berhasil dibuat",
@@ -146,7 +146,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    // Handle validation errors
+    // Tangani galat validasi skema masukan
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    // Handle auth errors
+    // Tangani galat otentikasi pengguna
     if (error instanceof NextResponse) {
       return error;
     }

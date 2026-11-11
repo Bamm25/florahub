@@ -1,9 +1,11 @@
 import { useState, useCallback, FormEvent } from "react";
 
+// Tipe pemetaan fungsi aturan validasi per bidang formulir
 type ValidationRule<T> = {
   [K in keyof T]?: (value: T[K]) => string | undefined;
 };
 
+// Interface nilai kembalian untuk hook useFormValidation
 interface UseFormValidationReturn<T> {
   formData: T;
   errors: Record<string, string>;
@@ -17,10 +19,7 @@ interface UseFormValidationReturn<T> {
   clearErrors: () => void;
 }
 
-/**
- * useFormValidation hook
- * Reusable form state management with validation
- */
+// Hook kustom untuk pengelolaan state formulir dan penanganan validasi
 export function useFormValidation<T extends Record<string, unknown>>(
   initialData: T
 ): UseFormValidationReturn<T> {
@@ -30,7 +29,7 @@ export function useFormValidation<T extends Record<string, unknown>>(
 
   const setField = useCallback(<K extends keyof T>(field: K, value: T[K]) => {
     setFormDataState((prev) => ({ ...prev, [field]: value }));
-    // Clear error when field changes
+    // Hapus pesan kesalahan saat nilai bidang formulir berubah
     setErrors((prev) => {
       const newErrors = { ...prev };
       delete newErrors[field as string];

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { X, Plus, Trash2, Loader2, Package, AlertCircle } from "lucide-react";
+import { X, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
 
+// Interface data bahan baku inventaris untuk opsi dropdown
 interface FloristInventory {
   id: string;
   quantity: number;
@@ -15,6 +16,7 @@ interface FloristInventory {
   };
 }
 
+// Interface data komponen inventaris dalam BOM
 interface ComponentInventory {
   id: string;
   currentStock: number;
@@ -26,12 +28,14 @@ interface ComponentInventory {
   };
 }
 
+// Interface data komponen BOM produk
 interface ProductComponent {
   id: string;
   quantity: number;
   inventory: ComponentInventory;
 }
 
+// Props interface untuk modal pengelolaan BOM
 interface BOMModalProps {
   isOpen: boolean;
   productId: string;
@@ -39,6 +43,7 @@ interface BOMModalProps {
   onClose: () => void;
 }
 
+// Modal pengelolaan Bill of Materials (BOM) perakitan produk florist
 export default function BOMModal({
   isOpen,
   productId,
@@ -73,7 +78,7 @@ export default function BOMModal({
     if (!isOpen || !productId) return;
     let active = true;
     
-    // Fetch components list
+    // Ambil daftar komponen BOM produk
     fetchPaginatedCollection<ProductComponent>(`/api/florist/products/${productId}/components`, "items")
       .then((items) => { 
         if (active) {
@@ -90,7 +95,7 @@ export default function BOMModal({
       })
       .finally(() => { if (active) setIsLoading(false); });
     
-    // Fetch inventory list for dropdown
+    // Ambil daftar bahan baku inventaris untuk pilihan dropdown
     fetchPaginatedCollection<FloristInventory>("/api/florist/inventory", "inventories")
       .then((inventories) => { 
         if (active) {
@@ -178,26 +183,27 @@ export default function BOMModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-      <div className="card-elevated w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="rounded-2xl border border-border bg-card w-full max-w-3xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden">
+        <div className="sticky top-0 z-50 bg-[#181720] text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 className="text-xl font-semibold text-foreground">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Bill of Materials</p>
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
               Komponen Produk (BOM)
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {productName} - Bill of Materials bahan baku penyusun
+            <p className="text-xs text-zinc-300 mt-0.5">
+              {productName} — formula kebutuhan bahan baku per buket
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="min-h-0 p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
           {error && (
             <div className="flex items-start gap-3 p-4 bg-error/5 border border-error/20 rounded-xl">
               <AlertCircle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
@@ -205,7 +211,7 @@ export default function BOMModal({
             </div>
           )}
 
-          <div className="card-elevated p-5 space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
             <h3 className="font-medium text-foreground flex items-center gap-2">
               <Plus className="w-4 h-4" />
               Tambah Komponen Baru
@@ -224,7 +230,7 @@ export default function BOMModal({
                       inventoryId: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 bg-surface-container border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                  className="input-field w-full text-sm"
                   disabled={isAdding}
                 >
                   <option value="">-- Pilih Bahan Baku --</option>
@@ -257,7 +263,7 @@ export default function BOMModal({
                     inventoryList.find((inv) => inv.id === newComponent.inventoryId)
                       ?.quantity || undefined
                   }
-                  className="w-full px-3 py-2 bg-surface-container border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                  className="input-field w-full text-sm"
                   disabled={isAdding}
                 />
                 {newComponent.inventoryId && (
@@ -275,7 +281,7 @@ export default function BOMModal({
             <button
               onClick={handleAddComponent}
               disabled={isAdding || !newComponent.inventoryId || !newComponent.quantity}
-              className="btn-primary w-full sm:w-auto text-sm"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 w-full sm:w-auto"
             >
               {isAdding ? (
                 <>
@@ -301,13 +307,12 @@ export default function BOMModal({
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
               </div>
             ) : components.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-border rounded-xl bg-surface-container-low/40">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-sm font-medium text-foreground">
-                  Belum ada komponen
+              <div className="text-center py-10 border border-dashed border-border rounded-xl bg-card/40">
+                <p className="text-sm font-semibold text-foreground">
+                  Belum ada komponen di BOM
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Tambahkan bahan baku dari inventory untuk produk ini
+                <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                  Pilih bahan baku dari daftar inventori di atas untuk menyusun resep perakitan buket ini.
                 </p>
               </div>
             ) : (
@@ -347,8 +352,8 @@ export default function BOMModal({
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-surface-container-low border-t border-border p-6 flex-shrink-0">
-          <button onClick={onClose} className="btn-secondary w-full sm:w-auto">
+        <div className="sticky bottom-0 bg-card border-t border-border p-4 sm:p-6 flex-shrink-0">
+          <button onClick={onClose} className="btn-secondary min-h-11 w-full sm:w-auto text-sm">
             Tutup
           </button>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Tag, AlertCircle, CheckCircle, Trash2 } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 
 // Interface untuk data kupon yang sudah diapply
 interface AppliedCoupon {
@@ -30,32 +30,31 @@ export default function CouponInput({
   onRemove,
 }: CouponInputProps) {
   return (
-    <div className="card-elevated">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/10">
-          <Tag className="h-6 w-6 text-secondary" />
-        </div>
-        <h2 className="text-xl font-bold text-foreground">
+    <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6" aria-labelledby="coupon-heading">
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Potongan Harga</p>
+        <h2 id="coupon-heading" className="mt-1 text-base font-bold text-foreground">
           Kode Promo (Opsional)
         </h2>
       </div>
 
-      {couponError && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg bg-error/5 p-4 text-sm text-error border border-error/20">
-          <AlertCircle className="h-5 w-5 shrink-0" />
-          <span className="font-medium">{couponError}</span>
-        </div>
-      )}
+      <div aria-live="polite">
+        {couponError && (
+          <div role="alert" className="mb-4 rounded-xl border border-error/30 bg-error/10 p-3.5 text-sm text-error">
+            <span className="font-medium">{couponError}</span>
+          </div>
+        )}
+      </div>
 
       {appliedCoupon ? (
-        <div className="flex items-center justify-between rounded-xl border-2 border-success bg-success/5 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 p-4">
           <div className="flex items-center gap-3">
-            <CheckCircle className="h-6 w-6 text-success" />
+            <CheckCircle className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
             <div>
-              <p className="text-base font-bold text-success">
+              <p className="font-mono text-sm font-bold tracking-wider text-foreground">
                 {appliedCoupon.code}
               </p>
-              <p className="text-sm text-success/80">
+              <p className="text-xs text-muted-foreground">
                 Hemat Rp {appliedCoupon.discountAmount.toLocaleString("id-ID")}
               </p>
             </div>
@@ -63,31 +62,31 @@ export default function CouponInput({
           <button
             type="button"
             onClick={onRemove}
-            className="flex items-center gap-2 text-sm font-semibold text-error hover:text-error/80 transition-colors"
+            className="text-xs font-semibold text-error underline-offset-4 hover:underline"
           >
-            <Trash2 className="h-4 w-4" />
-            Hapus
+            Hapus Kupon
           </button>
         </div>
       ) : (
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
             type="text"
+            aria-label="Kode promo"
             value={couponCode}
             onChange={(e) => onCouponCodeChange(e.target.value.toUpperCase())}
             placeholder="Contoh: FLORA10"
-            className="input-field flex-1"
+            className="h-11 flex-1 rounded-xl border border-border bg-input px-3.5 font-mono text-sm tracking-wider uppercase text-foreground placeholder:normal-case placeholder:font-sans placeholder:tracking-normal placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <button
             type="button"
             onClick={onApply}
             disabled={isValidatingCoupon || !couponCode.trim()}
-            className="btn-primary px-8 disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-primary h-11 px-7 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isValidatingCoupon ? "Mengecek..." : "Terapkan"}
           </button>
         </div>
       )}
-    </div>
+    </section>
   );
 }

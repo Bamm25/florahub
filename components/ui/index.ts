@@ -1,9 +1,4 @@
-/**
- * FloraHub UI Components - Index
- * Centralized exports untuk semua reusable components
- */
-
-// UI Components
+// Ekspor terpusat seluruh komponen antarmuka pengguna reusable FloraHub
 export { default as StatusBadge } from "./StatusBadge";
 export { default as LoadingSpinner } from "./LoadingSpinner";
 export { default as ErrorState } from "./ErrorState";

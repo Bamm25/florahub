@@ -316,15 +316,19 @@
     letter-spacing: -0.02em;
   }
   
-  /* Smooth Transitions */
-  * {
-    transition-property: color, background-color, border-color, opacity, transform;
-    transition-duration: 200ms;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  button, a, input, select, textarea {
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
   }
-  
-  button, a {
-    transition-duration: 150ms;
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -332,30 +336,46 @@
 @layer components {
   /* Button Primary (56px height, VIOLET CTA) */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-4 text-base font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-4 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
     height: 56px;
   }
   
   /* Button Secondary (Ghost style) */
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border-2 border-primary bg-transparent px-8 py-4 text-base font-semibold text-primary transition-all hover:bg-primary/5 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-transparent px-8 py-4 text-base font-semibold text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
     height: 56px;
   }
   
-  /* Button Tertiary (Blue accent) */
+  /* Neutral action; blue remains an informational state, not a competing CTA. */
   .btn-tertiary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-tertiary px-8 py-4 text-base font-semibold text-white transition-all hover:bg-tertiary/90 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
-    height: 56px;
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-6 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
   
-  /* Card - Elevated Surface */
+  /* Flat card surface; interactive descendants define their own hover state. */
   .card-elevated {
-    @apply rounded-2xl border border-border bg-card p-8 shadow-md transition-all hover:shadow-lg hover:border-primary/30;
+    @apply rounded-2xl border border-border bg-card p-6;
   }
   
   /* Input Field - Clear & Accessible */
   .input-field {
-    @apply w-full rounded-xl border border-border bg-input px-4 py-3 text-base text-foreground transition-all placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply w-full rounded-xl border border-border bg-input px-4 py-3 text-base text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Reusable screen framing: dark introduction, light working area. */
+  .page-intro {
+    @apply rounded-[24px] bg-[#10121b] px-6 py-9 text-white sm:px-9 sm:py-12;
+  }
+  .page-intro h1, .page-intro h2, .page-intro h3 {
+    color: #fff;
+  }
+  .page-intro-kicker {
+    @apply text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff];
+  }
+  .page-intro-copy {
+    @apply mt-3 max-w-2xl text-sm leading-6 text-white/70 sm:text-base;
+  }
+  .surface-panel {
+    @apply rounded-2xl border border-border bg-card p-5 sm:p-6;
   }
   
   /* Badge - Pill Style */

@@ -4,10 +4,12 @@ import { NextResponse } from "next/server";
 import { createReviewSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Tipe parameter rute ulasan produk
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
+// Handler HTTP GET untuk mengambil daftar ulasan produk beserta agregasi rating
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id: productId } = await params;
@@ -16,6 +18,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
 
+    // Pastikan produk yang akan diambil ulasannya ditemukan
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: {
@@ -31,6 +34,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Ambil ulasan produk dengan pagination dan hitung total ulasan
     const [reviews, total] = await Promise.all([
       prisma.review.findMany({
         where: { productId },
@@ -52,6 +56,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       prisma.review.count({ where: { productId } }),
     ]);
 
+    // Hitung rata-rata rating dari seluruh ulasan produk
     let averageRating = 0;
     if (total > 0) {
       const allReviews = await prisma.review.findMany({
@@ -97,11 +102,13 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
+// Handler HTTP POST untuk menambahkan ulasan baru pada produk
 export async function POST(request: Request, { params }: RouteParams) {
   try {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id: productId } = await params;
 
+    // Pastikan produk tersedia di basis data
     const product = await prisma.product.findUnique({
       where: { id: productId },
     });
@@ -120,7 +127,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const validatedData = createReviewSchema.parse(body);
     const { rating, comment, images } = validatedData;
 
-    // Check if user has purchased and received the product
+    // Pastikan pelanggan sudah membeli dan menerima produk tersebut
     const hasPurchased = await prisma.orderItem.findFirst({
       where: {
         order: {
@@ -142,6 +149,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Periksa apakah pelanggan sudah pernah memberikan ulasan pada produk ini
     const existingReview = await prisma.review.findFirst({
       where: {
         productId,
@@ -160,10 +168,11 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Use the hasPurchased order for verified review
+    // Tautkan ID pesanan dan tandai ulasan terverifikasi
     const orderId = hasPurchased.orderId;
-    const isVerified = true; // Always true since we validated purchase above
+    const isVerified = true;
 
+    // Simpan ulasan baru ke database
     const newReview = await prisma.review.create({
       data: {
         productId,

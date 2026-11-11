@@ -1,5 +1,6 @@
 import SearchInput from "@/components/ui/SearchInput";
 
+// Props interface untuk komponen filter status dan pencarian pengiriman
 interface ShipmentFiltersProps {
   statusFilter: string;
   onStatusChange: (value: string) => void;
@@ -7,6 +8,7 @@ interface ShipmentFiltersProps {
   onSearchChange: (value: string) => void;
 }
 
+// Opsi pilihan status pengiriman logistik florist
 const statusOptions = [
   { value: "ALL", label: "Semua Status" },
   { value: "PENDING", label: "Menunggu" },
@@ -16,6 +18,7 @@ const statusOptions = [
   { value: "CANCELLED", label: "Dibatalkan" },
 ];
 
+// Komponen toolbar pencarian dan filter status pengiriman florist
 export default function ShipmentFilters({
   statusFilter,
   onStatusChange,
@@ -27,7 +30,7 @@ export default function ShipmentFilters({
       <select
         value={statusFilter}
         onChange={(e) => onStatusChange(e.target.value)}
-        className="input-field w-full sm:w-48"
+        aria-label="Filter status pengiriman" className="input-field w-full sm:w-48"
       >
         {statusOptions.map((opt) => (
           <option key={opt.value} value={opt.value}>

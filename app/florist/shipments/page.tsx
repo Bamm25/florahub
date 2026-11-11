@@ -87,7 +87,7 @@ export default function FloristShipmentsPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Biteship auto mode
+  // State untuk mode pengiriman otomatis Biteship dan pilihan tarif kurir
   const [shipmentMode, setShipmentMode] = useState<"auto" | "manual">("auto");
   const [availableRates, setAvailableRates] = useState<Array<{
     courier: { code: string; name: string; service_name: string; service_code: string };
@@ -236,7 +236,7 @@ export default function FloristShipmentsPage() {
     if (!formData.courier.trim()) errors.courier = "Courier wajib diisi";
 
     const requiresTracking = formData.status === "SHIPPED" || formData.status === "DELIVERED";
-    if (requiresTracking && !formData.trackingNumber?.trim()) {
+    if (requiresTracking && !formData.trackingNumber?.trim() && !selectedShipment?.biteshipOrderId) {
       errors.trackingNumber = "Nomor resi wajib untuk status SHIPPED";
     }
 
@@ -331,7 +331,7 @@ export default function FloristShipmentsPage() {
         weight: formData.weight ? parseFloat(formData.weight) : null,
       };
       
-      // Final validation before submission
+      // Validasi akhir nilai numerik sebelum dikirim ke server
       if ((payload.estimatedDays !== null && isNaN(payload.estimatedDays)) || 
           (payload.weight !== null && isNaN(payload.weight))) {
         throw new Error("Invalid numeric values");
@@ -348,7 +348,7 @@ export default function FloristShipmentsPage() {
 
         const json = await res.json();
         if (!res.ok) {
-          // Handle validation errors with specific field messages
+          // Tangani pesan error spesifik per field dari server
           if (json.errors && Array.isArray(json.errors)) {
             const fieldErrors: Record<string, string> = {};
             json.errors.forEach((err: { path?: (string | number)[]; message: string }) => {
@@ -417,10 +417,29 @@ export default function FloristShipmentsPage() {
   ];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-foreground">Pengiriman</h1>
-        <p className="text-muted-foreground">Kelola pengiriman order ke customer</p>
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      {/* Restrained Dark Header for Rhythm */}
+      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+            Logistik & Pengiriman
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
+            Pengiriman Florist
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
+            Kelola pengiriman buket ke customer, integrasi resi otomatis Biteship, serta pembaruan status logistik.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={fetchData}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Perbarui Status
+          </button>
+        </div>
       </div>
 
       <ShipmentStats
@@ -488,17 +507,20 @@ export default function FloristShipmentsPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-          <div className="card-elevated w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
+          <div className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="sticky top-0 z-50 bg-[#181720] text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
               <div>
-                <h2 className="text-xl font-semibold">
-                  {modalMode === "create" ? "Buat Shipment" : "Update Shipment"}
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
+                  {modalMode === "create" ? "Penerbitan Resi" : "Pembaruan Status"}
+                </p>
+                <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
+                  {modalMode === "create" ? "Buat Shipment Logistik" : "Update Status Pengiriman"}
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {modalMode === "create" ? "Tambahkan informasi pengiriman" : "Perbarui status atau detail pengiriman"}
+                <p className="text-xs text-zinc-300 mt-0.5">
+                  {modalMode === "create" ? "Pilih kurir Biteship otomatis atau masukkan nomor resi manual" : "Perbarui status atau detail pengiriman pesanan"}
                 </p>
               </div>
-              <button onClick={closeModal} className="text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={closeModal} className="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -518,28 +540,28 @@ export default function FloristShipmentsPage() {
               )}
               
               {modalMode === "create" && (
-                <div className="flex gap-2 p-1 bg-surface-container-low rounded-xl">
+                <div className="flex gap-2 p-1 bg-surface-container-low rounded-xl border border-border">
                   <button
                     type="button"
                     onClick={() => setShipmentMode("auto")}
-                    className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
                       shipmentMode === "auto"
-                        ? "bg-primary text-white"
+                        ? "bg-violet-600 text-white shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    🚀 Otomatis (Biteship)
+                    Otomatis (Biteship)
                   </button>
                   <button
                     type="button"
                     onClick={() => setShipmentMode("manual")}
-                    className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
                       shipmentMode === "manual"
-                        ? "bg-primary text-white"
+                        ? "bg-violet-600 text-white shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    ✍️ Manual Input
+                    Input Manual
                   </button>
                 </div>
               )}
@@ -634,9 +656,6 @@ export default function FloristShipmentsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="p-3 bg-tertiary/5 border border-tertiary/20 rounded-xl text-xs text-muted-foreground">
-                    ✅ <strong>Auto-Generate AWB:</strong> Nomor resi akan dibuat otomatis oleh sistem Biteship setelah shipment dibuat.
-                  </div>
                 </>
               ) : (
                 <>
@@ -669,14 +688,16 @@ export default function FloristShipmentsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Nomor Resi {formData.status === "SHIPPED" && <span className="text-error">*</span>}
+                  Nomor Resi {formData.status === "SHIPPED" && !Boolean(selectedShipment?.biteshipOrderId) && <span className="text-error">*</span>}
                 </label>
                 <input
                   type="text"
                   value={formData.trackingNumber}
                   onChange={(e) => setFormData({ ...formData, trackingNumber: e.target.value })}
-                  className={`input-field ${formErrors.trackingNumber ? "border-error" : ""}`}
-                  placeholder="Tracking number dari courier"
+                  disabled={Boolean(selectedShipment?.biteshipOrderId)}
+                  readOnly={Boolean(selectedShipment?.biteshipOrderId)}
+                  className={`input-field ${formErrors.trackingNumber ? "border-error" : ""} ${Boolean(selectedShipment?.biteshipOrderId) ? "cursor-not-allowed bg-muted opacity-80" : ""}`}
+                  placeholder={Boolean(selectedShipment?.biteshipOrderId) ? "Resi otomatis dari Biteship" : "Tracking number dari courier"}
                 />
                 {formErrors.trackingNumber && <p className="mt-1 text-sm text-error">{formErrors.trackingNumber}</p>}
               </div>
@@ -712,11 +733,15 @@ export default function FloristShipmentsPage() {
                 </>
               )}
 
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={closeModal} className="flex-1 btn-secondary text-sm" disabled={isSubmitting}>
+              <div className="flex gap-3 pt-4 border-t border-border">
+                <button type="button" onClick={closeModal} className="flex-1 btn-secondary text-sm rounded-lg" disabled={isSubmitting}>
                   Batal
                 </button>
-                <button type="submit" disabled={isSubmitting} className="flex-1 btn-primary text-sm">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:opacity-50"
+                >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />

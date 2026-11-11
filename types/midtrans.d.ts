@@ -1,5 +1,4 @@
-// Type Midtrans Snap global object
-
+// Interface hasil transaksi pembayaran Midtrans Snap
 interface MidtransTransactionResult {
   status_code: string;
   status_message: string;
@@ -14,6 +13,7 @@ interface MidtransTransactionResult {
   finish_redirect_url?: string;
 }
 
+// Ekstensi interface objek Window global untuk integrasi Midtrans Snap
 interface Window {
   snap: {
     pay: (

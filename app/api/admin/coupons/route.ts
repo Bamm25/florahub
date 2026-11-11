@@ -5,14 +5,18 @@ import { NextResponse } from "next/server";
 import { createCouponSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP GET untuk mengambil daftar kupon promosi
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
+    // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
 
+    // Ambil daftar kupon beserta jumlah penggunaan dan total data kupon
     const [coupons, total] = await Promise.all([
       prisma.coupon.findMany({
         skip,
@@ -29,6 +33,7 @@ export async function GET(request: Request) {
       prisma.coupon.count(),
     ]);
 
+    // Kembalikan respon sukses beserta data paginasi kupon
     return NextResponse.json({
       success: true,
       message: "Daftar kupon berhasil diambil",
@@ -45,6 +50,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -58,10 +64,13 @@ export async function GET(request: Request) {
   }
 }
 
+// Handler HTTP POST untuk membuat kupon promosi baru
 export async function POST(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
 
+    // Parsing dan validasi data request body menggunakan skema Zod
     const body = await request.json();
     const validatedData = createCouponSchema.parse(body);
     const {
@@ -79,7 +88,7 @@ export async function POST(request: Request) {
       isActive,
     } = validatedData;
 
-    // Business logic validation: PERCENTAGE value range
+    // Validasi rentang nilai diskon untuk tipe persentase
     if (type === "PERCENTAGE" && (value < 1 || value > 100)) {
       return NextResponse.json(
         {
@@ -91,7 +100,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Business logic validation: date comparison
+    // Validasi rentang waktu masa berlaku kupon
     const startDate = validFrom ? new Date(validFrom) : new Date();
     const endDate = validUntil ? new Date(validUntil) : new Date();
 
@@ -105,7 +114,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Business logic validation: unique code check
+    // Validasi keunikan kode kupon di database
     const existingCoupon = await prisma.coupon.findUnique({
       where: { code },
     });
@@ -120,6 +129,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Simpan data kupon baru ke database
     const newCoupon = await prisma.coupon.create({
       data: {
         code,
@@ -139,6 +149,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Kembalikan respon sukses pembuatan kupon
     return NextResponse.json(
       {
         success: true,
@@ -150,6 +161,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, message: "Validation error", errors: error.issues },

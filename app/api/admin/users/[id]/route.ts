@@ -5,13 +5,17 @@ import { NextResponse } from "next/server";
 import { updateUserSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP PATCH untuk memperbarui data dan peran pengguna oleh admin
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
+    // Ambil parameter ID pengguna target dari URL
     const { id } = await params;
+    // Cegah admin mengubah akun miliknya sendiri
     if (id === userId) {
       return NextResponse.json(
         {
@@ -22,10 +26,12 @@ export async function PATCH(
       );
     }
 
+    // Cari data pengguna target di database
     const targetUser = await prisma.user.findUnique({
       where: { id },
     });
 
+    // Validasi keberadaan data pengguna
     if (!targetUser) {
       return NextResponse.json(
         {
@@ -36,10 +42,12 @@ export async function PATCH(
       );
     }
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updateUserSchema.parse(body);
     const { role, name, email, phone, isActive } = validated;
 
+    // Perbarui data pengguna di database
     const updatedUserRole = await prisma.user.update({
       where: { id },
       data: {
@@ -61,12 +69,14 @@ export async function PATCH(
       },
     });
 
+    // Kembalikan respon sukses pembaruan data pengguna
     return NextResponse.json({
       success: true,
       message: "Role pengguna berhasil diperbarui",
       data: updatedUserRole,
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

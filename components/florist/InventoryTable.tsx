@@ -1,7 +1,7 @@
-import { Edit, Trash2 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import ActionButtons from "@/components/ui/ActionButtons";
 
+// Interface data inventaris bahan baku florist
 interface InventoryItem {
   id: string;
   quantity: number;
@@ -25,13 +25,16 @@ interface InventoryItem {
   };
 }
 
+// Props interface untuk komponen tabel inventaris bahan baku
 interface InventoryTableProps {
   inventories: InventoryItem[];
   onEdit: (inventory: InventoryItem) => void;
   onDelete: (inventory: InventoryItem) => void;
 }
 
+// Komponen tabel daftar inventaris bahan baku florist dengan status stok
 export default function InventoryTable({ inventories, onEdit, onDelete }: InventoryTableProps) {
+  // Helper untuk memformat tanggal ke format lokal Indonesia
   const formatDate = (date: string | null) => {
     if (!date) return "-";
     return new Date(date).toLocaleDateString("id-ID", {
@@ -42,35 +45,35 @@ export default function InventoryTable({ inventories, onEdit, onDelete }: Invent
   };
 
   return (
-    <div className="card-elevated overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-surface-container-low border-b border-border">
+    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+      <div className="overflow-x-auto overscroll-x-contain">
+        <table className="w-full min-w-[760px]">
+          <thead className="bg-[#181720] border-b border-zinc-800">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">
                 Nama Bunga
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">
                 Supplier
               </th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-300">
                 Quantity
               </th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-300">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">
                 Lokasi
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">
                 Restock Terakhir
               </th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-300">
                 Aksi
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-border text-sm">
             {inventories.map((inv) => (
               <tr key={inv.id} className="hover:bg-surface-container-low/40 transition-colors">
                 <td className="px-4 py-3">
@@ -84,13 +87,13 @@ export default function InventoryTable({ inventories, onEdit, onDelete }: Invent
                 <td className="px-4 py-3">
                   <p className="text-sm text-foreground">{inv.stock?.supplier?.name || 'Unknown'}</p>
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td scope="col" className="px-4 py-3 text-center">
                   <p className="text-sm font-medium text-foreground">
                     {inv.quantity} {inv.stock.unit}
                   </p>
                   <p className="text-xs text-muted-foreground">Min: {inv.minThreshold}</p>
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td scope="col" className="px-4 py-3 text-center">
                   <StatusBadge
                     status={inv.isLowStock ? "LOW_STOCK" : "NORMAL"}
                     variant="inventory"

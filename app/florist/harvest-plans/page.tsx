@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Calendar } from "lucide-react";
 import SearchInput from "@/components/ui/SearchInput";
-import StatCard from "@/components/ui/StatCard";
 import DataStateWrapper from "@/components/ui/DataStateWrapper";
 import AnnouncementCard from "@/components/florist/AnnouncementCard";
 import PreOrderTable from "@/components/florist/PreOrderTable";
@@ -30,7 +29,7 @@ interface HarvestAnnouncement {
   _count: {
     preOrders: number;
   };
-  totalReservedQuantity?: number; // Sum of preOrder quantities (not count)
+  totalReservedQuantity?: number;
 }
 
 interface PreOrder {
@@ -148,62 +147,83 @@ export default function FloristHarvestPlansPage() {
     : 0;
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-foreground">
-          Rencana Panen
-        </h1>
-        <p className="text-muted-foreground">
-          Lihat jadwal panen supplier dan ajukan pre-order bunga segar
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard
-          label="Jadwal Aktif"
-          value={Array.isArray(announcements) ? announcements.length : 0}
-        />
-        <StatCard
-          label="Pre-Order Saya"
-          value={Array.isArray(myPreOrders) ? myPreOrders.length : 0}
-          color="primary"
-        />
-        <StatCard
-          label="Menunggu Konfirmasi"
-          value={pendingCount}
-          color="warning"
-        />
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex gap-2">
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      {/* Restrained Dark Header for Rhythm */}
+      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+            Rantai Pasok & Pengadaan
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
+            Rencana Panen & Pre-Order
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
+            Pantau jadwal panen kebun supplier mitra lokal dan amankan kuota bunga potong segar melalui pre-order terjadwal.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => setActiveTab("browse")}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === "browse"
-                ? "bg-primary text-primary-foreground"
-                : "bg-surface-container-low text-muted-foreground hover:bg-surface-container"
-            }`}
+            type="button"
+            onClick={fetchData}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Jelajah Jadwal Panen
-          </button>
-          <button
-            onClick={() => setActiveTab("my-orders")}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-              activeTab === "my-orders"
-                ? "bg-primary text-primary-foreground"
-                : "bg-surface-container-low text-muted-foreground hover:bg-surface-container"
-            }`}
-          >
-            Pre-Order Saya
+            Perbarui Jadwal
           </button>
         </div>
+      </div>
 
-        <SearchInput
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Cari nama bunga atau supplier..."
-        />
+      {/* Ringkasan Status */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[
+          { label: "Jadwal panen aktif", value: Array.isArray(announcements) ? announcements.length : 0, sub: "Dari supplier mitra" },
+          { label: "Pre-order saya", value: Array.isArray(myPreOrders) ? myPreOrders.length : 0, sub: "Total alokasi diajukan" },
+          { label: "Menunggu konfirmasi", value: pendingCount, attention: pendingCount > 0, sub: "Perlu konfirmasi supplier" },
+        ].map((item) => (
+          <div key={item.label} className="rounded-2xl border border-border bg-surface p-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
+            <p className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${item.attention ? "text-amber-600" : "text-foreground"}`}>
+              {item.value.toLocaleString("id-ID")}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("browse")}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-colors ${
+                activeTab === "browse"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface-container-low text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Jelajah Jadwal Panen
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("my-orders")}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-colors ${
+                activeTab === "my-orders"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface-container-low text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Pre-Order Saya {myPreOrders.length > 0 && `(${myPreOrders.length})`}
+            </button>
+          </div>
+
+          <div className="w-full sm:w-80">
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Cari nama bunga atau supplier..."
+            />
+          </div>
+        </div>
       </div>
 
       {activeTab === "browse" && (

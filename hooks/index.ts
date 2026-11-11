@@ -1,7 +1,3 @@
-/**
- * FloraHub Custom Hooks - Index
- * Centralized exports untuk reusable hooks
- */
-
+// Ekspor terpusat untuk hook utilitas kustom aplikasi
 export { useFormValidation } from "./useFormValidation";
 export { useDataFetching } from "./useDataFetching";

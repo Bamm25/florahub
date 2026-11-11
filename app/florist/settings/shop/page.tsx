@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Store,
   MapPin,
   Plus,
   Edit2,
@@ -53,7 +52,7 @@ export default function FloristSettingsShopPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Shop Info editing
+  // State untuk perubahan informasi profil toko
   const [isEditingShop, setIsEditingShop] = useState(false);
   const [shopForm, setShopForm] = useState({
     shopName: "",
@@ -61,7 +60,7 @@ export default function FloristSettingsShopPage() {
   });
   const [isSavingShop, setIsSavingShop] = useState(false);
 
-  // Address modal state
+  // State modal formulir alamat penjemputan toko
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [addressForm, setAddressForm] = useState({
@@ -313,39 +312,39 @@ export default function FloristSettingsShopPage() {
   const { profile, user, addresses } = data;
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground lg:text-3xl">
-          Pengaturan Toko
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Kelola informasi toko dan alamat pickup untuk pengiriman
-        </p>
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      {/* Restrained Dark Header for Rhythm */}
+      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+            Konfigurasi & Profil
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
+            Pengaturan Toko Florist
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
+            Kelola nama toko publik, deskripsi, identitas visual (logo & banner), serta titik alamat pickup armada logistik.
+          </p>
+        </div>
       </div>
 
-      <div className="card-elevated overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border p-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Store className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">
-                Informasi Toko
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Nama dan deskripsi toko Anda
-              </p>
-            </div>
+      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+        <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">
+              Informasi Toko
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Nama dan deskripsi toko yang dilihat oleh pelanggan publik
+            </p>
           </div>
           {!isEditingShop && (
             <button
               onClick={() => setIsEditingShop(true)}
-              className="btn-secondary inline-flex items-center gap-2 text-sm"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-container-low hover:bg-surface-container px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-foreground transition-colors"
             >
-              <Edit2 className="h-4 w-4" />
-              <span>Edit</span>
+              <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Edit Profil</span>
             </button>
           )}
         </div>
@@ -387,9 +386,10 @@ export default function FloristSettingsShopPage() {
 
               <div className="flex items-center gap-3 pt-2">
                 <button
+                  type="button"
                   onClick={handleSaveShopInfo}
                   disabled={isSavingShop}
-                  className="btn-primary inline-flex items-center gap-2"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2.5 text-xs font-semibold text-primary-foreground transition-colors disabled:opacity-50"
                 >
                   {isSavingShop ? (
                     <>
@@ -404,6 +404,7 @@ export default function FloristSettingsShopPage() {
                   )}
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setIsEditingShop(false);
                     setShopForm({
@@ -412,7 +413,7 @@ export default function FloristSettingsShopPage() {
                     });
                   }}
                   disabled={isSavingShop}
-                  className="btn-secondary"
+                  className="btn-secondary rounded-xl text-xs py-2.5 px-4"
                 >
                   Batal
                 </button>
@@ -446,7 +447,7 @@ export default function FloristSettingsShopPage() {
                 </p>
                 {user.phone && (
                   <p className="text-xs text-muted-foreground">
-                    Phone: {user.phone}
+                    Telepon: {user.phone}
                   </p>
                 )}
               </div>
@@ -455,21 +456,23 @@ export default function FloristSettingsShopPage() {
         </div>
       </div>
 
-      <div className="card-elevated overflow-hidden">
-        <div className="p-6 space-y-5">
-          <h2 className="text-lg font-bold text-foreground">Logo & Banner Toko</h2>
-          <p className="text-sm text-muted-foreground">Pilih gambar, cek preview, lalu klik Simpan. Format JPG, PNG, WebP, atau GIF; maksimal 5 MB.</p>
-          {mediaMessage && <p role="status" aria-live="polite" className="rounded-lg border border-border bg-surface-container p-3 text-sm text-foreground">{mediaMessage}</p>}
+      <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-xs">
+        <div className="p-5 sm:p-6 space-y-5">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Logo & Banner Toko</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Pilih gambar visual toko publik. Format JPG, PNG, WebP, atau GIF maksimal 5 MB.</p>
+          </div>
+          {mediaMessage && <p role="status" aria-live="polite" className="rounded-xl border border-border bg-surface-container-low p-3 text-sm text-foreground">{mediaMessage}</p>}
           {(["logo", "banner"] as const).map((field) => (
             <div key={field} className="space-y-2">
-              <p className="text-sm font-semibold text-foreground">{field === "logo" ? "Logo" : "Banner"}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{field === "logo" ? "Logo Toko" : "Banner Toko"}</p>
               {(mediaPreview[field] || profile[field]) && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={mediaPreview[field] || profile[field]!} alt={field === "logo" ? "Logo toko" : "Banner toko"} className={field === "logo" ? "h-20 w-20 rounded-xl object-cover" : "h-32 w-full rounded-xl object-cover"} />
+                <img src={mediaPreview[field] || profile[field]!} alt={field === "logo" ? "Logo toko" : "Banner toko"} className={field === "logo" ? "h-20 w-20 rounded-xl object-cover border border-border" : "h-32 w-full rounded-xl object-cover border border-border"} />
               )}
               <div className="flex flex-wrap items-center gap-3">
-                <label className="btn-secondary inline-flex cursor-pointer items-center gap-2 text-sm">
-                  <Upload className="h-4 w-4" /> Pilih {field === "logo" ? "Logo" : "Banner"}
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-surface-container-low hover:bg-surface-container px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors">
+                  <Upload className="h-3.5 w-3.5" /> Pilih {field === "logo" ? "Logo" : "Banner"}
                   <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" disabled={isUploadingMedia} onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file) handleMediaSelect(file, field);
@@ -477,8 +480,8 @@ export default function FloristSettingsShopPage() {
                   }} />
                 </label>
                 {pendingMedia[field] && (
-                  <button type="button" onClick={() => void handleMediaSave(field)} disabled={isUploadingMedia} className="btn-primary inline-flex items-center gap-2 text-sm disabled:opacity-50">
-                    {isUploadingMedia && <Loader2 className="h-4 w-4 animate-spin" />}
+                  <button type="button" onClick={() => void handleMediaSave(field)} disabled={isUploadingMedia} className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50">
+                    {isUploadingMedia && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                     Simpan {field === "logo" ? "Logo" : "Banner"}
                   </button>
                 )}
@@ -488,26 +491,22 @@ export default function FloristSettingsShopPage() {
         </div>
       </div>
 
-      <div className="card-elevated overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border p-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/15 text-secondary">
-              <MapPin className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">
-                Alamat Toko
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Lokasi pickup untuk pengiriman
-              </p>
-            </div>
+      <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-xs">
+        <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">
+              Alamat Toko & Titik Pickup
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Lokasi penjemputan armada logistik kurir
+            </p>
           </div>
           <button
+            type="button"
             onClick={() => openAddressModal()}
-            className="btn-primary inline-flex items-center gap-2 text-sm"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-primary-foreground transition-colors shadow-xs"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             <span>Tambah Alamat</span>
           </button>
         </div>
@@ -530,19 +529,19 @@ export default function FloristSettingsShopPage() {
                   key={address.id}
                   className={`rounded-xl border p-4 transition-colors ${
                     address.isDefault
-                      ? "border-primary/30 bg-primary/5"
-                      : "border-border bg-surface-container-low/50"
+                      ? "border-violet-500/40 bg-violet-950/5"
+                      : "border-border bg-surface-container-low/40"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="font-bold text-foreground">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <p className="font-semibold text-foreground">
                           {address.label}
                         </p>
                         {address.isDefault && (
-                          <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                            Default
+                          <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                            Alamat Utama
                           </span>
                         )}
                       </div>
@@ -564,22 +563,25 @@ export default function FloristSettingsShopPage() {
                     <div className="flex items-center gap-2">
                       {!address.isDefault && (
                         <button
+                          type="button"
                           onClick={() => handleSetDefault(address.id)}
                           disabled={isChangingDefault}
-                          className="btn-secondary text-xs px-3 py-1.5"
+                          className="btn-secondary text-xs px-3 py-1.5 rounded-xl"
                         >
-                          Set Default
+                          Jadikan Utama
                         </button>
                       )}
                       <button
+                        type="button"
                         onClick={() => openAddressModal(address)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface-container hover:bg-surface-container-high text-foreground transition-colors"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-surface-container hover:bg-surface-container-high text-foreground transition-colors"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDeleteAddress(address.id)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-error/20 bg-error/5 hover:bg-error/10 text-error transition-colors"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-error/20 bg-error/5 hover:bg-error/10 text-error transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -594,20 +596,24 @@ export default function FloristSettingsShopPage() {
 
       {showAddressModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">
-          <div className="card-elevated max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border p-6">
-              <h3 className="text-lg font-bold text-foreground">
-                {editingAddress ? "Edit Alamat" : "Tambah Alamat Baru"}
-              </h3>
+          <div className="rounded-2xl border border-border bg-surface max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between bg-[#10121b] text-white p-5 sm:p-6 flex-shrink-0">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">Titik Penjemputan</p>
+                <h3 className="text-lg font-bold text-white mt-1">
+                  {editingAddress ? "Edit Alamat Toko" : "Tambah Alamat Baru"}
+                </h3>
+              </div>
               <button
+                type="button"
                 onClick={closeAddressModal}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-surface-container-high text-foreground transition-colors"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
@@ -728,11 +734,12 @@ export default function FloristSettingsShopPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-4">
+              <div className="flex items-center gap-3 pt-4 border-t border-border">
                 <button
+                  type="button"
                   onClick={handleSaveAddress}
                   disabled={isSavingAddress}
-                  className="btn-primary inline-flex items-center gap-2"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2.5 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
                 >
                   {isSavingAddress ? (
                     <>
@@ -747,9 +754,10 @@ export default function FloristSettingsShopPage() {
                   )}
                 </button>
                 <button
+                  type="button"
                   onClick={closeAddressModal}
                   disabled={isSavingAddress}
-                  className="btn-secondary"
+                  className="btn-secondary rounded-xl text-xs py-2.5 px-4"
                 >
                   Batal
                 </button>

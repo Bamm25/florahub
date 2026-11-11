@@ -1,4 +1,4 @@
-// Interface untuk data alamat pengiriman customer
+// Interface representasi data alamat pengiriman pelanggan
 interface Address {
   id: string;
   label: string;
@@ -13,7 +13,7 @@ interface Address {
   updatedAt: string;
 }
 
-// Response type dari API GET customer addresses
+// Interface respons API untuk daftar alamat pelanggan
 interface AddressesResponse {
   success: boolean;
   message: string;
@@ -28,7 +28,7 @@ interface AddressesResponse {
   };
 }
 
-// Response type dari API POST checkout order
+// Interface respons API setelah pembuatan pesanan checkout
 interface CheckoutOrderResponse {
   success: boolean;
   message: string;
@@ -72,7 +72,7 @@ interface CheckoutOrderResponse {
   };
 }
 
-// Response type dari API POST payment token Midtrans
+// Interface respons API token pembayaran Midtrans
 interface PaymentTokenResponse {
   success: boolean;
   message: string;
@@ -82,6 +82,7 @@ interface PaymentTokenResponse {
   };
 }
 
+// Interface respons API validasi kupon dan kalkulasi diskon
 export interface ValidateCouponResponse {
   success: boolean;
   message: string;
@@ -104,7 +105,7 @@ export interface ValidateCouponResponse {
   };
 }
 
-// Fetch daftar alamat customer dari API
+// Fungsi untuk mengambil daftar alamat pelanggan dari API
 export async function getCustomerAddresses(): Promise<AddressesResponse> {
   const response = await fetch("/api/customer/addresses", {
     method: "GET",
@@ -120,7 +121,7 @@ export async function getCustomerAddresses(): Promise<AddressesResponse> {
   return response.json();
 }
 
-// Create order checkout dengan alamat, ongkir, dan coupon
+// Fungsi untuk membuat pesanan checkout baru melalui API
 export async function createCheckoutOrder(data: {
   addressId: string;
   shippingCost: number;
@@ -147,7 +148,7 @@ export async function createCheckoutOrder(data: {
   return response.json();
 }
 
-// Request Midtrans payment token untuk order ID
+// Fungsi untuk meminta token pembayaran Midtrans berdasarkan ID pesanan
 export async function createPaymentToken(
   orderId: string,
 ): Promise<PaymentTokenResponse> {
@@ -166,7 +167,7 @@ export async function createPaymentToken(
   return response.json();
 }
 
-// Validasi coupon code dan calculate discount amount
+// Fungsi untuk memvalidasi kode kupon dan menghitung nilai diskon
 export async function validateCoupon(data: {
   code: string;
   subtotal: number;

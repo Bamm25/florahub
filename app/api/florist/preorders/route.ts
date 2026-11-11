@@ -4,12 +4,15 @@ import { NextResponse } from "next/server";
 import { createPreorderSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP GET untuk mengambil riwayat pengajuan pre-order panen florist
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter paginasi dan filter status dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
@@ -24,6 +27,7 @@ export async function GET(request: Request) {
       whereClause.status = status;
     }
 
+    // Ambil data pre-order beserta informasi jadwal panen supplier dan total data
     const [preOrders, total] = await Promise.all([
       prisma.harvestPreOrder.findMany({
         where: whereClause,
@@ -51,6 +55,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Kembalikan respon sukses beserta data paginasi pre-order
     return NextResponse.json({
       success: true,
       message: "Daftar pre-order berhasil diambil",
@@ -67,6 +72,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -80,13 +86,17 @@ export async function GET(request: Request) {
   }
 }
 
+// Handler HTTP POST untuk mengajukan pemesanan pre-order panen baru ke supplier
 export async function POST(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = createPreorderSchema.parse(body);
     const { harvestAnnouncementId: announcementId, quantity, notes } = validated;
 
+    // Ambil data pengumuman panen beserta daftar pre-order aktif
     const announcement = await prisma.harvestAnnouncement.findUnique({
       where: { id: announcementId },
       include: {
@@ -100,6 +110,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Validasi keberadaan data pengumuman panen
     if (!announcement) {
       return NextResponse.json(
         {
@@ -110,6 +121,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validasi keaktifan pengumuman panen
     if (!announcement.isActive) {
       return NextResponse.json(
         {
@@ -121,6 +133,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validasi tanggal panen belum terlewati
     const now = new Date();
     if (now > announcement.harvestDate) {
       return NextResponse.json(
@@ -132,6 +145,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Periksa apakah florist sudah pernah mengajukan pre-order untuk pengumuman ini
     const existingPreOrder = await prisma.harvestPreOrder.findUnique({
       where: {
         announcementId_floristId: {
@@ -152,6 +166,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Hitung sisa kuantitas kapasitas panen yang tersedia
     const totalOrderedQuantity = announcement.preOrders.reduce(
       (sum, item) => sum + item.quantity,
       0,
@@ -171,8 +186,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // Hitung total nominal biaya pre-order
     const totalPrice = requestedQuantity * announcement.pricePerUnit;
 
+    // Simpan data pre-order baru ke database
     const preOrder = await prisma.harvestPreOrder.create({
       data: {
         announcementId: announcement.id,
@@ -205,6 +222,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Kirim notifikasi pesanan masuk ke supplier
     const florist = await prisma.user.findUnique({
       where: { id: userId },
       select: { name: true },
@@ -220,6 +238,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Kembalikan respon sukses pengajuan pre-order
     return NextResponse.json(
       {
         success: true,
@@ -229,6 +248,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-// POST /api/florist/profile/addresses - Create new address
+// Skema validasi pembuatan data alamat baru florist
 const createAddressSchema = z.object({
   label: z.string().min(1).max(50),
   recipientName: z.string().min(1).max(200),
@@ -17,14 +17,17 @@ const createAddressSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
+// Handler HTTP POST untuk menambahkan alamat penjemputan baru florist
 export async function POST(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = createAddressSchema.parse(body);
 
-    // Paksa alamat pertama sebagai default untuk mencegah state tanpa pickup address.
+    // Simpan alamat baru dalam transaksi dan jadikan default jika alamat pertama
     const newAddress = await prisma.$transaction(async (tx) => {
       const profile = await tx.floristProfile.findUnique({ where: { userId } });
       if (!profile) throw new Error("Profil florist belum tersedia");
@@ -54,12 +57,14 @@ export async function POST(request: Request) {
       return address;
     });
 
+    // Kembalikan respon sukses penambahan alamat
     return NextResponse.json({
       success: true,
       message: "Alamat berhasil ditambahkan",
       data: { address: newAddress },
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

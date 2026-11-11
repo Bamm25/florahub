@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { checkoutSchema } from "@/lib/validations/schemas";
 
+// Handler HTTP POST untuk memproses transaksi checkout dan pembuatan pesanan baru
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     const validatedData = checkoutSchema.parse(body);
     const { addressId, shippingCost, couponCode, notes, items } = validatedData;
 
-    // Validasi items dari frontend
+    // Validasi ketersediaan daftar item dari antarmuka pengguna
     if (!items || items.length === 0) {
       return NextResponse.json(
         {
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch product details dari database untuk validasi
+    // Ambil rincian produk dari basis data untuk validasi data
     const productIds = items.map((item) => item.productId);
     const products = await prisma.product.findMany({
       where: { id: { in: productIds } },
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Validasi setiap item
+    // Validasi kesesuaian dan keaktifan masing-masing item produk
     for (const item of items) {
       const product = products.find((p) => p.id === item.productId);
 
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
         );
       }
 
-      // Validasi integritas harga terhadap katalog database
+      // Validasi keselarasan harga produk dengan katalog basis data
       if (item.price !== product.price) {
         return NextResponse.json(
           {
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Validasi ongkos kirim jika pengiriman ke alamat
+    // Validasi keberadaan ongkos kirim untuk pesanan beralamat tujuan
     if (addressId && shippingCost <= 0) {
       return NextResponse.json(
         {
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
     const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
     const orderNumber = `ORD-${dateStr}-${sequance.toString().padStart(3, "0")}-${randomSuffix}`;
 
-    // Hitung subtotal authoritative dari database product price
+    // Hitung subtotal pesanan berdasarkan harga resmi produk di database
     const subtotal = items.reduce((sum, item) => {
       const product = products.find((p) => p.id === item.productId);
       const price = product ? product.price : item.price;
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
     if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
       const normalizedCode = couponCode.trim().toUpperCase();
 
-      // Cari kupon berdasarkan kode
+      // Cari kupon diskon berdasarkan kode yang dimasukkan
       const coupon = await prisma.coupon.findUnique({
         where: { code: normalizedCode },
       });
@@ -246,18 +247,18 @@ export async function POST(request: Request) {
         );
       }
 
-      // Coupon applied successfully
+      // Kupon promosi valid dan berhasil diterapkan
       appliedCoupon = coupon;
     }
 
     const totalAmount = subtotal + shippingCost - discount;
 
-    // Gunakan transaction untuk atomisitas: verifikasi dan kurangi stok, buat order, catat kupon
+    // Jalankan transaksi atomik untuk pengurangan stok, pembuatan pesanan, dan pencatatan kupon
     const { order, lowStockAlerts } = await prisma.$transaction(async (tx) => {
       const alerts: { floristId: string; productName: string; remainingStock: number }[] = [];
 
       for (const item of items) {
-        // Atomic decrement dengan verifikasi ketersediaan stok di level database query
+        // Lakukan pengurangan stok secara atomik dengan verifikasi ketersediaan sisa stok
         const updateResult = await tx.product.updateMany({
           where: {
             id: item.productId,
@@ -291,7 +292,7 @@ export async function POST(request: Request) {
           },
         });
 
-        // Trigger peringatan stok rendah jika stok berada di bawah ambang batas (10 unit)
+        // Picu peringatan stok menipis jika sisa stok di bawah batas ambang 10 unit
         const LOW_STOCK_THRESHOLD = 10;
         if (updatedProd && updatedProd.stock < LOW_STOCK_THRESHOLD && updatedProd.stock >= 0) {
           alerts.push({
@@ -392,7 +393,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Notify each unique florist about the new order
+    // Kirim notifikasi pesanan baru kepada setiap florist terkait
     const floristIds = [...new Set(products.map((p) => p.floristId))];
     if (floristIds.length > 0) {
       await prisma.notification.createMany({
@@ -417,7 +418,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Cart di-manage oleh frontend (localStorage), tidak perlu hapus dari database
+    // Keranjang dikelola pada penyimpanan lokal klien tanpa menghapus data database
 
     return NextResponse.json(
       {

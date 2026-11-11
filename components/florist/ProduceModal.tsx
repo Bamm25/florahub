@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Package, AlertCircle, Loader2, CheckCircle } from "lucide-react";
 
+// Interface komponen bahan baku BOM untuk perakitan produk
 interface ProductComponent {
   id: string;
   quantity: number;
@@ -17,6 +18,7 @@ interface ProductComponent {
   };
 }
 
+// Interface data produk florist yang akan dirakit
 interface Product {
   id: string;
   name: string;
@@ -24,6 +26,7 @@ interface Product {
   productComponents?: ProductComponent[];
 }
 
+// Props interface untuk modal perakitan dan produksi produk jadi
 interface ProduceModalProps {
   isOpen: boolean;
   product: Product | null;
@@ -31,6 +34,7 @@ interface ProduceModalProps {
   onSuccess: () => void;
 }
 
+// Modal formulir perakitan produk florist dengan pengurangan stok bahan baku otomatis
 export default function ProduceModal({
   isOpen,
   product,
@@ -48,16 +52,12 @@ export default function ProduceModal({
   useEffect(() => {
     if (!isOpen || !product?.id) return;
 
-    if (product.productComponents && product.productComponents.length > 0) {
-      setLoadedComponents(product.productComponents);
-    }
-
     fetch(`/api/florist/products/${product.id}/components`)
       .then((res) => res.json())
       .then((json) => {
         if (json.success && Array.isArray(json.data?.items)) {
           setLoadedComponents(
-            json.data.items.map((item: any) => ({
+            json.data.items.map((item: { id: string; quantity: number; inventory: { id: string; currentStock?: number; quantity?: number; stock: { name: string; variety: string | null; unit: string } } }) => ({
               id: item.id,
               quantity: item.quantity,
               inventory: {
@@ -72,7 +72,7 @@ export default function ProduceModal({
       .catch((err) => {
         console.error("[ProduceModal] Error loading components:", err);
       });
-  }, [isOpen, product?.id, product?.productComponents]);
+  }, [isOpen, product?.id]);
 
   const handleProduce = async () => {
     if (!product) return;
@@ -125,27 +125,27 @@ export default function ProduceModal({
   const qty = Number(quantity) || 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-      <div className="card-elevated w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden">
+        <div className="sticky top-0 z-50 bg-[#181720] text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              Produksi Produk
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Produksi Buket</p>
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
+              {product.name}
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {product.name} - Stok saat ini: {product.stock} unit
+            <p className="text-xs text-zinc-300 mt-0.5">
+              Stok saat ini: {product.stock} unit
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="min-h-0 p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
           {error && (
             <div className="flex items-start gap-3 p-4 bg-error/5 border border-error/20 rounded-xl">
               <AlertCircle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
@@ -161,13 +161,13 @@ export default function ProduceModal({
                   Produk ini belum memiliki Bill of Materials (BOM)
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Tambahkan komponen bahan baku terlebih dahulu melalui tombol "Komponen" pada kartu produk.
+                  Tambahkan komponen bahan baku terlebih dahulu melalui tombol &quot;Komponen&quot; pada kartu produk.
                 </p>
               </div>
             </div>
           )}
 
-          <div className="card-elevated p-5 space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
             <h3 className="font-medium text-foreground">Jumlah Produksi</h3>
             <div>
               <label className="block text-xs font-medium text-foreground mb-1.5">
@@ -179,14 +179,14 @@ export default function ProduceModal({
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="1"
                 min="1"
-                className="w-full px-4 py-2.5 bg-surface-container border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                className="input-field w-full text-sm"
                 disabled={isProducing || !hasBOM}
               />
             </div>
           </div>
 
           {hasBOM && qty > 0 && loadedComponents && (
-            <div className="card-elevated p-5 space-y-4">
+            <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
               <h3 className="font-medium text-foreground">Kebutuhan Bahan Baku</h3>
               <div className="space-y-3">
                 {loadedComponents.map((comp) => {
@@ -238,10 +238,10 @@ export default function ProduceModal({
           )}
         </div>
 
-        <div className="sticky bottom-0 z-50 bg-surface-container-low border-t border-border p-6 flex items-center justify-between flex-shrink-0">
+        <div className="sticky bottom-0 z-50 bg-card border-t border-border p-4 sm:p-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between flex-shrink-0">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 border border-border rounded-lg text-foreground hover:bg-surface-container transition-colors"
+            className="btn-secondary min-h-11 w-full sm:w-auto text-sm"
             disabled={isProducing}
           >
             Batal
@@ -249,7 +249,7 @@ export default function ProduceModal({
           <button
             onClick={handleProduce}
             disabled={isProducing || !hasBOM || qty <= 0}
-            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 w-full sm:w-auto"
           >
             {isProducing ? (
               <>

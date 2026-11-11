@@ -1,8 +1,10 @@
 import CredentialsProvider from "next-auth/providers/credentials";
 import { NextAuthOptions } from "next-auth";
+import { Role } from "@prisma/client";
 import prisma from "./prisma";
 import bcrypt from "bcryptjs";
 
+// Konfigurasi opsi autentikasi NextAuth dengan strategi JWT dan validasi kredensial
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
@@ -23,8 +25,8 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         });
 
-        if (!user || !user.password) {
-          throw new Error("Email atau password salah");
+        if (!user || !user.password || !user.isActive) {
+          throw new Error("Email atau password salah atau akun tidak aktif");
         }
 
         const isValidPassword = await bcrypt.compare(
@@ -50,9 +52,30 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
-        token.role = (user as any).role;
+        token.role = (user as typeof user & { role: Role }).role;
       }
-      // Handle session updates from update() calls
+      if (!token.id && token.sub) {
+        token.id = token.sub;
+      }
+      // Sinkronisasi data ID dan peran pengguna dari basis data ke token JWT
+      if (token.email) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: token.email as string },
+            select: { id: true, role: true, name: true, isActive: true },
+          });
+          if (dbUser && dbUser.isActive) {
+            token.id = dbUser.id;
+            token.role = dbUser.role;
+            if (dbUser.name) {
+              token.name = dbUser.name;
+            }
+          }
+        } catch {
+          // Abaikan galat pembacaan basis data selama proses verifikasi token
+        }
+      }
+      // Perbarui data nama pengguna saat terjadi pemanggilan pembaruan sesi
       if (trigger === "update" && session?.name) {
         token.name = session.name;
       }
@@ -60,9 +83,13 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id;
-        session.user.name = token.name as string;
-        (session.user as any).role = token.role;
+        Object.assign(session.user, {
+          id: (token.id as string) || (token.sub as string),
+          role: token.role as Role,
+        });
+        if (token.name) {
+          session.user.name = token.name as string;
+        }
       }
       return session;
     },

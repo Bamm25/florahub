@@ -1,6 +1,6 @@
-import { Package } from "lucide-react";
 import ProductCard from "@/components/florist/ProductCard";
 
+// Interface data produk untuk komponen daftar produk
 interface Product {
   id: string;
   name: string;
@@ -22,6 +22,7 @@ interface Product {
   };
 }
 
+// Props interface untuk komponen daftar produk florist
 interface ProductListProps {
   products: Product[];
   hasFilters: boolean;
@@ -31,6 +32,7 @@ interface ProductListProps {
   onProduce: (product: Product) => void;
 }
 
+// Komponen grid tampilan daftar produk dengan penanganan state kosong
 export default function ProductList({
   products,
   hasFilters,
@@ -41,24 +43,23 @@ export default function ProductList({
 }: ProductListProps) {
   if (products.length === 0) {
     return (
-      <div className="card-elevated p-12 flex flex-col items-center justify-center text-center">
-        <Package className="w-16 h-16 text-muted-foreground mb-4" />
-        <p className="text-lg font-medium">
+      <div className="rounded-xl border border-dashed border-border bg-card/40 p-12 flex flex-col items-center justify-center text-center">
+        <p className="text-base font-semibold text-foreground">
           {hasFilters
             ? "Tidak ada produk yang sesuai filter"
-            : "Belum ada produk"}
+            : "Belum ada produk terdaftar"}
         </p>
-        <p className="text-sm text-muted-foreground mt-2">
+        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
           {hasFilters
-            ? "Coba ubah filter pencarian"
-            : "Mulai tambahkan produk untuk dijual"}
+            ? "Coba sesuaikan kata kunci pencarian atau kategori filter."
+            : "Tambahkan produk buket atau karangan bunga baru ke katalog toko."}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
       {products.map((product) => (
         <ProductCard
           key={product.id}

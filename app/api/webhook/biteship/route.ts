@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { mapBiteshipStatus } from "@/lib/biteship";
 
-// Webhook receiver untuk update otomatis status pengiriman dan nomor resi dari Biteship
+// Handler HTTP POST webhook untuk menerima pembaruan status dan nomor resi dari Biteship
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const event = body.event;
     const biteshipOrderId = body.order_id;
 
-    // Tangani event order.status dan order.waybill_id dari Biteship
+    // Filter tipe event Biteship yang relevan untuk diproses
     if (event && !["order.status", "order.waybill_id", "order.price"].includes(event)) {
       return NextResponse.json(
         { success: true, message: `Event ${event} diabaikan` },
@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validasi keberadaan ID pesanan pada payload webhook
     if (!biteshipOrderId) {
       return NextResponse.json(
         { success: false, message: "Order ID tidak ditemukan dalam payload webhook" },
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Cari data shipment berdasarkan Biteship order ID
+    // Cari data pengiriman berdasarkan ID pesanan Biteship
     const shipment = await prisma.shipment.findFirst({
       where: { biteshipOrderId },
       include: {
@@ -43,12 +44,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ambil waybill dan status dari payload
+    // Ambil nomor resi dan tentukan pemetaan status pengiriman baru
     const waybillId = body.courier_waybill_id || shipment.trackingNumber;
     const rawStatus = body.status || "";
     const newStatus = rawStatus ? mapBiteshipStatus(rawStatus) : shipment.status;
 
-    // Perbarui data shipment di database
+    // Perbarui status pengiriman dan catatan waktu di basis data
     await prisma.shipment.update({
       where: { id: shipment.id },
       data: {
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Update status order jika pengiriman mulai berjalan
+    // Perbarui status pesanan menjadi dikirim dan beri tahu pembeli
     if (newStatus === "SHIPPED" && shipment.order.status === "PROCESSING") {
       await prisma.order.update({
         where: { id: shipment.orderId },
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Update status order jika paket telah sampai di tujuan
+    // Perbarui status pesanan menjadi diterima saat paket sampai
     if (newStatus === "DELIVERED" && shipment.order.status !== "DELIVERED") {
       await prisma.order.update({
         where: { id: shipment.orderId },
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Kirim respons berhasil atas pemrosesan data webhook
     return NextResponse.json({
       success: true,
       message: `Webhook ${event} berhasil diproses`,
@@ -103,6 +105,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
+    // Tangani kesalahan saat memproses data webhook Biteship
     console.error("[BITESHIP_WEBHOOK_ERROR]", error);
     return NextResponse.json(
       { success: false, message: error.message || "Gagal memproses webhook Biteship" },

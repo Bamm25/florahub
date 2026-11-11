@@ -1,3 +1,4 @@
+// Tipe representasi data produk publik milik florist
 type PublicProduct = {
   id: string;
   name: string;
@@ -8,7 +9,7 @@ type PublicProduct = {
   image: string;
 };
 
-// Ambil identitas toko dan hanya produk aktif milik florist yang dituju.
+// Fungsi untuk mengambil data profil toko publik dan daftar produk aktif milik florist
 export async function getPublicStore<
   Store extends {
     id: string;

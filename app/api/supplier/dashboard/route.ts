@@ -2,10 +2,12 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// Handler HTTP GET untuk mengambil metrik dan statistik dashboard supplier
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses supplier atau admin
     const { userId } = await requireAuth(request, ["SUPPLIER", "ADMIN"]);
-    // 1. Total Revenue (PAID transactions only)
+    // Hitung total pendapatan dari transaksi yang berstatus PAID
     const revenueData = await prisma.stockTransaction.aggregate({
       where: {
         stock: {
@@ -20,7 +22,7 @@ export async function GET(request: Request) {
 
     const totalRevenue = revenueData._sum.totalPrice || 0;
 
-    // 2. Total Sales (all transactions)
+    // Hitung total jumlah seluruh transaksi penjualan
     const totalSales = await prisma.stockTransaction.count({
       where: {
         stock: {
@@ -29,7 +31,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // 3. Stock Sold (PAID only)
+    // Hitung total kuantitas stok yang terjual pada transaksi berstatus PAID
     const stockSoldData = await prisma.stockTransaction.aggregate({
       where: {
         stock: {
@@ -44,7 +46,7 @@ export async function GET(request: Request) {
 
     const stockSold = stockSoldData._sum.quantity || 0;
 
-    // 4. Active Stocks
+    // Hitung total varian stok aktif yang tersedia
     const activeStocks = await prisma.stock.count({
       where: {
         supplierId: userId,
@@ -52,7 +54,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // 5. Low Stock Alert (< 50)
+    // Hitung peringatan stok menipis dengan kuantitas kurang dari 50 unit
     const lowStockAlert = await prisma.stock.count({
       where: {
         supplierId: userId,
@@ -63,7 +65,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // 6. Pending Transactions
+    // Hitung jumlah transaksi yang masih menunggu pembayaran (PENDING)
     const pendingTransactions = await prisma.stockTransaction.count({
       where: {
         stock: {
@@ -73,7 +75,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // 7. Average Order Value
+    // Hitung rata-rata nilai transaksi penjualan berstatus PAID
     const avgOrderData = await prisma.stockTransaction.aggregate({
       where: {
         stock: {
@@ -90,7 +92,7 @@ export async function GET(request: Request) {
       ? Math.round(Number(avgOrderData._avg.totalPrice))
       : 0;
 
-    // 8. Monthly Revenue (last 6 months)
+    // Ambil data transaksi penjualan dalam 6 bulan terakhir untuk tren pendapatan bulanan
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -110,6 +112,7 @@ export async function GET(request: Request) {
       },
     });
 
+    // Format agregasi data pendapatan bulanan untuk diagram grafik
     const monthlyRevenue = monthlyTransactions.reduce(
       (acc: any, transaction) => {
         const month = transaction.createdAt.toISOString().slice(0, 7);
@@ -129,7 +132,7 @@ export async function GET(request: Request) {
       }))
       .sort((a, b) => a.month.localeCompare(b.month));
 
-    // 9. Top 5 Stocks
+    // Ambil 5 stok terlaris berdasarkan kuantitas penjualan
     const topStocks = await prisma.stockTransaction.groupBy({
       by: ["stockId"],
       where: {
@@ -170,7 +173,7 @@ export async function GET(request: Request) {
       totalSold: item._sum.quantity || 0,
     }));
 
-    // 10. Active Harvest Announcements
+    // Hitung jumlah pengumuman panen yang sedang aktif
     const activeAnnouncements = await prisma.harvestAnnouncement.count({
       where: {
         supplierId: userId,
@@ -178,7 +181,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // 11. Confirmed Pre-Orders
+    // Hitung jumlah pre-order panen yang telah dikonfirmasi
     const confirmedPreOrders = await prisma.harvestPreOrder.count({
       where: {
         announcement: {
@@ -188,7 +191,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // 12. Recent Sales
+    // Ambil riwayat 5 transaksi penjualan terkini
     const recentSales = await prisma.stockTransaction.findMany({
       where: {
         stock: {
@@ -220,6 +223,7 @@ export async function GET(request: Request) {
       take: 5,
     });
 
+    // Kembalikan respon sukses data ringkasan dashboard supplier
     return NextResponse.json({
       success: true,
       message: "Dashboard data berhasil diambil",
@@ -245,6 +249,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

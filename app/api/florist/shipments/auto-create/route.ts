@@ -1,4 +1,4 @@
-// Endpoint untuk auto-create shipment dengan Biteship API (generate AWB otomatis)
+// Endpoint untuk pembuatan pengiriman otomatis dengan Biteship API dan pembuatan resi AWB
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
@@ -7,8 +7,10 @@ import { getFloristPickupAddress } from "@/lib/florist-pickup-address";
 import { getBiteshipClient, mapBiteshipStatus } from "@/lib/biteship";
 import type { BiteshipOrderRequest } from "@/lib/biteship";
 
+// Handler HTTP POST untuk membuat pengiriman otomatis Biteship dan menerbitkan nomor resi
 export async function POST(req: NextRequest) {
   try {
+    // Autentikasi sesi pengguna
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -21,6 +23,7 @@ export async function POST(req: NextRequest) {
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
 
+    // Verifikasi peran pengguna harus florist
     if (userRole !== "FLORIST") {
       return NextResponse.json(
         { success: false, message: "Hanya florist yang dapat membuat pengiriman otomatis" },
@@ -28,6 +31,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Parsing dan validasi kelengkapan parameter request body
     const body = await req.json();
     const { orderId, courierCompany, courierType, deliveryType, deliveryDate, deliveryTime } = body;
 
@@ -41,7 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get order dengan relasi lengkap
+    // Ambil data pesanan beserta relasi pembeli dan produk
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -72,7 +76,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate ownership (cek dari product florist)
+    // Validasi hak kepemilikan pesanan oleh florist
     const floristId = order.items[0]?.product?.florist?.id;
     if (!floristId || floristId !== userId) {
       return NextResponse.json(
@@ -81,7 +85,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate order status
+    // Validasi status pesanan harus PAID
     if (order.status !== "PAID") {
       return NextResponse.json(
         { success: false, message: "Hanya order dengan status PAID yang dapat dibuatkan pengiriman otomatis" },
@@ -89,7 +93,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check existing shipment
+    // Periksa apakah pengiriman untuk pesanan ini sudah ada
     const existingShipment = await prisma.shipment.findFirst({
       where: { orderId: order.id },
     });
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get customer address
+    // Ambil alamat default pembeli
     const customerAddress = order.user.addresses[0];
     if (!customerAddress) {
       return NextResponse.json(
@@ -110,7 +114,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Gunakan alamat pickup default dari profil florist.
+    // Gunakan alamat penjemputan default dari profil florist
     const florist = order.items[0].product.florist;
     const floristAddress = await getFloristPickupAddress(florist.id);
 
@@ -121,19 +125,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Prepare items untuk Biteship
+    // Siapkan data barang pesanan untuk Biteship
     const biteshipItems = order.items.map((item: any) => ({
       name: item.product?.name || "Produk Florist",
       description: item.product?.description || "",
-      value: Math.round(item.price), // IDR
+      value: Math.round(item.price),
       quantity: item.quantity,
-      height: 10, // cm (default, bisa disesuaikan)
-      length: 15, // cm
-      width: 10, // cm
-      weight: 500 * item.quantity, // gram (default 500g per produk)
+      height: 10,
+      length: 15,
+      width: 10,
+      weight: 500 * item.quantity,
     }));
 
-    // Create order di Biteship
+    // Buat pesanan pengiriman di Biteship
     const biteshipClient = getBiteshipClient();
     const biteshipRequest: BiteshipOrderRequest = {
       shipper_contact_name: florist.name,
@@ -196,14 +200,14 @@ export async function POST(req: NextRequest) {
       biteshipLabelUrl = null;
     }
 
-    // Create shipment di database dengan data dari Biteship
+    // Simpan data pengiriman ke database
     const shipment = await prisma.shipment.create({
       data: {
         orderId: order.id,
         trackingNumber: waybillId,
         courier: courierCompanyCode,
         service: courierType.toUpperCase(),
-        estimatedDays: 3, // Default estimasi hari pengiriman
+        estimatedDays: 3,
         shippingCost: Math.round(biteshipOrder.price),
         weight: biteshipItems.reduce((sum: number, item: any) => sum + item.weight * item.quantity, 0),
         status: mapBiteshipStatus(biteshipOrder.status),
@@ -212,13 +216,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Update order status ke PROCESSING
+    // Perbarui status pesanan menjadi PROCESSING
     await prisma.order.update({
       where: { id: order.id },
       data: { status: "PROCESSING" },
     });
 
-    // Create notification untuk customer
+    // Buat notifikasi status pesanan untuk pembeli
     await prisma.notification.create({
       data: {
         userId: order.userId,
@@ -228,6 +232,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Kembalikan respon sukses pembuatan pengiriman otomatis
     return NextResponse.json({
       success: true,
       message: "Pengiriman berhasil dibuat dengan nomor resi otomatis",
@@ -240,6 +245,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
+    // Tangani error internal server
     console.error("[AUTO_CREATE_SHIPMENT_ERROR]", error);
     console.error("[AUTO_CREATE_SHIPMENT_ERROR] Stack:", error.stack);
     console.error("[AUTO_CREATE_SHIPMENT_ERROR] Response:", error.response?.data);

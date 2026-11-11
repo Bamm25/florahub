@@ -2,15 +2,19 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// Handler HTTP GET untuk mengambil daftar pesanan florist
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist
     const { userId } = await requireAuth(request, ["FLORIST"]);
+    // Ambil parameter filter status dan paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
 
     const status = searchParams.get("status");
+    // Susun filter query pesanan florist
     const whereClause: any = {
       items: {
         some: {
@@ -22,6 +26,7 @@ export async function GET(request: Request) {
     };
     if (status) whereClause.status = status;
 
+    // Ambil daftar pesanan florist beserta relasi pembeli, produk, pembayaran, pengiriman, dan total data
     const [orders, total] = await Promise.all([
       await prisma.order.findMany({
         where: whereClause,
@@ -71,6 +76,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Kembalikan respon sukses beserta data paginasi pesanan florist
     return NextResponse.json({
       success: true,
       message: "Daftar pesanan berhasil diambil",
@@ -87,6 +93,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

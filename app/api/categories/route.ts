@@ -4,13 +4,16 @@ import { NextResponse } from "next/server";
 import { createCategorySchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP GET untuk mengambil daftar kategori bunga dengan paginasi
 export async function GET(request: Request) {
   try {
+    // Ambil parameter paginasi dari query URL
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
 
+    // Ambil data kategori dan hitung total data secara bersamaan
     const [categories, total] = await Promise.all([
       prisma.flowerCategory.findMany({
         orderBy: {
@@ -22,6 +25,7 @@ export async function GET(request: Request) {
       prisma.flowerCategory.count(),
     ]);
 
+    // Kirim respons daftar kategori beserta metadata paginasi
     return NextResponse.json({
       success: true,
       data: {
@@ -48,15 +52,18 @@ export async function GET(request: Request) {
   }
 }
 
+// Handler HTTP POST untuk membuat kategori bunga baru
 export async function POST(request: Request) {
   try {
+    // Validasi otorisasi pengguna sebagai admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
 
+    // Parse dan validasi payload penambahan kategori
     const body = await request.json();
     const validatedData = createCategorySchema.parse(body);
     const { name, slug, description } = validatedData;
 
-    // Business logic validation: unique name check
+    // Validasi keunikan nama kategori bunga
     const existingCategory = await prisma.flowerCategory.findUnique({
       where: { name: name.trim() },
     });
@@ -71,6 +78,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Simpan kategori bunga baru ke database
     const newCategory = await prisma.flowerCategory.create({
       data: {
         name: name.trim(),
@@ -79,6 +87,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Kembalikan respons berhasil pembuatan kategori
     return NextResponse.json(
       {
         success: true,

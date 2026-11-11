@@ -1,4 +1,6 @@
+// Deklarasi modul untuk pustaka klien Midtrans
 declare module "midtrans-client" {
+  // Kelas pembungkus antarmuka transaksi Midtrans Snap
   export class Snap {
     constructor(config: {
       isProduction: boolean;

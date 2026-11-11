@@ -3,21 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { getOrderHistory } from "@/lib/api/orders";
 import { OrderCard } from "@/components/customer/OrderCard";
 import SearchInput from "@/components/ui/SearchInput";
 import EmptyState from "@/components/ui/EmptyState";
-import {
-  Package,
-  Clock,
-  CheckCircle,
-  Truck,
-  XCircle,
-  Filter,
-  ShoppingBag,
-  Search,
-  type LucideIcon,
-} from "lucide-react";
+import { Search } from "lucide-react";
 
 // Interface untuk data order summary di halaman riwayat pesanan
 interface OrderSummary {
@@ -40,6 +31,16 @@ interface OrderSummary {
     status: string;
   };
 }
+
+const STATUS_FILTERS: Array<{ id: string; label: string }> = [
+  { id: "", label: "Semua" },
+  { id: "PENDING", label: "Menunggu Bayar" },
+  { id: "PAID", label: "Dibayar" },
+  { id: "PROCESSING", label: "Diproses" },
+  { id: "SHIPPED", label: "Dikirim" },
+  { id: "DELIVERED", label: "Selesai" },
+  { id: "CANCELLED", label: "Dibatalkan" },
+];
 
 // Halaman riwayat pesanan dengan filter status dan search
 export default function OrderHistoryPage() {
@@ -87,71 +88,17 @@ export default function OrderHistoryPage() {
     }
   }, [status, selectedStatus, currentPage, router]);
 
-  // Mapping status order ke icon, label, dan warna untuk display
-  const getStatusConfig = (status: string) => {
-    const configs: Record<
-      string,
-      { icon: LucideIcon; label: string; color: string; bgColor: string }
-    > = {
-      PENDING: {
-        icon: Clock,
-        label: "Menunggu Pembayaran",
-        color: "text-warning",
-        bgColor: "bg-warning/10",
-      },
-      PAID: {
-        icon: CheckCircle,
-        label: "Dibayar",
-        color: "text-success",
-        bgColor: "bg-success/10",
-      },
-      PROCESSING: {
-        icon: Package,
-        label: "Diproses",
-        color: "text-info",
-        bgColor: "bg-info/10",
-      },
-      SHIPPED: {
-        icon: Truck,
-        label: "Dikirim",
-        color: "text-tertiary",
-        bgColor: "bg-tertiary/10",
-      },
-      DELIVERED: {
-        icon: CheckCircle,
-        label: "Selesai",
-        color: "text-success",
-        bgColor: "bg-success/10",
-      },
-      CANCELLED: {
-        icon: XCircle,
-        label: "Dibatalkan",
-        color: "text-error",
-        bgColor: "bg-error/10",
-      },
-    };
-    return (
-      configs[status] || {
-        icon: Clock,
-        label: status,
-        color: "text-muted-foreground",
-        bgColor: "bg-surface-container",
-      }
-    );
-  };
-
   // Filter orders di client-side berdasarkan search query
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = orders.filter((order) => {
     if (!searchQuery.trim()) return true;
-    
+
     const query = searchQuery.toLowerCase().trim();
-    
-    // Search in all relevant fields with safe null checks
+
     return (
       (order.id && order.id.toLowerCase().includes(query)) ||
       (order.orderNumber && order.orderNumber.toLowerCase().includes(query)) ||
-      order.items?.some(item => 
-        item.product?.name?.toLowerCase().includes(query)
+      order.items?.some((item) =>
+        item.product?.name?.toLowerCase().includes(query),
       )
     );
   });
@@ -159,123 +106,150 @@ export default function OrderHistoryPage() {
   // Render loading skeleton untuk order list
   if (status === "loading" || isLoading) {
     return (
-      <div className="container-custom section-spacing">
-        <div className="h-10 w-64 animate-pulse rounded-xl bg-surface-container mb-8" />
-        <div className="space-y-4">
+      <main className="container-custom section-spacing">
+        <div className="mb-8 space-y-2">
+          <div className="h-8 w-48 animate-pulse rounded-lg bg-surface-container" />
+          <div className="h-4 w-72 animate-pulse rounded bg-surface-container-low" />
+        </div>
+        <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-32 animate-pulse rounded-xl bg-surface-container-low"
+              className="h-32 animate-pulse rounded-2xl bg-surface-container-low"
             />
           ))}
         </div>
-      </div>
+      </main>
     );
   }
 
   if (errorMessage) {
     return (
-      <div className="container-custom section-spacing">
-        <div className="card-elevated text-center">
-          <XCircle className="mx-auto h-16 w-16 text-error mb-4" />
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            {errorMessage}
-          </h2>
+      <main className="container-custom section-spacing">
+        <div className="mx-auto max-w-lg rounded-2xl border border-error/30 bg-error/5 p-8 text-center">
+          <p className="text-base font-semibold text-error">{errorMessage}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Periksa koneksi Anda dan muat ulang halaman.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="btn-secondary mt-5 h-10 px-5 text-sm"
+          >
+            Muat ulang
+          </button>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="container-custom section-spacing">
-      <h1 className="text-4xl font-bold text-foreground mb-8">Riwayat Pesanan</h1>
+    <main className="container-custom section-spacing">
+      {/* Header Halaman */}
+      <header className="mb-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Akun Saya
+        </p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Riwayat Pesanan
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Pantau status pesanan bunga, pembayaran, dan lacak pengiriman Anda di satu tempat.
+        </p>
+      </header>
 
-      {/* Search Bar */}
-      <div className="mb-6">
-        <SearchInput 
-          placeholder="Cari pesanan (Order ID, nama produk, atau nomor pesanan)"
+      {/* Kontrol: Search Bar & Filter Status */}
+      <div className="mb-6 space-y-4">
+        <SearchInput
+          placeholder="Cari pesanan (nomor order atau nama bunga)..."
           value={searchQuery}
           onChange={setSearchQuery}
         />
-      </div>
 
-      {/* Filter Status */}
-      <div className="mb-8 flex items-center gap-3 overflow-x-auto pb-2">
-        <Filter className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-        <button
-          onClick={() => setSelectedStatus("")}
-          className={`badge whitespace-nowrap transition-all ${
-            selectedStatus === ""
-              ? "bg-primary text-white"
-              : "bg-surface-container text-muted-foreground hover:bg-surface-container-high"
-          }`}
+        <div
+          role="tablist"
+          aria-label="Filter status pesanan"
+          className="flex gap-1.5 overflow-x-auto pb-1 text-xs sm:text-sm"
         >
-          Semua
-        </button>
-        {[
-          "PENDING",
-          "PAID",
-          "PROCESSING",
-          "SHIPPED",
-          "DELIVERED",
-          "CANCELLED",
-        ].map((statusFilter) => {
-          const config = getStatusConfig(statusFilter);
-          return (
-            <button
-              key={statusFilter}
-              onClick={() => setSelectedStatus(statusFilter)}
-              className={`badge whitespace-nowrap transition-all ${
-                selectedStatus === statusFilter
-                  ? "bg-primary text-white"
-                  : `${config.bgColor} ${config.color} hover:opacity-80`
-              }`}
-            >
-              {config.label}
-            </button>
-          );
-        })}
+          {STATUS_FILTERS.map((tab) => {
+            const isActive = selectedStatus === tab.id;
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => {
+                  setSelectedStatus(tab.id);
+                  setCurrentPage(1);
+                }}
+                className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 font-medium transition-colors ${
+                  isActive
+                    ? "bg-[#10121b] text-white shadow-xs"
+                    : "bg-surface-container-low text-muted-foreground hover:bg-surface-container hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Order List */}
       {orders.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-border bg-surface-container-low p-16 text-center">
-          <div className="inline-flex h-24 w-24 items-center justify-center rounded-2xl bg-surface-container mb-6">
-            <Package className="h-12 w-12 text-muted-foreground" />
-          </div>
-          <h3 className="text-2xl font-bold text-foreground mb-3">
-            Belum ada pesanan
-          </h3>
-          <p className="text-base text-muted-foreground mb-8 max-w-md mx-auto">
+        <section
+          aria-label="Belum ada pesanan"
+          className="rounded-2xl border border-dashed border-border bg-surface-container-low/60 p-12 text-center"
+        >
+          <h2 className="text-lg font-bold text-foreground">
+            {selectedStatus ? "Tidak ada pesanan dengan status ini" : "Belum ada pesanan"}
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
             {selectedStatus
-              ? `Tidak ada pesanan dengan status "${getStatusConfig(selectedStatus).label}"`
-              : "Mulai berbelanja bunga segar pilihan terbaik!"}
+              ? "Coba pilih filter lain atau lihat seluruh pesanan Anda."
+              : "Pilih karangan bunga segar dari florist pilihan di seluruh Jawa Timur."}
           </p>
-          <button
-            onClick={() => router.push("/")}
-            className="btn-primary"
-          >
-            <ShoppingBag className="mr-2 h-5 w-5" />
-            Lihat Katalog Bunga
-          </button>
-        </div>
+          <div className="mt-6 flex justify-center gap-3">
+            {selectedStatus ? (
+              <button
+                onClick={() => setSelectedStatus("")}
+                className="btn-secondary h-11 px-5 py-0 text-sm"
+              >
+                Tampilkan semua
+              </button>
+            ) : (
+              <Link
+                href="/products"
+                className="btn-primary h-11 px-6 py-0 text-sm"
+              >
+                Jelajahi Bunga
+              </Link>
+            )}
+          </div>
+        </section>
       ) : (
         <>
-          {/* Result count */}
-          <p className="text-sm text-muted-foreground mb-4">
-            Menampilkan {filteredOrders.length} dari {orders.length} pesanan
-          </p>
+          <div className="mb-4 flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              Menampilkan {filteredOrders.length} dari {orders.length} pesanan
+            </span>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-primary hover:underline"
+              >
+                Reset pencarian
+              </button>
+            )}
+          </div>
 
-          {/* Search empty state */}
           {filteredOrders.length === 0 && searchQuery ? (
-            <EmptyState 
-              icon={<Search className="h-16 w-16" />}
-              title="Tidak ada pesanan yang cocok"
-              description={`Tidak ada pesanan yang cocok dengan pencarian "${searchQuery}"`}
+            <EmptyState
+              icon={<Search className="h-10 w-10 text-muted-foreground" />}
+              title="Pesanan tidak ditemukan"
+              description={`Tidak ada pesanan yang sesuai dengan kata kunci "${searchQuery}".`}
               action={{
                 label: "Hapus pencarian",
                 onClick: () => setSearchQuery(""),
-                icon: <XCircle className="h-5 w-5" />
               }}
             />
           ) : (
@@ -300,26 +274,29 @@ export default function OrderHistoryPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-10 flex items-center justify-center gap-3">
+        <nav
+          aria-label="Navigasi halaman pesanan"
+          className="mt-10 flex items-center justify-center gap-2"
+        >
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-secondary h-10 px-4 py-0 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             Sebelumnya
           </button>
-          <span className="text-base font-medium text-foreground px-4">
+          <span className="px-3 text-xs font-medium tabular-nums text-muted-foreground">
             Halaman {currentPage} dari {totalPages}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-secondary h-10 px-4 py-0 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             Selanjutnya
           </button>
-        </div>
+        </nav>
       )}
-    </div>
+    </main>
   );
 }

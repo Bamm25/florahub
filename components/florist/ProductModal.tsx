@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Loader2, Package, Upload, X } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
 
@@ -58,10 +58,10 @@ export default function ProductModal({
     if (!file) return;
     e.target.value = "";
 
-    // Reset error
+    // Reset pesan error upload sebelumnya
     setUploadError("");
 
-    // Client-side validation
+    // Validasi tipe format dan batas ukuran file gambar (maks 5MB)
     const maxSize = 5 * 1024 * 1024; // 5MB
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 
@@ -75,7 +75,7 @@ export default function ProductModal({
       return;
     }
 
-    // Upload file
+    // Kirim file gambar ke endpoint storage R2
     try {
       setIsUploading(true);
 
@@ -170,7 +170,7 @@ export default function ProductModal({
           })) : []}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
             label="Harga (Rp)"
             name="price"
@@ -218,7 +218,7 @@ export default function ProductModal({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-border hover:border-primary rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-border hover:border-foreground/30 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Upload className="h-5 w-5 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
@@ -239,7 +239,7 @@ export default function ProductModal({
               <button
                 type="button"
                 onClick={handleRemoveImage}
-                className="absolute top-2 right-2 bg-error text-white p-2 rounded-full shadow-lg hover:bg-error/90 transition-colors opacity-0 group-hover:opacity-100"
+                className="absolute top-2 right-2 bg-error text-white p-2 rounded-xl hover:bg-error/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -295,7 +295,7 @@ export default function ProductModal({
         />
 
         <div className="space-y-3 pt-2">
-          <label className="flex items-center gap-3 cursor-pointer">
+          <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-border bg-surface-container-low/40 px-3 py-2.5">
             <input
               type="checkbox"
               checked={formData.isActive}
@@ -307,7 +307,7 @@ export default function ProductModal({
             </span>
           </label>
 
-          <label className="flex items-center gap-3 cursor-pointer">
+          <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-border bg-surface-container-low/40 px-3 py-2.5">
             <input
               type="checkbox"
               checked={formData.isFeatured}
@@ -320,11 +320,11 @@ export default function ProductModal({
           </label>
         </div>
 
-        <div className="flex gap-3 pt-4">
+        <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 btn-secondary text-sm"
+            className="btn-secondary min-h-11 flex-1 text-sm"
             disabled={isSubmitting}
           >
             Batal
@@ -332,7 +332,7 @@ export default function ProductModal({
           <button
             type="submit"
             disabled={isSubmitting || isUploading || previewError}
-            className="flex-1 btn-primary text-sm"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 flex-1"
           >
             {isSubmitting ? (
               <>
@@ -341,7 +341,6 @@ export default function ProductModal({
               </>
             ) : (
               <>
-                <Package className="w-4 h-4" />
                 {mode === "create" ? "Tambah Produk" : "Simpan Perubahan"}
               </>
             )}

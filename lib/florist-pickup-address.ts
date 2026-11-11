@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 
-// Ambil alamat pickup default milik florist yang valid.
+// Fungsi untuk mengambil alamat penjemputan utama milik florist
 export async function getFloristPickupAddress(userId: string) {
   const profile = await prisma.floristProfile.findUnique({
     where: { userId },

@@ -2,14 +2,14 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-// POST: Calculate shipping cost dari florist ke customer address menggunakan Biteship
+// Handler HTTP POST untuk menghitung perkiraan tarif pengiriman dari florist ke alamat pelanggan
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const { addressId, items } = body;
 
-    // Validate input params
+    // Validasi kelengkapan parameter alamat dan daftar produk
     if (!addressId || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         {
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch customer address untuk destination
+    // Ambil data alamat tujuan pelanggan
     const customerAddress = await prisma.address.findUnique({
       where: { id: addressId },
     });
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch produk untuk ambil floristId dan calculate weight
+    // Ambil data produk untuk mendapatkan ID florist dan bobot barang
     const productIds = items.map((item: { productId: string }) => item.productId);
     const products = await prisma.product.findMany({
       where: { id: { in: productIds } },
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Group items by florist (untuk support multi-florist checkout di masa depan)
+    // Kelompokkan item produk berdasarkan ID florist pengirim
     const floristGroups = new Map<string, { floristId: string; totalWeight: number; products: string[] }>();
     
     for (const item of items) {
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       if (!product) continue;
 
       const qty = item.quantity || 1;
-      const weight = product.weight || 500; // Default 500g jika tidak ada weight
+      const weight = product.weight || 500;
 
       if (!floristGroups.has(product.floristId)) {
         floristGroups.set(product.floristId, {
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       group.products.push(product.name);
     }
 
-    // Untuk sekarang ambil florist pertama (single-florist cart)
+    // Ambil data kelompok florist pertama untuk transaksi toko tunggal
     const firstGroup = Array.from(floristGroups.values())[0];
     if (!firstGroup) {
       return NextResponse.json(
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch florist pickup address via FloristProfile
+    // Ambil alamat asal penjemputan florist melalui profil florist
     const floristProfile = await prisma.floristProfile.findUnique({
       where: { userId: firstGroup.floristId },
       include: {
@@ -112,10 +112,10 @@ export async function POST(request: Request) {
 
     const originAddress = floristProfile.defaultAddress;
 
-    // Hit Biteship API untuk get shipping rates
+    // Periksa ketersediaan kredensial API Biteship
     const biteshipApiKey = process.env.BITESHIP_API_KEY;
     if (!biteshipApiKey) {
-      // Fallback ke flat rate 15rb jika Biteship tidak dikonfigurasi
+      // Gunakan tarif flat cadangan jika kunci API Biteship belum disetel
       return NextResponse.json({
         success: true,
         message: "Shipping rate dihitung (fallback flat rate)",
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Biteship pricing API request
+    // Siapkan muatan permintaan ke API Biteship
     const biteshipPayload = {
       origin_postal_code: parseInt(originAddress.postalCode),
       destination_postal_code: parseInt(customerAddress.postalCode),
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
         {
           name: `Produk bunga (${firstGroup.products.length} item)`,
           description: firstGroup.products.join(", "),
-          value: 100000, // Placeholder value untuk insurance calculation
+          value: 100000,
           weight: firstGroup.totalWeight,
           quantity: 1,
         },
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
     if (!biteshipResponse.ok) {
       const errorText = await biteshipResponse.text();
       console.error("[BITESHIP_RATES_ERROR]", biteshipResponse.status, errorText);
-      // Fallback ke flat rate jika Biteship error
+      // Gunakan tarif flat cadangan jika terjadi kesalahan pada API Biteship
       return NextResponse.json({
         success: true,
         message: "Shipping rate dihitung (fallback karena API error)",
@@ -191,7 +191,7 @@ export async function POST(request: Request) {
 
     const biteshipData = await biteshipResponse.json();
 
-    // Transform Biteship response ke format kita
+    // Format respons opsi tarif kurir dari Biteship
     const rates = biteshipData.pricing
       .filter((rate: { available_for_cash_on_delivery: boolean; available_for_instant_waybill_id: boolean }) => 
         rate.available_for_cash_on_delivery === false && 
@@ -211,7 +211,7 @@ export async function POST(request: Request) {
       .sort((a: { price: number }, b: { price: number }) => a.price - b.price);
 
     if (rates.length === 0) {
-      // Fallback jika tidak ada rates tersedia
+      // Gunakan opsi kurir default jika tidak ada tarif yang memenuhi kriteria
       return NextResponse.json({
         success: true,
         message: "Tidak ada kurir tersedia, menggunakan default rate",
@@ -234,6 +234,7 @@ export async function POST(request: Request) {
       });
     }
 
+    // Kirim respons daftar opsi tarif pengiriman beserta kurir termurah
     return NextResponse.json({
       success: true,
       message: "Shipping rates berhasil dihitung",

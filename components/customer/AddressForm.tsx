@@ -134,7 +134,7 @@ export default function AddressForm({
     setError(null);
 
     try {
-      // Trim semua field text sebelum submit
+      // Bersihkan spasi di awal dan akhir teks sebelum data dikirim
       const trimmedData: AddressFormData = {
         ...formData,
         label: formData.label.trim(),
@@ -156,90 +156,110 @@ export default function AddressForm({
     <Modal
       isOpen
       onClose={onCancel}
-      title={address ? "Edit Alamat" : "Tambah Alamat Baru"}
+      title={address ? "Ubah alamat" : "Tambah alamat baru"}
+      subtitle="Alamat ini dipakai florist dan kurir untuk mengantar pesanan Anda."
       size="md"
     >
       {error && (
-        <div className="mb-4 rounded-lg border border-error/20 bg-error/10 p-4 text-sm text-error">
+        <div
+          role="alert"
+          className="mb-5 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error"
+        >
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <FormField
-          label="Label Alamat"
-          name="label"
-          value={formData.label}
-          onChange={set("label")}
-          error={formErrors.label}
-          placeholder="Contoh: Rumah, Kantor, Apartemen"
-          required
-        />
+      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+        {/* Penerima */}
+        <fieldset className="space-y-4">
+          <legend className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Penerima
+          </legend>
+          <FormField
+            label="Label Alamat"
+            name="label"
+            value={formData.label}
+            onChange={set("label")}
+            error={formErrors.label}
+            placeholder="Contoh: Rumah, Kantor, Apartemen"
+            required
+          />
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            label="Nama Penerima"
-            name="recipientName"
-            value={formData.recipientName}
-            onChange={set("recipientName")}
-            error={formErrors.recipientName}
-            placeholder="Nama lengkap penerima"
-            required
-          />
-          <FormField
-            label="No. Telepon"
-            name="phone"
-            value={formData.phone}
-            onChange={set("phone")}
-            error={formErrors.phone}
-            placeholder="08xxxxxxxxxx"
-            required
-          />
-        </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              label="Nama Penerima"
+              name="recipientName"
+              value={formData.recipientName}
+              onChange={set("recipientName")}
+              error={formErrors.recipientName}
+              placeholder="Nama lengkap penerima"
+              required
+            />
+            <FormField
+              label="No. Telepon"
+              name="phone"
+              value={formData.phone}
+              onChange={set("phone")}
+              error={formErrors.phone}
+              placeholder="08xxxxxxxxxx"
+              required
+            />
+          </div>
+        </fieldset>
 
-        <FormField
-          label="Alamat Lengkap"
-          name="fullAddress"
-          type="textarea"
-          value={formData.fullAddress}
-          onChange={set("fullAddress")}
-          error={formErrors.fullAddress}
-          placeholder="Jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
-          rows={3}
-          required
-        />
+        {/* Lokasi */}
+        <fieldset className="space-y-4 border-t border-border pt-5">
+          <legend className="sr-only">Lokasi</legend>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Lokasi
+          </p>
+          <FormField
+            label="Alamat Lengkap"
+            name="fullAddress"
+            type="textarea"
+            value={formData.fullAddress}
+            onChange={set("fullAddress")}
+            error={formErrors.fullAddress}
+            placeholder="Jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
+            rows={3}
+            required
+          />
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FormField
-            label="Kota"
-            name="city"
-            value={formData.city}
-            onChange={set("city")}
-            error={formErrors.city}
-            placeholder="Contoh: Jakarta Selatan"
-            required
-          />
-          <FormField
-            label="Provinsi"
-            name="province"
-            value={formData.province}
-            onChange={set("province")}
-            error={formErrors.province}
-            placeholder="Contoh: DKI Jakarta"
-            required
-          />
-          <FormField
-            label="Kode Pos"
-            name="postalCode"
-            value={formData.postalCode}
-            onChange={set("postalCode")}
-            error={formErrors.postalCode}
-            placeholder="12345"
-            required
-          />
-        </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <FormField
+              label="Kota"
+              name="city"
+              value={formData.city}
+              onChange={set("city")}
+              error={formErrors.city}
+              placeholder="Contoh: Surabaya"
+              required
+            />
+            <FormField
+              label="Provinsi"
+              name="province"
+              value={formData.province}
+              onChange={set("province")}
+              error={formErrors.province}
+              placeholder="Contoh: Jawa Timur"
+              required
+            />
+            <FormField
+              label="Kode Pos"
+              name="postalCode"
+              value={formData.postalCode}
+              onChange={set("postalCode")}
+              error={formErrors.postalCode}
+              placeholder="12345"
+              required
+            />
+          </div>
+        </fieldset>
 
-        <div className="flex items-center gap-2">
+        <label
+          htmlFor="isDefault"
+          className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface-container-low px-4 py-3"
+        >
           <input
             type="checkbox"
             id="isDefault"
@@ -247,27 +267,33 @@ export default function AddressForm({
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, isDefault: e.target.checked }))
             }
-            className="h-4 w-4 rounded border-border text-success focus:ring-success/20"
+            className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
           />
-          <label htmlFor="isDefault" className="text-sm text-foreground/80">
-            Jadikan alamat utama
-          </label>
-        </div>
+          <span>
+            <span className="block text-sm font-medium text-foreground">
+              Jadikan alamat utama
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Dipilih otomatis saat checkout.
+            </span>
+          </span>
+        </label>
 
-        <div className="flex gap-3 pt-4">
+        <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onCancel}
-            className="btn-secondary flex-1"
+            disabled={isSubmitting}
+            className="btn-secondary h-11 px-5 py-0 text-sm"
           >
             Batal
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex-1 rounded-lg bg-success px-4 py-2 text-sm font-semibold text-white hover:bg-success/90 disabled:cursor-not-allowed disabled:bg-muted-foreground/40"
+            className="btn-primary h-11 px-6 py-0 text-sm disabled:cursor-not-allowed"
           >
-            {isSubmitting ? "Menyimpan..." : "Simpan Alamat"}
+            {isSubmitting ? "Menyimpan..." : "Simpan alamat"}
           </button>
         </div>
       </form>

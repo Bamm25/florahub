@@ -1,5 +1,6 @@
-import { X, Loader2, Package, Flower2 } from "lucide-react";
+import { X, Loader2, Package } from "lucide-react";
 
+// Interface data inventaris bahan baku florist
 interface InventoryItem {
   id: string;
   quantity: number;
@@ -23,6 +24,7 @@ interface InventoryItem {
   };
 }
 
+// Props interface untuk modal penyesuaian inventaris bahan baku
 interface InventoryModalProps {
   inventory: InventoryItem;
   formData: {
@@ -36,6 +38,7 @@ interface InventoryModalProps {
   onFormChange: (field: string, value: string) => void;
 }
 
+// Modal formulir untuk penyesuaian jumlah stok dan lokasi penyimpanan bahan baku
 export default function InventoryModal({
   inventory,
   formData,
@@ -46,46 +49,46 @@ export default function InventoryModal({
   onFormChange,
 }: InventoryModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-      <div className="card-elevated w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="sticky top-0 z-50 bg-surface-container-low border-b border-border p-6 flex items-center justify-between flex-shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden">
+        <div className="sticky top-0 z-50 bg-[#181720] text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 className="text-xl font-semibold">Update Inventory</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Perbarui quantity atau lokasi penyimpanan
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Penyesuaian Fisik</p>
+            <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
+              Update Inventori Bunga
+            </h2>
+            <p className="text-xs text-zinc-300 mt-0.5">
+              Perbarui jumlah stok fisik atau lokasi cold storage
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+        <form onSubmit={onSubmit} className="min-h-0 p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
           {formErrors.submit && (
             <div className="p-3 bg-error/5 border border-error/20 rounded-xl text-sm text-error">
               {formErrors.submit}
             </div>
           )}
 
-          <div className="p-4 bg-surface-container-low rounded-xl">
-            <div className="flex items-center gap-3">
-              <Flower2 className="w-8 h-8 text-primary" />
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {inventory.stock?.name || 'Unknown'}
-                  {inventory.stock?.variety && (
-                    <span className="text-muted-foreground">
-                      {" "}({inventory.stock.variety})
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Supplier: {inventory.stock?.supplier?.name || 'Unknown'}
-                </p>
-              </div>
+          <div className="p-4 bg-surface-container-low rounded-xl border border-border/80">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                Supplier: {inventory.stock?.supplier?.name || "Unknown"}
+              </p>
+              <p className="text-base font-semibold text-foreground mt-0.5">
+                {inventory.stock?.name || "Unknown"}
+                {inventory.stock?.variety && (
+                  <span className="text-sm text-muted-foreground font-normal ml-1">
+                    ({inventory.stock.variety})
+                  </span>
+                )}
+              </p>
             </div>
           </div>
 
@@ -124,11 +127,11 @@ export default function InventoryModal({
             />
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 btn-secondary text-sm"
+              className="btn-secondary min-h-11 flex-1 text-sm"
               disabled={isSubmitting}
             >
               Batal
@@ -136,7 +139,7 @@ export default function InventoryModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 btn-primary text-sm"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:opacity-50 min-h-11 flex-1"
             >
               {isSubmitting ? (
                 <>

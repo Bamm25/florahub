@@ -2,9 +2,12 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// Handler HTTP GET untuk mengambil metrik ringkasan dan statistik dashboard florist
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Hitung total pendapatan dari pesanan berstatus DELIVERED
     const revenueData = await prisma.order.aggregate({
       where: {
         items: {
@@ -23,6 +26,7 @@ export async function GET(request: Request) {
 
     const totalRevenue = revenueData._sum.totalAmount || 0;
 
+    // Hitung jumlah total pesanan yang melibatkan produk florist
     const totalOrders = await prisma.order.count({
       where: {
         items: {
@@ -35,6 +39,7 @@ export async function GET(request: Request) {
       },
     });
 
+    // Hitung jumlah produk yang telah terjual pada pesanan DELIVERED
     const productsSoldData = await prisma.orderItem.aggregate({
       where: {
         product: {
@@ -50,6 +55,7 @@ export async function GET(request: Request) {
     });
     const productsSold = productsSoldData._sum.quantity || 0;
 
+    // Hitung jumlah produk florist yang aktif
     const activeProducts = await prisma.product.count({
       where: {
         floristId: userId,
@@ -57,6 +63,7 @@ export async function GET(request: Request) {
       },
     });
 
+    // Hitung jumlah produk florist dengan stok menipis (di bawah 10 unit)
     const lowStockProducts = await prisma.product.count({
       where: {
         floristId: userId,
@@ -67,6 +74,7 @@ export async function GET(request: Request) {
       },
     });
 
+    // Hitung nilai rata-rata ulasan produk florist
     const ratingData = await prisma.review.aggregate({
       where: {
         product: {
@@ -82,6 +90,7 @@ export async function GET(request: Request) {
       ? Number(ratingData._avg.rating.toFixed(1))
       : 0;
 
+    // Ambil data pesanan selesai dalam 6 bulan terakhir untuk tren pendapatan bulanan
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -105,8 +114,9 @@ export async function GET(request: Request) {
       },
     });
 
+    // Susun agregasi pendapatan bulanan untuk diagram grafik
     const monthlyRevenue = monthlyOrders.reduce((acc: any, order) => {
-      const month = order.createdAt.toISOString().slice(0, 7); // "2026-10"
+      const month = order.createdAt.toISOString().slice(0, 7);
       if (!acc[month]) {
         acc[month] = 0;
       }
@@ -121,6 +131,7 @@ export async function GET(request: Request) {
       }))
       .sort((a, b) => a.month.localeCompare(b.month));
 
+    // Ambil 5 produk terlaris berdasarkan kuantitas penjualan
     const topProducts = await prisma.orderItem.groupBy({
       by: ["productId"],
       where: {
@@ -162,6 +173,7 @@ export async function GET(request: Request) {
       totalSold: item._sum.quantity || 0,
     }));
 
+    // Ambil 5 pesanan terkini yang masuk ke toko florist
     const recentOrders = await prisma.order.findMany({
       where: {
         items: {
@@ -191,6 +203,7 @@ export async function GET(request: Request) {
       take: 5,
     });
 
+    // Hitung jumlah pesanan yang sedang menunggu atau dalam proses
     const pendingOrders = await prisma.order.count({
       where: {
         items: {
@@ -206,7 +219,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // Gunakan nama toko dari profil untuk dashboard.
+    // Ambil data profil toko florist untuk informasi dashboard
     const floristProfile = await prisma.floristProfile.findUnique({
       where: { userId },
       select: {
@@ -225,7 +238,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // Get default address
+    // Ambil alamat penjemputan default toko florist
     let defaultAddress = null;
     if (floristProfile?.defaultAddressId) {
       defaultAddress = await prisma.address.findFirst({
@@ -233,6 +246,7 @@ export async function GET(request: Request) {
       });
     }
 
+    // Kembalikan respon sukses seluruh metrik dashboard florist
     return NextResponse.json({
       success: true,
       message: "Dashboard data berhasil diambil",
@@ -264,6 +278,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

@@ -36,6 +36,7 @@ export interface Shipment {
   };
 }
 
+// Props interface untuk komponen tabel pengiriman florist
 interface ShipmentTableProps {
   shipments: Shipment[];
   onEdit: (shipment: Shipment) => void;
@@ -43,6 +44,7 @@ interface ShipmentTableProps {
   syncingId?: string | null;
 }
 
+// Komponen tabel daftar pengiriman florist dengan aksi sinkronisasi Biteship dan cetak label
 export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: ShipmentTableProps) {
   const formatRupiah = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -53,18 +55,18 @@ export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: Shipment
   };
 
   return (
-    <div className="card-elevated overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-surface-container-low border-b border-border">
+    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+      <div className="overflow-x-auto overscroll-x-contain">
+        <table className="w-full min-w-[820px]">
+          <thead className="bg-[#181720] border-b border-zinc-800">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Order</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Customer</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Courier</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Nomor Resi</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">Status</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Dibuat</th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">Aksi</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Order</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Customer</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Kurir</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Nomor Resi</th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-300">Status</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Dibuat</th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-300">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -82,7 +84,7 @@ export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: Shipment
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="text-sm font-medium text-foreground">{shipment.courier}</p>
                     {shipment.biteshipOrderId && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-secondary/10 text-secondary">
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-surface-container-low text-foreground">
                         Auto
                       </span>
                     )}
@@ -92,7 +94,7 @@ export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: Shipment
                 <td className="px-4 py-3">
                   <p className="text-sm text-foreground font-mono">{shipment.trackingNumber || "-"}</p>
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td scope="col" className="px-4 py-3 text-center">
                   <StatusBadge status={shipment.status} variant="shipment" />
                 </td>
                 <td className="px-4 py-3">
@@ -105,7 +107,7 @@ export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: Shipment
                       <button
                         onClick={() => onSync(shipment)}
                         disabled={syncingId === shipment.id || shipment.status === "DELIVERED" || shipment.status === "CANCELLED"}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-primary bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-primary border border-primary/30 bg-card rounded-xl hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Sinkronkan status dari Biteship"
                       >
                         {syncingId === shipment.id ? (
@@ -127,7 +129,7 @@ export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: Shipment
                         }
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-muted-foreground bg-surface-container-low hover:bg-surface-container rounded-xl transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-foreground border border-border bg-card hover:bg-surface-container-low rounded-xl transition-colors"
                         title="Buka label pengiriman Biteship"
                       >
                         <FileText className="w-3.5 h-3.5" />
@@ -139,7 +141,7 @@ export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: Shipment
                     <button
                       onClick={() => onEdit(shipment)}
                       disabled={shipment.status === "DELIVERED" || shipment.status === "CANCELLED"}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-primary bg-primary/5 rounded-xl hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Edit className="w-3.5 h-3.5" />
                       Update

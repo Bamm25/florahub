@@ -1,11 +1,4 @@
-/**
- * Formatting utilities for FloraHub
- * Shared across Customer and Florist roles
- */
-
-/**
- * Format number to Indonesian Rupiah currency
- */
+// Fungsi untuk memformat nilai angka ke format mata uang Rupiah
 export function formatRupiah(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -14,10 +7,7 @@ export function formatRupiah(amount: number): string {
   }).format(amount);
 }
 
-/**
- * Format date to Indonesian locale (day month year)
- * Example: "6 Nov 2026"
- */
+// Fungsi untuk memformat tanggal ke format standar Indonesia
 export function formatDate(date: string | Date | null): string {
   if (!date) return "-";
   return new Date(date).toLocaleDateString("id-ID", {
@@ -27,10 +17,7 @@ export function formatDate(date: string | Date | null): string {
   });
 }
 
-/**
- * Format datetime to Indonesian locale with time
- * Example: "6 Nov 2026, 16.45"
- */
+// Fungsi untuk memformat tanggal dan waktu ke format standar Indonesia
 export function formatDateTime(date: string | Date | null): string {
   if (!date) return "-";
   return new Date(date).toLocaleString("id-ID", {
@@ -42,10 +29,7 @@ export function formatDateTime(date: string | Date | null): string {
   });
 }
 
-/**
- * Format timestamp to relative time
- * Example: "5 menit yang lalu", "2 jam yang lalu", "3 hari yang lalu"
- */
+// Fungsi untuk memformat tanggal menjadi keterangan waktu relatif
 export function formatRelativeTime(date: string | Date): string {
   const now = new Date();
   const notifDate = new Date(date);

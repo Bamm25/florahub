@@ -3,15 +3,19 @@ import prisma from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 
+// Handler HTTP GET untuk mengambil daftar katalog produk florist
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist
     const { userId } = await requireAuth(request, ["FLORIST"]);
+    // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
     const whereClause = { floristId: userId };
 
+    // Ambil daftar produk beserta relasi kategori, komponen bahan baku, dan total data
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where: whereClause,
@@ -49,6 +53,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Kembalikan respon sukses beserta data paginasi produk
     return NextResponse.json({
       success: true,
       message: "Daftar produk florist berhasil diambil",
@@ -65,6 +70,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -75,10 +81,13 @@ export async function GET(request: Request) {
   }
 }
 
+// Handler HTTP POST untuk menambahkan produk baru florist
 export async function POST(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist
     const { userId } = await requireAuth(request, ["FLORIST"]);
 
+    // Parsing dan validasi format JSON request body
     let body: unknown;
     try {
       body = await request.json();
@@ -109,7 +118,7 @@ export async function POST(request: Request) {
       isFeatured,
     } = body as Record<string, unknown>;
 
-    // 1. Validasi name
+    // Validasi nama produk
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
         { success: false, message: "Nama produk wajib diisi" },
@@ -117,7 +126,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Validasi price
+    // Validasi nominal harga produk
     if (typeof price !== "number" || !Number.isSafeInteger(price) || price < 0) {
       return NextResponse.json(
         { success: false, message: "Harga produk harus berupa bilangan bulat tidak negatif" },
@@ -125,7 +134,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Validasi stock
+    // Validasi kuantitas stok produk
     if (typeof stock !== "number" || !Number.isSafeInteger(stock) || stock < 0) {
       return NextResponse.json(
         { success: false, message: "Stok produk harus berupa bilangan bulat tidak negatif" },
@@ -133,7 +142,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Validasi categoryId
+    // Validasi ID kategori produk
     if (!categoryId || typeof categoryId !== "string" || !categoryId.trim()) {
       return NextResponse.json(
         { success: false, message: "Kategori wajib dipilih" },
@@ -141,6 +150,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Cari dan periksa keberadaan kategori bunga di database
     const category = await prisma.flowerCategory.findUnique({
       where: { id: categoryId.trim() },
     });
@@ -152,7 +162,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate optional values before any storage or database operation.
+    // Validasi tipe dan rentang nilai opsional produk
     const validWeight = weight == null || (typeof weight === "number" && Number.isSafeInteger(weight) && weight >= 0);
     const validTags = tags === undefined || (Array.isArray(tags) && tags.every((tag: unknown) => typeof tag === "string"));
     if (name.trim().length > 200 || !validWeight || !validTags ||
@@ -164,7 +174,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Validasi file upload sukses sebelum create product record
+    // Validasi keberadaan URL gambar produk
     if (!image || typeof image !== "string" || !image.trim()) {
       return NextResponse.json(
         { success: false, message: "Gambar produk wajib diunggah terlebih dahulu" },
@@ -172,6 +182,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validasi domain publik penyimpanan gambar Cloudflare R2
     const trimmedImage = image.trim();
     const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
     if (!publicBase || !trimmedImage.startsWith(`${publicBase}/products/`)) {
@@ -181,7 +192,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // A URL alone does not prove that the upload completed successfully.
+    // Verifikasi ketersediaan dan tipe konten file gambar di Cloudflare R2
     try {
       const uploaded = await fetch(trimmedImage, {
         method: "HEAD",
@@ -201,7 +212,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 6. Generate unique slug
+    // Buat slug unik produk dengan pengidentifikasi acak
     let baseSlug = name
       .trim()
       .toLowerCase()
@@ -212,10 +223,9 @@ export async function POST(request: Request) {
       baseSlug = `product-${Date.now()}`;
     }
 
-    // UUID suffix avoids racing a read-before-write uniqueness check.
     const slug = `${baseSlug.slice(0, 112)}-${randomUUID()}`;
 
-    // Format optional fields
+    // Format nilai field opsional produk
     const trimmedDesc =
       description === null || description === undefined
         ? null
@@ -234,7 +244,7 @@ export async function POST(request: Request) {
     const featured = typeof isFeatured === "boolean" ? isFeatured : false;
     const imagesArray = [trimmedImage];
 
-    // Create product di database
+    // Simpan data produk baru ke database
     const newProduct = await prisma.product.create({
       data: {
         name: name.trim(),
@@ -268,6 +278,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Kembalikan respon sukses pembuatan produk
     return NextResponse.json(
       {
         success: true,
@@ -277,6 +288,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

@@ -4,12 +4,15 @@ import { NextResponse } from "next/server";
 import { registerSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP POST untuk mendaftarkan pengguna baru
 export async function POST(request: Request) {
   try {
+    // Parse dan validasi data registrasi dari payload permintaan
     const body = await request.json();
     const validatedData = registerSchema.parse(body);
     const { name, email, password, role, phone } = validatedData;
 
+    // Periksa apakah email sudah terdaftar di database
     const emailExisting = await prisma.user.findUnique({
       where: { email },
     });
@@ -26,8 +29,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // Enkripsi kata sandi pengguna sebelum disimpan
     const hashPassword = await bcrypt.hash(password, 10);
 
+    // Buat data pengguna baru di database
     const newUser = await prisma.user.create({
       data: {
         name,
@@ -45,6 +50,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Kirim respons sukses registrasi pengguna
     return NextResponse.json(
       {
         success: true,
@@ -56,6 +62,7 @@ export async function POST(request: Request) {
       },
     );
   } catch (error) {
+    // Tangani kesalahan validasi skema input
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

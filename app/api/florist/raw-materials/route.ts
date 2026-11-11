@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-// Schema validasi pembuatan bahan baku / produk mentah mandiri oleh florist
+// Skema validasi pembuatan bahan baku mandiri oleh florist
 const createRawMaterialSchema = z.object({
   name: z.string().min(2, "Nama bahan baku minimal 2 karakter"),
   category: z.string().default("Bunga Segar"),
@@ -15,7 +15,7 @@ const createRawMaterialSchema = z.object({
   location: z.string().optional().nullable(),
 });
 
-// GET: Mengambil daftar bahan baku produk mentah florist
+// Handler HTTP GET untuk mengambil daftar bahan baku produk mentah florist
 export async function GET(request: Request) {
   try {
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
@@ -140,10 +140,12 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Menambahkan produk mentah / bahan baku baru secara mandiri
+// Handler HTTP POST untuk menambahkan bahan baku baru secara mandiri
 export async function POST(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = createRawMaterialSchema.parse(body);
 
@@ -158,9 +160,9 @@ export async function POST(request: Request) {
       location,
     } = validated;
 
-    // Buat Stock dan FloristInventory secara atomik dalam satu transaksi
+    // Buat data stok dan inventaris florist dalam transaksi database atomic
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Buat record stock bahan baku dengan kepemilikan florist sendiri
+      // Buat data stok bahan baku dengan kepemilikan florist sendiri
       const stock = await tx.stock.create({
         data: {
           supplierId: userId,
@@ -175,7 +177,7 @@ export async function POST(request: Request) {
         },
       });
 
-      // 2. Hubungkan langsung ke inventori florist agar siap dipakai di BOM produk
+      // Hubungkan langsung ke inventori florist agar siap dipakai di BOM produk
       const inventory = await tx.floristInventory.create({
         data: {
           floristId: userId,

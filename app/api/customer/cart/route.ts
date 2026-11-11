@@ -2,12 +2,12 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-// GET: Fetch cart customer dengan semua items dan summary
+// Handler HTTP GET untuk mengambil isi keranjang belanja pelanggan beserta ringkasannya
 export async function GET(request: Request) {
   try {
-    // Validate user session dan extract user ID
+    // Validasi sesi pengguna dan ambil ID pelanggan
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
-    // Query cart dengan items dan product details
+    // Ambil data keranjang beserta relasi item dan rincian produk
     const cart = await prisma.cart.findUnique({
       where: { userId },
       include: {
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // Handle empty cart case
+    // Tangani kondisi ketika keranjang belum memiliki item
     if (!cart || cart.items.length === 0) {
       return NextResponse.json(
         {
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Calculate subtotal untuk setiap item
+    // Hitung subtotal harga untuk setiap item produk
     const itemsWithSubtotal = cart.items.map((item) => ({
       id: item.id,
       productId: item.productId,
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       createdAt: item.createdAt,
     }));
 
-    // Calculate summary totals
+    // Hitung akumulasi ringkasan jumlah item dan total harga
     const summary = {
       totalItems: cart.items.length,
       totalQuantity: cart.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       ),
     };
 
-    // Return response dengan cart, items, dan summary
+    // Kirim respons berhasil berisi data keranjang dan ringkasan
     return NextResponse.json(
       {
         success: true,
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
       { status: 200 },
     );
   } catch (error) {
-    // Handle auth errors dan return generic error response
+    // Tangani galat otentikasi dan kesalahan server internal
     if (error instanceof NextResponse) {
       return error;
     }

@@ -3,11 +3,13 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-// GET /api/florist/profile - Get florist profile dengan addresses
+// Handler HTTP GET untuk mengambil data profil toko florist beserta alamat
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
 
+    // Cari data profil toko florist di database
     const profile = await prisma.floristProfile.findUnique({
       where: { userId },
       select: {
@@ -23,6 +25,7 @@ export async function GET(request: Request) {
       },
     });
 
+    // Validasi keberadaan profil toko florist
     if (!profile) {
       return NextResponse.json(
         {
@@ -33,7 +36,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get user info
+    // Ambil data akun pengguna florist
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -43,12 +46,13 @@ export async function GET(request: Request) {
       },
     });
 
-    // Get all addresses untuk florist ini
+    // Ambil seluruh daftar alamat penjemputan florist
     const addresses = await prisma.address.findMany({
       where: { userId },
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     });
 
+    // Kembalikan respon sukses data profil florist
     return NextResponse.json({
       success: true,
       message: "Florist profile berhasil diambil",
@@ -59,6 +63,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -69,7 +74,7 @@ export async function GET(request: Request) {
   }
 }
 
-// PUT /api/florist/profile - Update shop info (name, description, logo, banner)
+// Skema validasi pembaruan informasi toko florist
 const updateProfileSchema = z.object({
   shopName: z.string().min(3).max(200).optional(),
   shopDescription: z.string().max(1000).optional().nullable(),
@@ -77,18 +82,23 @@ const updateProfileSchema = z.object({
   banner: z.string().url().max(500).optional().nullable(),
 });
 
+// Handler HTTP PUT untuk memperbarui data informasi profil toko florist
 export async function PUT(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updateProfileSchema.parse(body);
 
+    // Cari data profil toko florist eksisting
     const profile = await prisma.floristProfile.findUnique({ where: { userId } });
     if (!profile) {
       return NextResponse.json({ success: false, message: "Profil florist tidak ditemukan" }, { status: 404 });
     }
 
+    // Perbarui data informasi toko florist di database
     const updatedProfile = await prisma.floristProfile.update({
       where: { userId },
       data: {
@@ -99,12 +109,14 @@ export async function PUT(request: Request) {
       },
     });
 
+    // Kembalikan respon sukses pembaruan profil toko
     return NextResponse.json({
       success: true,
       message: "Shop info berhasil diperbarui",
       data: { profile: updatedProfile },
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

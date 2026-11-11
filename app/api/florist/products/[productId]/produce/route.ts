@@ -3,23 +3,27 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-// Schema validasi produksi produk
+// Skema validasi kuantitas produksi produk
 const produceSchema = z.object({
   quantity: z.number().int().positive("Jumlah harus lebih dari 0"),
 });
 
+// Handler HTTP POST untuk memproduksi stok produk jadi dari bahan baku inventaris
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ productId: string }> }
 ) {
   try {
+    // Ambil parameter ID produk dari URL
     const { productId } = await params;
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, ["FLORIST", "ADMIN"]);
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const { quantity } = produceSchema.parse(body);
 
-    // Cek product ownership
+    // Cari data produk beserta komponen bahan baku penyusunnya
     const product = await prisma.product.findUnique({
       where: { id: productId },
       include: {
@@ -35,6 +39,7 @@ export async function POST(
       },
     });
 
+    // Validasi keberadaan data produk
     if (!product) {
       return NextResponse.json(
         { success: false, message: "Produk tidak ditemukan" },
@@ -42,6 +47,7 @@ export async function POST(
       );
     }
 
+    // Validasi hak kepemilikan produk oleh florist
     if (userRole === "FLORIST" && product.floristId !== userId) {
       return NextResponse.json(
         { success: false, message: "Anda tidak memiliki akses ke produk ini" },
@@ -49,7 +55,7 @@ export async function POST(
       );
     }
 
-    // Cek apakah produk punya BOM
+    // Validasi keberadaan komponen bahan baku (Bill of Materials) pada produk
     if (product.productComponents.length === 0) {
       return NextResponse.json(
         { success: false, message: "Produk ini belum memiliki Bill of Materials (BOM). Tambahkan komponen terlebih dahulu." },
@@ -57,7 +63,7 @@ export async function POST(
       );
     }
 
-    // Cek ketersediaan bahan baku untuk produksi
+    // Periksa kecukupan stok bahan baku untuk jumlah produksi yang diminta
     const insufficientMaterials: string[] = [];
     
     for (const component of product.productComponents) {
@@ -82,9 +88,9 @@ export async function POST(
       );
     }
 
-    // Lakukan produksi dalam transaction
+    // Jalankan mutasi produksi dalam transaksi database atomic
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Kurangi inventory bahan baku
+      // Kurangi kuantitas stok bahan baku di inventaris florist
       const inventoryUpdates = [];
       const lowStockNotifications = [];
 
@@ -105,7 +111,7 @@ export async function POST(
           unit: updatedInventory.stock.unit,
         });
 
-        // Trigger notifikasi low stock
+        // Buat notifikasi peringatan jika sisa bahan baku di bawah ambang batas
         if (newQty < updatedInventory.minThreshold) {
           lowStockNotifications.push(
             tx.notification.create({
@@ -122,10 +128,10 @@ export async function POST(
         }
       }
 
-      // Tunggu semua notifikasi low stock dibuat
+      // Tunggu hingga seluruh notifikasi stok rendah berhasil dibuat
       await Promise.all(lowStockNotifications);
 
-      // 2. Tambah stock produk jadi
+      // Tambahkan kuantitas stok produk jadi
       const updatedProduct = await tx.product.update({
         where: { id: productId },
         data: {
@@ -140,12 +146,14 @@ export async function POST(
       };
     });
 
+    // Kembalikan respon sukses proses produksi produk
     return NextResponse.json({
       success: true,
       message: `Berhasil memproduksi ${quantity} ${product.name}`,
       data: result,
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, message: "Validasi gagal", errors: error.issues },

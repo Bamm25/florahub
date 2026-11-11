@@ -26,7 +26,7 @@ export default function ReviewForm({
 }: ReviewFormProps) {
   const { status } = useSession();
   const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatus | null>(null);
-  const [isCheckingPurchase, setIsCheckingPurchase] = useState(true);
+  const [isCheckingPurchase, setIsCheckingPurchase] = useState(false);
   const [rating, setRating] = useState(5);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -37,40 +37,49 @@ export default function ReviewForm({
 
   // Check apakah user sudah beli produk ini setelah login
   useEffect(() => {
-    if (status === "authenticated") {
-      checkPurchaseStatus();
-    } else {
-      setIsCheckingPurchase(false);
-    }
-  }, [status, productId]);
+    let cancelled = false;
 
-  // Fetch purchase status dari API untuk validate eligibility
-  const checkPurchaseStatus = async () => {
-    try {
-      setIsCheckingPurchase(true);
-      const response = await fetch(`/api/products/${productId}/check-purchase`, {
-        credentials: "include",
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        setPurchaseStatus(result.data);
-      }
-    } catch (error) {
-      console.error("Failed to check purchase status:", error);
-    } finally {
-      setIsCheckingPurchase(false);
+    if (status !== "authenticated") {
+      return;
     }
-  };
+
+    async function check() {
+      try {
+        setIsCheckingPurchase(true);
+        const response = await fetch(`/api/products/${productId}/check-purchase`, {
+          credentials: "include",
+        });
+
+        if (response.ok && !cancelled) {
+          const result = await response.json();
+          setPurchaseStatus(result.data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to check purchase status:", error);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsCheckingPurchase(false);
+        }
+      }
+    }
+
+    void check();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, productId]);
 
   if (status === "unauthenticated") {
     return (
-      <div className="rounded-xl border border-border bg-surface-container-low p-4 text-center">
+      <div className="rounded-2xl border border-border bg-muted/30 p-6 text-center">
         <p className="text-sm text-muted-foreground">
           Ingin memberikan ulasan?{" "}
           <Link
             href="/auth/login"
-            className="font-semibold text-success hover:underline"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
           >
             Masuk ke akun Anda
           </Link>
@@ -81,22 +90,24 @@ export default function ReviewForm({
 
   if (isCheckingPurchase) {
     return (
-      <div className="rounded-xl border border-border bg-surface-container-low p-4 text-center">
-        <p className="text-sm text-muted-foreground">Memeriksa status pembelian...</p>
+      <div className="rounded-2xl border border-border bg-muted/20 p-6 text-center" role="status">
+        <p className="text-sm text-muted-foreground">Memeriksa riwayat pesanan Anda...</p>
       </div>
     );
   }
 
   if (purchaseStatus && !purchaseStatus.canReview) {
     return (
-      <div className="rounded-xl border border-border bg-surface-container-low p-4">
+      <div className="rounded-2xl border border-border bg-muted/20 p-5">
         <div className="flex items-start gap-3">
-          <ShoppingBag className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+          <ShoppingBag className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div>
-            <p className="text-sm font-medium text-foreground mb-1">
-              {purchaseStatus.status === "PENDING" ? "Pesanan Dalam Proses" : "Belum Membeli Produk"}
+            <p className="text-sm font-semibold text-foreground">
+              {purchaseStatus.status === "PENDING"
+                ? "Pesanan dalam proses"
+                : "Ulasan hanya untuk pembeli terverifikasi"}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               {purchaseStatus.message}
             </p>
           </div>
@@ -167,32 +178,39 @@ export default function ReviewForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-lg border border-success/20 bg-success/5 p-5"
+      className="rounded-2xl border border-border bg-surface p-6 sm:p-7"
     >
-      <h3 className="text-base font-semibold text-foreground mb-3">
-        Tulis Ulasan Produk
-      </h3>
+      <div className="border-b border-border pb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Bagikan pengalaman
+        </p>
+        <h3 className="mt-1 text-xl font-bold tracking-tight text-foreground">
+          Tulis Ulasan Produk
+        </h3>
+      </div>
 
-      {errorMessage && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-error/10 p-3 text-sm text-error border border-error/20">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
+      <div aria-live="polite" className="mt-4">
+        {errorMessage && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-error/30 bg-error/10 p-4 text-sm text-error">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
-      {successMessage && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success border border-success/20">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>{successMessage}</span>
-        </div>
-      )}
+        {successMessage && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-foreground">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+            <span>{successMessage}</span>
+          </div>
+        )}
+      </div>
 
       {/* Star Selector */}
-      <div className="mb-4">
-        <label className="block text-xs font-medium text-foreground/80 mb-1">
-          Beri Rating Bintang:
+      <div className="mt-5">
+        <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Rating Bintang
         </label>
-        <div className="flex items-center gap-1">
+        <div className="mt-2 flex items-center gap-1.5">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
               key={star}
@@ -203,61 +221,66 @@ export default function ReviewForm({
               }}
               onMouseEnter={() => setHoveredRating(star)}
               onMouseLeave={() => setHoveredRating(0)}
-              className="p-1 transition hover:scale-110"
-              aria-label={`Bintang ${star}`}
+              className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:bg-muted"
+              aria-label={`Beri rating ${star} bintang`}
             >
               <Star
-                className={`h-6 w-6 ${
+                className={`h-6 w-6 transition-colors ${
                   star <= (hoveredRating || rating)
                     ? "fill-warning text-warning"
-                    : "text-muted-foreground/40"
+                    : "text-muted-foreground/30"
                 }`}
+                aria-hidden="true"
               />
             </button>
           ))}
-          <span className="ml-2 text-sm font-semibold text-foreground/80">
-            {hoveredRating || rating} dari 5
+          <span className="ml-2 text-sm font-semibold text-foreground">
+            {hoveredRating || rating} dari 5 bintang
           </span>
         </div>
         {formErrors.rating && (
-          <p className="mt-1 text-xs text-error">{formErrors.rating}</p>
+          <p className="mt-1.5 text-xs text-error">{formErrors.rating}</p>
         )}
       </div>
 
-      <div className="mb-4">
-        <label className="block text-xs font-medium text-foreground/80 mb-1">
-          Pengalaman Anda Menggunakan Produk Ini:
+      {/* Comment */}
+      <div className="mt-5">
+        <label htmlFor="review-comment" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Ulasan Anda
         </label>
         <textarea
-          rows={3}
+          id="review-comment"
+          rows={4}
           value={comment}
           onChange={(e) => {
             setComment(e.target.value);
             setFormErrors({ ...formErrors, comment: "" });
           }}
-          placeholder="Ceritakan kesegaran bunga, pengemasan, atau ketepatan pengiriman..."
-          className="w-full rounded-lg border border-border p-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
+          placeholder="Ceritakan kondisi bunga saat diterima, kesegaran, keharuman, atau kerapian rangkaian..."
+          className="mt-2 w-full rounded-xl border border-border bg-input p-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
         />
-        <div className="mt-1 flex items-center justify-between">
+        <div className="mt-1.5 flex items-center justify-between text-xs">
           <div>
             {formErrors.comment && (
-              <p className="text-xs text-error">{formErrors.comment}</p>
+              <p className="text-error">{formErrors.comment}</p>
             )}
           </div>
-          <p className={`text-xs ${characterCount > maxCharacters ? 'text-error' : 'text-muted-foreground'}`}>
-            {characterCount}/{maxCharacters} karakter
+          <p className={characterCount > maxCharacters ? "text-error" : "text-muted-foreground"}>
+            {characterCount}/{maxCharacters} karakter (min. 10)
           </p>
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <Send className="h-4 w-4" />
-        {isSubmitting ? "Mengirim..." : "Kirim Ulasan"}
-      </button>
+      <div className="mt-6 flex justify-end">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="btn-primary min-w-[180px] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Send className="h-4 w-4" aria-hidden="true" />
+          {isSubmitting ? "Mengirim..." : "Kirim Ulasan"}
+        </button>
+      </div>
     </form>
   );
 }

@@ -1,19 +1,10 @@
-/**
- * Calculate estimated delivery days based on customer and florist locations
- * Focused on Jawa Timur area only
- * 
- * Logic:
- * - Same city within Jawa Timur: 1 day
- * - Different city within Jawa Timur: 2 days
- * - Customer in Jawa Timur, florist outside: 3 days
- * - Customer outside Jawa Timur: 3 days (default)
- */
-
+// Interface informasi lokasi kota dan provinsi untuk estimasi pengiriman
 interface LocationInfo {
   city: string;
   province: string;
 }
 
+// Fungsi untuk menghitung estimasi hari pengiriman berdasarkan lokasi pelanggan dan florist
 export function calculateEstimatedDays(
   customerLocation: LocationInfo,
   floristLocation: LocationInfo

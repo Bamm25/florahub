@@ -1,4 +1,4 @@
-// Interface untuk data alamat pengiriman customer
+// Interface representasi data alamat pelanggan
 interface Address {
   id: string;
   label: string;
@@ -13,7 +13,7 @@ interface Address {
   updatedAt: string;
 }
 
-// Response type dari API GET addresses dengan pagination
+// Interface respons API untuk daftar alamat pelanggan dengan paginasi
 interface AddressesResponse {
   success: boolean;
   message: string;
@@ -28,7 +28,7 @@ interface AddressesResponse {
   };
 }
 
-// Response type dari API single address operations
+// Interface respons API untuk operasi data alamat tunggal
 interface AddressResponse {
   success: boolean;
   message: string;
@@ -37,7 +37,7 @@ interface AddressResponse {
   };
 }
 
-// Fetch semua alamat customer dengan pagination
+// Fungsi untuk mengambil daftar alamat pelanggan dari API
 export async function getAddresses(): Promise<AddressesResponse> {
   const response = await fetch("/api/customer/addresses", {
     method: "GET",
@@ -53,7 +53,7 @@ export async function getAddresses(): Promise<AddressesResponse> {
   return response.json();
 }
 
-// Create alamat baru untuk customer
+// Fungsi untuk membuat alamat baru pelanggan melalui API
 export async function createAddress(data: {
   label: string;
   recipientName: string;
@@ -79,7 +79,7 @@ export async function createAddress(data: {
   return response.json();
 }
 
-// Update data alamat berdasarkan addressId
+// Fungsi untuk memperbarui data alamat pelanggan berdasarkan ID
 export async function updateAddress(
   addressId: string,
   data: {
@@ -108,7 +108,7 @@ export async function updateAddress(
   return response.json();
 }
 
-// Hapus alamat berdasarkan addressId
+// Fungsi untuk menghapus alamat pelanggan berdasarkan ID
 export async function deleteAddress(
   addressId: string,
 ): Promise<{ success: boolean; message: string }> {

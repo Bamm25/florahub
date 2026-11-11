@@ -1,5 +1,3 @@
-import { MapPin, Edit, Trash2, Star } from "lucide-react";
-
 // Props interface untuk komponen card display alamat
 interface AddressCardProps {
   address: {
@@ -26,54 +24,61 @@ export function AddressCard({
   isDeleting = false,
 }: AddressCardProps) {
   return (
-    <div className="card-elevated relative">
-      {address.isDefault && (
-        <div className="absolute right-6 top-6 flex items-center gap-1.5 badge bg-primary text-white">
-          <Star className="h-4 w-4 fill-current" />
-          Alamat Utama
-        </div>
-      )}
-
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 flex-shrink-0">
-          <MapPin className="h-6 w-6 text-primary" />
-        </div>
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-foreground mb-3">
+    <article
+      className={`flex h-full flex-col rounded-2xl border bg-card ${
+        address.isDefault ? "border-foreground/30" : "border-border"
+      }`}
+    >
+      <div className="flex-1 px-5 py-4">
+        <header className="mb-3 flex flex-wrap items-center gap-2">
+          <h3 className="text-base font-semibold text-foreground">
             {address.label}
           </h3>
-          <p className="text-base font-semibold text-foreground mb-2">
-            {address.recipientName} • {address.phone}
-          </p>
-          <p className="text-base text-muted-foreground mb-1">
-            {address.fullAddress}
-          </p>
-          <p className="text-base text-muted-foreground">
-            {address.city}, {address.province} {address.postalCode}
-          </p>
-        </div>
+          {address.isDefault && (
+            <span className="rounded-full bg-surface-container-low px-2.5 py-0.5 text-xs font-semibold text-foreground">
+              Alamat utama
+            </span>
+          )}
+        </header>
+
+        <p className="text-sm font-medium text-foreground">
+          {address.recipientName}
+          <span className="mx-1.5 text-muted-foreground">·</span>
+          <span className="font-normal tabular-nums text-muted-foreground">
+            {address.phone}
+          </span>
+        </p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+          {address.fullAddress}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {address.city}, {address.province} {address.postalCode}
+        </p>
       </div>
 
       {(onEdit || onDelete) && (
-        <div className="mt-6 flex gap-3">
-          {onEdit && (
-            <button onClick={() => onEdit(address)} className="btn-secondary flex-1">
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </button>
-          )}
+        <footer className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
           {onDelete && (
             <button
+              type="button"
               onClick={() => onDelete(address.id)}
               disabled={isDeleting}
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-error/30 bg-error/5 px-6 py-3 text-base font-semibold text-error hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50 transition-colors flex-1"
+              className="h-9 rounded-lg px-3 text-sm font-medium text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Trash2 className="h-4 w-4" />
               {isDeleting ? "Menghapus..." : "Hapus"}
             </button>
           )}
-        </div>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit(address)}
+              className="h-9 rounded-lg border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+            >
+              Ubah
+            </button>
+          )}
+        </footer>
       )}
-    </div>
+    </article>
   );
 }

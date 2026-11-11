@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { User, Mail, Phone, Calendar, Edit2, CheckCircle } from "lucide-react";
+import Link from "next/link";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
 
@@ -88,129 +88,164 @@ export default function ProfilePage() {
   // Render loading skeleton untuk profile page
   if (status === "loading" || isLoading) {
     return (
-      <div className="container-custom section-spacing">
-        <div className="h-10 w-64 animate-pulse rounded-xl bg-surface-container mb-8" />
-        <div className="space-y-6">
-          <div className="h-64 animate-pulse rounded-xl bg-surface-container-low" />
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="h-32 animate-pulse rounded-xl bg-surface-container-low" />
-            <div className="h-32 animate-pulse rounded-xl bg-surface-container-low" />
-          </div>
+      <main className="container-custom section-spacing">
+        <div className="h-8 w-48 animate-pulse rounded bg-surface-container mb-6" />
+        <div className="h-48 animate-pulse rounded-2xl bg-surface-container-low mb-6" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="h-28 animate-pulse rounded-2xl bg-surface-container-low" />
+          <div className="h-28 animate-pulse rounded-2xl bg-surface-container-low" />
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="container-custom section-spacing">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-foreground">Profil Saya</h1>
-        <button
-          onClick={() => setShowEditModal(true)}
-          className="btn-primary"
-        >
-          <Edit2 className="mr-2 h-5 w-5" />
-          Edit Profil
-        </button>
-      </div>
+    <main className="container-custom section-spacing">
+      {/* Header Halaman */}
+      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Akun Saya
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Profil Saya
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Kelola informasi data diri dan preferensi akun Anda.
+          </p>
+        </div>
+        <div className="flex gap-2.5">
+          <Link
+            href="/profile/addresses"
+            className="btn-secondary h-11 px-5 py-0 text-sm font-semibold"
+          >
+            Buku Alamat
+          </Link>
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="btn-primary h-11 px-5 py-0 text-sm"
+          >
+            Ubah Profil
+          </button>
+        </div>
+      </header>
 
       {errorMessage && (
-        <div className="mb-6 rounded-xl border border-error/30 bg-error/5 p-5 text-base text-error">
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-error/30 bg-error/5 p-4 text-sm text-error"
+        >
           {errorMessage}
         </div>
       )}
 
       {profile && (
         <div className="space-y-6">
-          {/* Personal Information Card */}
-          <div className="card-elevated">
-            <div className="border-b border-border pb-4 mb-6">
-              <h2 className="text-2xl font-semibold text-foreground">
-                Informasi Pribadi
+          {/* Hero Banner: Inisial, Nama, Status */}
+          <section
+            aria-labelledby="profile-summary-heading"
+            className="rounded-2xl bg-[#10121b] p-6 text-white sm:p-8 border border-white/10"
+          >
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 border border-white/15 text-xl font-bold text-white shadow-xs"
+                aria-hidden="true"
+              >
+                {profile.name ? profile.name.charAt(0).toUpperCase() : "U"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2
+                    id="profile-summary-heading"
+                    className="truncate text-xl font-bold text-white sm:text-2xl"
+                  >
+                    {profile.name}
+                  </h2>
+                  {profile.emailVerified && (
+                    <span className="rounded-full bg-success/20 px-2.5 py-0.5 text-xs font-semibold text-success">
+                      Terverifikasi
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-white/70">
+                  {profile.email} · Anggota sejak {formatDate(profile.createdAt)}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Data Detail & Statistik */}
+          <div className="grid gap-6 md:grid-cols-3">
+            {/* Informasi Pribadi */}
+            <section
+              aria-labelledby="personal-info-heading"
+              className="rounded-2xl border border-border bg-card p-6 md:col-span-2"
+            >
+              <h2
+                id="personal-info-heading"
+                className="border-b border-border pb-3 text-base font-semibold text-foreground"
+              >
+                Data Kontak
               </h2>
-            </div>
 
-            <div className="space-y-5">
-              {/* Name */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                  <User className="h-6 w-6 text-primary" />
+              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Nama Lengkap</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-foreground">
+                    {profile.name}
+                  </dd>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground mb-1">Nama Lengkap</p>
-                  <p className="text-lg font-medium text-foreground">{profile.name}</p>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Email</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-foreground">
+                    {profile.email}
+                  </dd>
                 </div>
-              </div>
-
-              {/* Email */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                  <Mail className="h-6 w-6 text-primary" />
+                <div>
+                  <dt className="text-xs text-muted-foreground">No. Telepon</dt>
+                  <dd className="mt-0.5 font-mono text-sm font-medium text-foreground">
+                    {profile.phone || "Belum diisi"}
+                  </dd>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground mb-1">Email</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-medium text-foreground">{profile.email}</p>
-                    {profile.emailVerified && (
-                      <div className="flex items-center gap-1 rounded-full bg-success/10 px-2 py-1">
-                        <CheckCircle className="h-4 w-4 text-success" />
-                        <span className="text-xs font-medium text-success">Terverifikasi</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Phone */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                  <Phone className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground mb-1">No. Telepon</p>
-                  <p className="text-lg font-medium text-foreground">{profile.phone}</p>
-                </div>
-              </div>
-
-              {/* Member Since */}
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                  <Calendar className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-muted-foreground mb-1">Bergabung Sejak</p>
-                  <p className="text-lg font-medium text-foreground">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Bergabung</dt>
+                  <dd className="mt-0.5 text-sm font-medium text-foreground">
                     {formatDate(profile.createdAt)}
-                  </p>
+                  </dd>
                 </div>
-              </div>
-            </div>
-          </div>
+              </dl>
+            </section>
 
-          {/* Quick Stats */}
-          {(profile.totalOrders !== undefined || profile.totalSpent !== undefined) && (
-            <div className="grid gap-6 md:grid-cols-2">
+            {/* Quick Stats */}
+            <aside
+              aria-labelledby="stats-heading"
+              className="space-y-4 md:col-span-1"
+            >
               {profile.totalOrders !== undefined && (
-                <div className="card-elevated">
-                  <div className="text-sm text-muted-foreground mb-2">Total Pesanan</div>
-                  <div className="text-3xl font-bold text-primary">
+                <div className="rounded-2xl border border-border bg-card p-5">
+                  <p className="text-xs text-muted-foreground">Total Pesanan</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
                     {profile.totalOrders}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">Pesanan selesai</div>
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Pesanan selesai
+                  </p>
                 </div>
               )}
 
               {profile.totalSpent !== undefined && (
-                <div className="card-elevated">
-                  <div className="text-sm text-muted-foreground mb-2">Total Belanja</div>
-                  <div className="text-3xl font-bold text-primary">
+                <div className="rounded-2xl border border-border bg-card p-5">
+                  <p className="text-xs text-muted-foreground">Total Belanja</p>
+                  <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
                     {formatCurrency(profile.totalSpent)}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">Dalam 12 bulan terakhir</div>
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Dalam 12 bulan terakhir
+                  </p>
                 </div>
               )}
-            </div>
-          )}
+            </aside>
+          </div>
         </div>
       )}
 
@@ -220,7 +255,6 @@ export default function ProfilePage() {
           profile={profile}
           onSuccess={async (updatedName?: string) => {
             setShowEditModal(false);
-            // Refresh NextAuth session so navbar picks up the new name immediately
             if (updatedName) {
               await update({ name: updatedName });
             }
@@ -229,7 +263,7 @@ export default function ProfilePage() {
           onCancel={() => setShowEditModal(false)}
         />
       )}
-    </div>
+    </main>
   );
 }
 
@@ -241,7 +275,11 @@ interface EditProfileModalProps {
 }
 
 // Modal untuk edit nama dan phone user
-function EditProfileModal({ profile, onSuccess, onCancel }: EditProfileModalProps) {
+function EditProfileModal({
+  profile,
+  onSuccess,
+  onCancel,
+}: EditProfileModalProps) {
   const [formData, setFormData] = useState({
     name: profile.name,
     phone: profile.phone,
@@ -251,7 +289,7 @@ function EditProfileModal({ profile, onSuccess, onCancel }: EditProfileModalProp
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Validasi form edit profile sebelum submit
+  // Validasi kelengkapan data formulir edit profil sebelum disimpan
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
@@ -265,7 +303,10 @@ function EditProfileModal({ profile, onSuccess, onCancel }: EditProfileModalProp
       errors.phone = "No. telepon tidak boleh kosong";
     } else if (!/^\d+$/.test(formData.phone.trim())) {
       errors.phone = "No. telepon harus berupa angka";
-    } else if (formData.phone.trim().length < 10 || formData.phone.trim().length > 13) {
+    } else if (
+      formData.phone.trim().length < 10 ||
+      formData.phone.trim().length > 13
+    ) {
       errors.phone = "No. telepon harus 10-13 digit";
     }
 
@@ -296,14 +337,14 @@ function EditProfileModal({ profile, onSuccess, onCancel }: EditProfileModalProp
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Gagal memperbarui profil");
+        const err = await response.json();
+        throw new Error(err.message || "Gagal memperbarui profil");
       }
 
       onSuccess(formData.name.trim());
-    } catch (error) {
+    } catch (err) {
       setError(
-        error instanceof Error ? error.message : "Gagal memperbarui profil",
+        err instanceof Error ? err.message : "Gagal memperbarui profil",
       );
     } finally {
       setIsSubmitting(false);
@@ -312,15 +353,18 @@ function EditProfileModal({ profile, onSuccess, onCancel }: EditProfileModalProp
 
   return (
     <Modal
-      isOpen={true}
+      isOpen
       onClose={onCancel}
-      title="Edit Profil"
-      subtitle="Perbarui informasi pribadi Anda"
+      title="Ubah profil"
+      subtitle="Perbarui nama lengkap dan nomor telepon aktif Anda."
       size="md"
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {error && (
-          <div className="rounded-xl border border-error/30 bg-error/5 p-4 text-sm text-error">
+          <div
+            role="alert"
+            className="rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error"
+          >
             {error}
           </div>
         )}
@@ -363,18 +407,18 @@ function EditProfileModal({ profile, onSuccess, onCancel }: EditProfileModalProp
           placeholder="08xxxxxxxxxx"
         />
 
-        <div className="flex gap-3 pt-4">
+        <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onCancel}
-            className="btn-secondary flex-1"
+            className="btn-secondary h-11 px-5 py-0 text-sm"
             disabled={isSubmitting}
           >
             Batal
           </button>
           <button
             type="submit"
-            className="btn-primary flex-1"
+            className="btn-primary h-11 px-6 py-0 text-sm disabled:cursor-not-allowed"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}

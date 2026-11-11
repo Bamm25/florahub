@@ -1,5 +1,6 @@
 import React from "react";
 
+// Antarmuka properti bilah penyaring data
 interface FilterBarProps {
   filters: Array<{
     id: string;
@@ -10,11 +11,9 @@ interface FilterBarProps {
   onChange: (filterId: string) => void;
 }
 
-/**
- * FilterBar component
- * Horizontal filter buttons with active state
- */
+// Komponen tombol filter horizontal dengan indikator status aktif
 export default function FilterBar({ filters, activeFilter, onChange }: FilterBarProps) {
+  // Render deretan tombol pilihan filter beserta jumlah item
   return (
     <div className="flex gap-2 flex-wrap">
       {filters.map((filter) => (

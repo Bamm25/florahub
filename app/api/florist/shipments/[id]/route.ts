@@ -7,29 +7,35 @@ import { NextResponse } from "next/server";
 import { updateShipmentStatusSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP PUT untuk memperbarui status pengiriman dan nomor resi paket
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId: floristId } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil metadata IP address dan user-agent untuk audit log
     const ipAddress =
       request.headers.get("x-forwarded-for") ||
       request.headers.get("x-real-ip") ||
       "unknown";
     const userAgent = request.headers.get("user-agent") || "unknown";
 
+    // Ambil parameter ID pengiriman dari URL
     const { id } = await params;
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updateShipmentStatusSchema.parse(body);
     const { status, courier, service, trackingNumber, estimatedDays, weight } = validated;
     
-    // Convert weight from kg to grams for database storage
+    // Konversi bobot pengiriman dari kg ke gram
     const weightInGrams = weight !== undefined && weight !== null ? Math.round(weight * 1000) : undefined;
 
+    // Cari data pengiriman eksisting di database
     const existingShipment = await prisma.shipment.findUnique({
       where: { id },
       include: {
@@ -47,6 +53,7 @@ export async function PUT(
       },
     });
 
+    // Validasi keberadaan data pengiriman
     if (!existingShipment) {
       return NextResponse.json(
         {
@@ -57,6 +64,7 @@ export async function PUT(
       );
     }
 
+    // Validasi hak kepemilikan pengiriman oleh florist
     const isOwner = existingShipment.order.items.some(
       (item) => item.product.floristId === floristId,
     );
@@ -71,6 +79,7 @@ export async function PUT(
       );
     }
 
+    // Validasi status pengiriman yang sudah selesai tidak dapat diubah
     if (
       existingShipment.status === "DELIVERED" ||
       existingShipment.status === "CANCELLED"
@@ -84,6 +93,7 @@ export async function PUT(
       );
     }
 
+    // Validasi transisi status pengiriman yang diizinkan
     if (status && status !== existingShipment.status) {
       const validTransitions: Record<string, string[]> = {
         PENDING: ["PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"],
@@ -104,6 +114,7 @@ export async function PUT(
       }
     }
 
+    // Validasi keberadaan nomor resi jika status diubah menjadi SHIPPED
     if (status === "SHIPPED") {
       const finalTrackingNumber =
         trackingNumber || existingShipment.trackingNumber;
@@ -119,6 +130,7 @@ export async function PUT(
       }
     }
 
+    // Siapkan objek pembaruan data pengiriman
     const updateData: any = {};
 
     if (status !== undefined) updateData.status = status;
@@ -155,6 +167,7 @@ export async function PUT(
     if (service !== undefined) oldValues.service = existingShipment.service;
     if (trackingNumber !== undefined) oldValues.trackingNumber = existingShipment.trackingNumber;
 
+    // Perbarui data pengiriman dan status pesanan dalam transaksi atomic
     const [updatedShipment] = await prisma.$transaction([
       prisma.shipment.update({
         where: { id },
@@ -169,7 +182,7 @@ export async function PUT(
       }),
     ]);
 
-    // Notify customer about shipment status change
+    // Kirim notifikasi perubahan status pengiriman ke pembeli
     if (status && status !== existingShipment.status) {
       const statusMessages: Record<string, string> = {
         PROCESSING: `Pesanan #${existingShipment.order.orderNumber} sedang diproses oleh florist.`,
@@ -200,6 +213,7 @@ export async function PUT(
       }
     }
 
+    // Catat aktivitas pembaruan pengiriman ke audit log
     await createAuditLog({
       userId: floristId,
       action: "UPDATE",
@@ -211,12 +225,14 @@ export async function PUT(
       userAgent,
     });
 
+    // Kembalikan respon sukses pembaruan pengiriman
     return NextResponse.json({
       success: true,
       message: "Shipment berhasil diperbarui",
       data: { shipment: updatedShipment },
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -237,17 +253,21 @@ export async function PUT(
   }
 }
 
+// Handler HTTP GET untuk mengambil detail pengiriman berdasarkan ID
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId: floristId } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter ID pengiriman dari URL
     const { id } = await params;
 
+    // Cari data pengiriman beserta relasi order, produk, dan pembeli
     const shipment = await prisma.shipment.findUnique({
       where: { id },
       include: {
@@ -277,6 +297,7 @@ export async function GET(
       },
     });
 
+    // Validasi keberadaan data pengiriman
     if (!shipment) {
       return NextResponse.json(
         {
@@ -287,6 +308,7 @@ export async function GET(
       );
     }
 
+    // Validasi hak kepemilikan pengiriman oleh florist
     const isOwner = shipment.order.items.some(
       (item) => item.product.floristId === floristId,
     );
@@ -299,12 +321,14 @@ export async function GET(
         { status: 403 },
       );
     }
+    // Kembalikan respon sukses data detail pengiriman
     return NextResponse.json({
       success: true,
       message: "Detail shipment berhasil diambil",
       data: { shipment },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

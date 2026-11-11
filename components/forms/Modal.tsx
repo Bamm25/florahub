@@ -1,6 +1,7 @@
 import React from "react";
 import { X } from "lucide-react";
 
+// Antarmuka properti komponen modal
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -10,10 +11,7 @@ interface ModalProps {
   children: React.ReactNode;
 }
 
-/**
- * Modal component
- * Reusable modal with backdrop blur and sticky header
- */
+// Komponen modal dialog reusable dengan latar blur dan header tetap
 export default function Modal({
   isOpen,
   onClose,
@@ -24,12 +22,14 @@ export default function Modal({
 }: ModalProps) {
   if (!isOpen) return null;
 
+  // Konfigurasi ukuran lebar modal
   const sizeClasses = {
     sm: "max-w-md",
     md: "max-w-2xl",
     lg: "max-w-4xl",
   };
 
+  // Render tampilan modal dialog
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
       <div className={`card-elevated w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col overflow-hidden`}>

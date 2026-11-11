@@ -4,14 +4,18 @@ import { NextResponse } from "next/server";
 import { updateHarvestAnnouncementSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Tipe parameter rute URL
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
+// Handler HTTP GET untuk mengambil detail pengumuman panen beserta data pemesanan
 export async function GET(request: Request, { params }: RouteParams) {
   try {
+    // Ambil parameter ID pengumuman dari URL
     const { id: announcementId } = await params;
 
+    // Cari data pengumuman panen beserta supplier dan daftar pre-order
     const announcement = await prisma.harvestAnnouncement.findUnique({
       where: { id: announcementId },
       include: {
@@ -39,6 +43,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       },
     });
 
+    // Validasi keberadaan data pengumuman panen
     if (!announcement) {
       return NextResponse.json(
         {
@@ -49,12 +54,14 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Kembalikan respon sukses data detail pengumuman panen
     return NextResponse.json({
       success: true,
       message: "Detail pengumuman panen berhasil diambil",
       data: { announcement },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -68,17 +75,22 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
+// Handler HTTP PUT untuk memperbarui data pengumuman panen
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
+    // Autentikasi dan verifikasi hak akses supplier atau admin
     const { userId, userRole } = await requireAuth(request, [
       "SUPPLIER",
       "ADMIN",
     ]);
+    // Ambil parameter ID pengumuman dari URL
     const { id: announcementId } = await params;
+    // Cari data pengumuman panen eksisting di database
     const existingAnnouncement = await prisma.harvestAnnouncement.findUnique({
       where: { id: announcementId },
     });
 
+    // Validasi keberadaan data pengumuman panen
     if (!existingAnnouncement) {
       return NextResponse.json(
         {
@@ -89,6 +101,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Validasi hak kepemilikan pengumuman panen oleh supplier
     if (userRole === "SUPPLIER" && existingAnnouncement.supplierId !== userId) {
       return NextResponse.json(
         {
@@ -100,6 +113,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updateHarvestAnnouncementSchema.parse(body);
     const {
@@ -114,11 +128,13 @@ export async function PUT(request: Request, { params }: RouteParams) {
       isActive,
     } = validated;
 
+    // Konversi format tanggal panen jika disertakan
     let parsedHarvestDate = existingAnnouncement.harvestDate;
     if (harvestDate !== undefined) {
       parsedHarvestDate = new Date(harvestDate);
     }
 
+    // Perbarui data pengumuman panen di database
     const updatedAnnouncement = await prisma.harvestAnnouncement.update({
       where: { id: announcementId },
       data: {
@@ -166,6 +182,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
 
+    // Kembalikan respon sukses pembaruan pengumuman panen
     return NextResponse.json({
       success: true,
       message: "Pengumuman panen berhasil diperbarui",
@@ -174,6 +191,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -197,17 +215,22 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 }
 
+// Handler HTTP DELETE untuk menghapus data pengumuman panen
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
+    // Autentikasi dan verifikasi hak akses supplier atau admin
     const { userId, userRole } = await requireAuth(request, [
       "SUPPLIER",
       "ADMIN",
     ]);
+    // Ambil parameter ID pengumuman dari URL
     const { id: announcementId } = await params;
+    // Cari data pengumuman panen eksisting di database
     const existingAnnouncement = await prisma.harvestAnnouncement.findUnique({
       where: { id: announcementId },
     });
 
+    // Validasi keberadaan data pengumuman panen
     if (!existingAnnouncement) {
       return NextResponse.json(
         {
@@ -218,6 +241,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Validasi hak kepemilikan pengumuman panen oleh supplier
     if (userRole === "SUPPLIER" && existingAnnouncement.supplierId !== userId) {
       return NextResponse.json(
         {
@@ -229,15 +253,18 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Hapus data pengumuman panen dari database
     await prisma.harvestAnnouncement.delete({
       where: { id: announcementId },
     });
 
+    // Kembalikan respon sukses penghapusan pengumuman panen
     return NextResponse.json({
       success: true,
       message: "Pengumuman panen berhasil dihapus",
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

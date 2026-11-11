@@ -1,7 +1,8 @@
 import React from "react";
 
+// Props interface untuk komponen status kosong
 interface EmptyStateProps {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   title: string;
   description: string;
   action?: {
@@ -11,19 +12,14 @@ interface EmptyStateProps {
   };
 }
 
-/**
- * EmptyState component
- * Display when no data is available
- */
-export default function EmptyState({ icon, title, description, action }: EmptyStateProps) {
+// Komponen status data kosong dengan pesan informatif dan tombol aksi
+export default function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
-    <div className="card-elevated p-12 flex flex-col items-center justify-center text-center">
-      <div className="text-muted-foreground mb-4">{icon}</div>
-      <p className="text-lg font-medium text-foreground">{title}</p>
-      <p className="text-sm text-muted-foreground mt-2">{description}</p>
+    <div className="surface-panel flex min-h-56 flex-col items-start justify-center py-10 sm:py-12">
+      <p className="text-xl font-semibold text-foreground">{title}</p>
+      <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">{description}</p>
       {action && (
-        <button onClick={action.onClick} className="btn-primary mt-6">
-          {action.icon && <span className="mr-2">{action.icon}</span>}
+        <button type="button" onClick={action.onClick} className="btn-primary mt-6">
           {action.label}
         </button>
       )}

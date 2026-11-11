@@ -32,26 +32,46 @@ export default function ProductReviews({
   );
 
   return (
-    <div className="card-elevated space-y-6">
-      <div className="flex items-center justify-between border-b pb-4">
-        <h2 className="text-xl font-bold text-foreground">Ulasan Pembeli</h2>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <Star className="h-5 w-5 fill-warning text-warning" />
-            <span className="text-lg font-bold text-foreground">
-              {averageRating.toFixed(1)}
-            </span>
+    <div className="space-y-8">
+      {/* Reviews Summary Header */}
+      <div className="flex flex-col gap-6 border-b border-border pb-8 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Ulasan Pelanggan
+          </p>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Apa kata pembeli
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Ulasan nyata dari pelanggan yang telah memesan bunga ini.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface px-5 py-4">
+          <div className="text-right">
+            <div className="flex items-center gap-1.5 justify-end">
+              <Star className="h-5 w-5 fill-warning text-warning" aria-hidden="true" />
+              <span className="text-2xl font-extrabold text-foreground">
+                {averageRating.toFixed(1)}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              dari {totalReviews} ulasan
+            </p>
           </div>
-          <span className="text-sm text-muted-foreground">({totalReviews} ulasan)</span>
+          <div className="h-10 w-px bg-border" aria-hidden="true" />
+          <div className="text-xs text-muted-foreground">
+            <p className="font-semibold text-foreground">100% Terverifikasi</p>
+            <p>Hanya pembeli aktif</p>
+          </div>
         </div>
       </div>
 
       {hasUserReviewed ? (
-        <div className="flex items-center gap-2 rounded-lg border border-success/20 bg-success/10 p-4 text-sm text-success">
-          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+        <div className="flex items-center gap-3 rounded-2xl border border-success/30 bg-success/10 p-5 text-sm text-foreground">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-success" aria-hidden="true" />
           <span>
-            Anda sudah memberikan ulasan untuk produk ini. Terima kasih atas
-            partisipasi Anda!
+            Anda sudah memberikan ulasan untuk produk ini. Terima kasih telah membantu pembeli lain!
           </span>
         </div>
       ) : (
@@ -62,24 +82,26 @@ export default function ProductReviews({
       )}
 
       {reviews.length === 0 ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">
-          Belum ada ulasan untuk produk ini. Jadilah yang pertama memberikan
-          ulasan!
+        <div className="rounded-2xl border border-dashed border-border py-14 text-center">
+          <p className="text-sm font-medium text-foreground">Belum ada ulasan untuk produk ini</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Jadilah pelanggan pertama yang membagikan pengalaman setelah menerima bunga.
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="divide-y divide-border">
           {reviews.map((review) => (
-            <div
+            <article
               key={review.id}
-              className="border-b border-border pb-4 last:border-0 last:pb-0"
+              className="py-6 first:pt-0 last:pb-0"
             >
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success/20 text-sm font-semibold text-success">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-sm font-bold text-foreground">
                     {review.user.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-semibold text-foreground">
                       {review.user.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -90,25 +112,28 @@ export default function ProductReviews({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-0.5">
+
+                <div className="flex items-center gap-1" aria-label={`Rating ${review.rating} dari 5 bintang`}>
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
                       className={`h-4 w-4 ${
                         i < review.rating
                           ? "fill-warning text-warning"
-                          : "fill-muted-foreground/20 text-muted-foreground/20"
+                          : "text-muted-foreground/20"
                       }`}
+                      aria-hidden="true"
                     />
                   ))}
                 </div>
               </div>
+
               {review.comment && (
-                <p className="text-sm leading-relaxed text-foreground">
+                <p className="mt-3.5 text-sm leading-relaxed text-foreground/90">
                   {review.comment}
                 </p>
               )}
-            </div>
+            </article>
           ))}
         </div>
       )}

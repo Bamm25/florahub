@@ -2,9 +2,12 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// Handler HTTP GET untuk mengambil daftar pesanan seluruh sistem oleh admin
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses admin
     const { userId } = await requireAuth(request, ["ADMIN"]);
+    // Ambil parameter paginasi dan filter dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
@@ -13,6 +16,7 @@ export async function GET(request: Request) {
     const isPreorderParam = searchParams.get("isPreorder");
     const whereClause: any = {};
 
+    // Filter berdasarkan status pesanan jika ada
     if (
       statusParam &&
       typeof statusParam === "string" &&
@@ -20,10 +24,12 @@ export async function GET(request: Request) {
     ) {
       whereClause.status = statusParam.trim();
     }
+    // Filter berdasarkan jenis pesanan preorder jika ada
     if (isPreorderParam !== null) {
       whereClause.isPreorder = isPreorderParam === "true";
     }
 
+    // Ambil data daftar pesanan beserta relasi user, items, payment, shipment, dan total data
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where: whereClause,
@@ -60,6 +66,7 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Kembalikan respon sukses beserta data paginasi pesanan
     return NextResponse.json({
       success: true,
       message: "Daftar pesanan berhasil diambil",
@@ -76,6 +83,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

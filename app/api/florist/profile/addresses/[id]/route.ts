@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-// PUT /api/florist/profile/addresses/[id] - Update address
+// Skema validasi pembaruan data alamat florist
 const updateAddressSchema = z.object({
   label: z.string().min(1).max(50).optional(),
   recipientName: z.string().min(1).max(200).optional(),
@@ -16,22 +16,27 @@ const updateAddressSchema = z.object({
   longitude: z.number().optional().nullable(),
 });
 
+// Handler HTTP PUT untuk memperbarui data alamat florist berdasarkan ID
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Ambil parameter ID alamat dari URL
     const { id } = await params;
 
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updateAddressSchema.parse(body);
 
-    // Check ownership
+    // Cari data alamat eksisting di database
     const existingAddress = await prisma.address.findUnique({
       where: { id },
     });
 
+    // Validasi keberadaan data alamat
     if (!existingAddress) {
       return NextResponse.json(
         {
@@ -42,6 +47,7 @@ export async function PUT(
       );
     }
 
+    // Validasi hak kepemilikan alamat oleh pengguna
     if (existingAddress.userId !== userId) {
       return NextResponse.json(
         {
@@ -52,18 +58,20 @@ export async function PUT(
       );
     }
 
-    // Update address
+    // Perbarui data alamat di database
     const updatedAddress = await prisma.address.update({
       where: { id },
       data: validated,
     });
 
+    // Kembalikan respon sukses pembaruan data alamat
     return NextResponse.json({
       success: true,
       message: "Alamat berhasil diperbarui",
       data: { address: updatedAddress },
     });
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -84,20 +92,23 @@ export async function PUT(
   }
 }
 
-// DELETE /api/florist/profile/addresses/[id] - Delete address
+// Handler HTTP DELETE untuk menghapus alamat florist berdasarkan ID
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Ambil parameter ID alamat dari URL
     const { id } = await params;
 
-    // Check ownership
+    // Cari data alamat eksisting di database
     const existingAddress = await prisma.address.findUnique({
       where: { id },
     });
 
+    // Validasi keberadaan data alamat
     if (!existingAddress) {
       return NextResponse.json(
         {
@@ -108,6 +119,7 @@ export async function DELETE(
       );
     }
 
+    // Validasi hak kepemilikan alamat oleh pengguna
     if (existingAddress.userId !== userId) {
       return NextResponse.json(
         {
@@ -118,6 +130,7 @@ export async function DELETE(
       );
     }
 
+    // Validasi apakah alamat sudah pernah digunakan oleh pesanan
     const linkedOrders = await prisma.order.count({ where: { addressId: id } });
     if (linkedOrders > 0) {
       return NextResponse.json(
@@ -126,6 +139,7 @@ export async function DELETE(
       );
     }
 
+    // Cegah penghapusan jika hanya tersisa satu alamat
     const totalAddresses = await prisma.address.count({ where: { userId } });
     if (totalAddresses <= 1) {
       return NextResponse.json(
@@ -134,6 +148,7 @@ export async function DELETE(
       );
     }
 
+    // Hapus alamat dan reset referensi alamat default jika terkait
     await prisma.$transaction(async (tx) => {
       const profile = await tx.floristProfile.findUnique({ where: { userId } });
       if (profile?.defaultAddressId === id) {
@@ -142,11 +157,13 @@ export async function DELETE(
       await tx.address.delete({ where: { id, userId } });
     });
 
+    // Kembalikan respon sukses penghapusan alamat
     return NextResponse.json({
       success: true,
       message: "Alamat berhasil dihapus",
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

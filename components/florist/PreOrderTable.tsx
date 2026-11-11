@@ -2,6 +2,7 @@ import React from "react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { formatDate, formatDateTime, formatRupiah } from "@/lib/utils/formatters";
 
+// Interface data pre-order bunga ke supplier
 interface PreOrder {
   id: string;
   quantity: number;
@@ -24,51 +25,43 @@ interface PreOrder {
   };
 }
 
+// Props interface untuk komponen tabel riwayat pre-order
 interface PreOrderTableProps {
   preOrders: PreOrder[];
 }
 
-/**
- * PreOrderTable component
- * Table for displaying florist pre-orders with status badges
- */
+// Komponen tabel riwayat pre-order florist ke supplier beserta status konfirmasi
 export default function PreOrderTable({ preOrders }: PreOrderTableProps) {
-  const statusVariants: Record<string, "preorder"> = {
-    PENDING: "preorder",
-    CONFIRMED: "preorder",
-    CANCELLED: "preorder",
-  };
-
   return (
-    <div className="card-elevated overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-surface-container-low border-b border-border">
+    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+      <div className="overflow-x-auto overscroll-x-contain">
+        <table className="w-full min-w-[760px]">
+          <thead className="bg-[#181720] border-b border-zinc-800">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                Bunga
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                Bunga & Varietas
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                Supplier
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                Supplier Kebun
               </th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">
-                Quantity
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                Kuantitas
               </th>
-              <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
+              <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-zinc-300">
                 Total Harga
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                Tanggal Panen
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                Jadwal Panen
               </th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-muted-foreground">
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-300">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
-                Dibuat
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                Waktu Pesan
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-border text-sm">
             {Array.isArray(preOrders) && preOrders.map((order) => (
               <tr
                 key={order.id}
@@ -76,7 +69,7 @@ export default function PreOrderTable({ preOrders }: PreOrderTableProps) {
               >
                 <td className="px-4 py-3">
                   <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="font-semibold text-foreground">
                       {order.announcement?.flowerName ?? 'Unknown'}
                     </p>
                     {order.announcement?.variety && (
@@ -87,30 +80,30 @@ export default function PreOrderTable({ preOrders }: PreOrderTableProps) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-sm text-foreground">
+                  <p className="text-muted-foreground text-xs font-medium">
                     {order.announcement?.supplier?.name ?? 'Unknown'}
                   </p>
                 </td>
-                <td className="px-4 py-3 text-center">
-                  <p className="text-sm font-medium text-foreground">
+                <td scope="col" className="px-4 py-3 text-center">
+                  <span className="font-mono font-semibold tabular-nums text-foreground">
                     {order.quantity ?? 0}
-                  </p>
+                  </span>
                 </td>
-                <td className="px-4 py-3 text-right">
-                  <p className="text-sm font-semibold text-foreground">
+                <td scope="col" className="px-4 py-3 text-right">
+                  <span className="font-mono font-semibold tabular-nums text-foreground">
                     {formatRupiah(order.totalPrice ?? 0)}
-                  </p>
+                  </span>
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {formatDate(order.announcement?.harvestDate ?? '')}
                   </p>
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td scope="col" className="px-4 py-3 text-center">
                   <StatusBadge status={order.status} variant="preorder" />
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground font-mono">
                     {formatDateTime(order.createdAt)}
                   </p>
                 </td>

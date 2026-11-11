@@ -1,15 +1,17 @@
-// Endpoint untuk tracking shipment via Biteship API (update status otomatis)
+// Endpoint pelacakan pengiriman melalui Biteship API
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getBiteshipClient, mapBiteshipStatus } from "@/lib/biteship";
 
+// Handler HTTP GET untuk melacak status pengiriman paket melalui Biteship API
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Autentikasi sesi pengguna
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -19,8 +21,10 @@ export async function GET(
       );
     }
 
+    // Ambil parameter ID pengiriman dari URL
     const { id: shipmentId } = await params;
 
+    // Cari data pengiriman beserta relasi order, pembeli, dan produk
     const shipment = await prisma.shipment.findUnique({
       where: { id: shipmentId },
       include: {
@@ -41,6 +45,7 @@ export async function GET(
       },
     });
 
+    // Validasi keberadaan data pengiriman
     if (!shipment) {
       return NextResponse.json(
         { success: false, message: "Shipment tidak ditemukan" },
@@ -48,7 +53,7 @@ export async function GET(
       );
     }
 
-    // Validate access: florist owner atau customer
+    // Validasi hak akses pemilik florist, pembeli, atau admin
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
     const floristId = shipment.order.items[0]?.product?.florist?.id;
@@ -62,7 +67,7 @@ export async function GET(
       );
     }
 
-    // Jika tidak ada biteshipOrderId, return data shipment dari database saja
+    // Kembalikan data lokal database jika tidak terhubung ke Biteship
     if (!shipment.biteshipOrderId) {
       return NextResponse.json({
         success: true,
@@ -75,7 +80,7 @@ export async function GET(
       });
     }
 
-    // Fetch tracking dan status order dari Biteship
+    // Ambil data status dan riwayat pelacakan dari Biteship
     const biteshipClient = getBiteshipClient();
     const biteshipOrder = await biteshipClient.getOrder(shipment.biteshipOrderId);
     const newStatus = mapBiteshipStatus(biteshipOrder.status);
@@ -107,14 +112,14 @@ export async function GET(
       });
     }
 
-    // Update order status jika shipment shipped
+    // Perbarui status pesanan menjadi SHIPPED jika pengiriman dikirim
     if (finalStatus === "SHIPPED" && shipment.order.status === "PROCESSING") {
       await prisma.order.update({
         where: { id: shipment.orderId },
         data: { status: "SHIPPED" },
       });
 
-      // Create notification untuk customer
+      // Kirim notifikasi pengiriman pesanan ke pembeli
       await prisma.notification.create({
         data: {
           userId: shipment.order.userId,
@@ -125,14 +130,14 @@ export async function GET(
       });
     }
 
-    // Update order status jika shipment delivered
+    // Perbarui status pesanan menjadi DELIVERED jika paket sampai
     if (newStatus === "DELIVERED" && shipment.order.status !== "DELIVERED") {
       await prisma.order.update({
         where: { id: shipment.orderId },
         data: { status: "DELIVERED" },
       });
 
-      // Create notification untuk customer
+      // Kirim notifikasi penerimaan pesanan ke pembeli
       await prisma.notification.create({
         data: {
           userId: shipment.order.userId,
@@ -143,6 +148,7 @@ export async function GET(
       });
     }
 
+    // Kembalikan respon sukses pelacakan pengiriman
     return NextResponse.json({
       success: true,
       message: "Tracking berhasil diambil",
@@ -162,6 +168,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
+    // Tangani error internal server
     console.error("[TRACK_SHIPMENT_ERROR]", error);
     return NextResponse.json(
       {

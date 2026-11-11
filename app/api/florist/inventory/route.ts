@@ -4,23 +4,28 @@ import { NextResponse } from "next/server";
 import { createInventorySchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP GET untuk mengambil daftar inventaris bahan baku florist
 export async function GET(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
 
+    // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
 
+    // Filter inventaris berdasarkan ID florist
     const whereClause: any = {};
     if (userRole === "FLORIST") {
       whereClause.floristId = userId;
     }
 
+    // Ambil data inventaris beserta relasi stok supplier dan total data
     const [inventory, total] = await Promise.all([
       prisma.floristInventory.findMany({
         where: whereClause,
@@ -48,15 +53,18 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Hitung item inventaris dengan kuantitas di bawah ambang batas minimum
     const lowStockCount = inventory.filter(
       (inv) => inv.quantity < inv.minThreshold,
     ).length;
 
+    // Tambahkan indikator status stok menipis pada setiap data inventaris
     const inventoriesWithFlag = inventory.map((inv) => ({
       ...inv,
       isLowStock: inv.quantity < inv.minThreshold,
     }));
 
+    // Kembalikan respon sukses beserta data paginasi inventaris
     return NextResponse.json({
       success: true,
       message: "Daftar inventory berhasil diambil",
@@ -74,6 +82,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -84,18 +93,23 @@ export async function GET(request: Request) {
   }
 }
 
+// Handler HTTP POST untuk menambahkan bahan baku baru ke inventaris florist
 export async function POST(request: Request) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
     
     try {
+      // Parsing dan validasi request body menggunakan skema Zod
       const body = await request.json();
       const validatedData = createInventorySchema.parse(body);
       const { stockId, quantity, location, notes } = validatedData;
 
+    // Cari data stok supplier di database
     const stock = await prisma.stock.findUnique({
       where: { id: stockId },
     });
+    // Validasi keberadaan stok supplier
     if (!stock) {
       return NextResponse.json(
         {
@@ -106,6 +120,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validasi ketersediaan stok supplier
     if (!stock.isAvailable) {
       return NextResponse.json(
         {
@@ -116,6 +131,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Periksa apakah stok sudah pernah ditambahkan ke inventaris florist
     const existingInventory = await prisma.floristInventory.findUnique({
       where: {
         floristId_stockId: {
@@ -136,6 +152,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Buat catatan inventaris baru di database
     const inventory = await prisma.floristInventory.create({
       data: {
         floristId: userId,
@@ -161,7 +178,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Trigger low stock notification if initial quantity is already below threshold
+    // Kirim notifikasi peringatan stok rendah jika kuantitas awal di bawah ambang batas
     if (inventory.quantity < inventory.minThreshold) {
       await prisma.notification.create({
         data: {
@@ -175,6 +192,7 @@ export async function POST(request: Request) {
       });
     }
 
+    // Kembalikan respon sukses pembuatan inventaris
     return NextResponse.json(
       {
         success: true,
@@ -186,6 +204,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
     } catch (error) {
+      // Tangani error validasi skema Zod
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { success: false, message: "Validation error", errors: error.issues },
@@ -195,6 +214,7 @@ export async function POST(request: Request) {
       throw error;
     }
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

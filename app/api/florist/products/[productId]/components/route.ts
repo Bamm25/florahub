@@ -4,17 +4,21 @@ import { NextResponse } from "next/server";
 import { createProductComponentSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP GET untuk mengambil daftar komponen bahan baku penyusun produk
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter ID produk dari URL
     const { productId } = await params;
 
+    // Cari data produk untuk memverifikasi kepemilikan
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: {
@@ -24,6 +28,7 @@ export async function GET(
       },
     });
 
+    // Validasi keberadaan data produk
     if (!product) {
       return NextResponse.json(
         {
@@ -34,6 +39,7 @@ export async function GET(
       );
     }
 
+    // Validasi hak kepemilikan produk oleh florist
     if (userRole === "FLORIST" && product.floristId !== userId) {
       return NextResponse.json(
         {
@@ -44,11 +50,13 @@ export async function GET(
       );
     }
 
+    // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
 
+    // Ambil daftar komponen produk beserta relasi inventaris dan stok supplier
     const [components, total] = await Promise.all([
       prisma.productComponent.findMany({
         where: { productId },
@@ -74,6 +82,7 @@ export async function GET(
       prisma.productComponent.count({ where: { productId } }),
     ]);
 
+    // Kembalikan respon sukses beserta data paginasi komponen produk
     return NextResponse.json({
       success: true,
       message: "Daftar komponen produk berhasil diambil",
@@ -103,6 +112,7 @@ export async function GET(
       },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }
@@ -113,25 +123,31 @@ export async function GET(
   }
 }
 
+// Handler HTTP POST untuk menambahkan komponen bahan baku baru ke resep produk
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId, userRole } = await requireAuth(request, [
       "FLORIST",
       "ADMIN",
     ]);
+    // Ambil parameter ID produk dari URL
     const { productId } = await params;
+    // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validatedData = createProductComponentSchema.parse(body);
     const { inventoryId, quantity } = validatedData;
 
+    // Cari data produk untuk memverifikasi kepemilikan
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: { id: true, floristId: true },
     });
 
+    // Validasi keberadaan data produk
     if (!product) {
       return NextResponse.json(
         { success: false, message: "Produk tidak ditemukan" },
@@ -139,6 +155,7 @@ export async function POST(
       );
     }
 
+    // Validasi hak kepemilikan produk oleh florist
     if (userRole === "FLORIST" && product.floristId !== userId) {
       return NextResponse.json(
         { success: false, message: "Anda tidak memiliki akses ke produk ini" },
@@ -146,6 +163,7 @@ export async function POST(
       );
     }
 
+    // Cari data inventaris bahan baku florist
     const inventory = await prisma.floristInventory.findUnique({
       where: { id: inventoryId },
       select: {
@@ -154,6 +172,7 @@ export async function POST(
       },
     });
 
+    // Validasi keberadaan data inventaris
     if (!inventory) {
       return NextResponse.json(
         {
@@ -164,6 +183,7 @@ export async function POST(
       );
     }
 
+    // Validasi hak kepemilikan inventaris oleh florist
     if (userRole === "FLORIST" && inventory.floristId !== userId) {
       return NextResponse.json(
         {
@@ -174,6 +194,7 @@ export async function POST(
       );
     }
 
+    // Validasi kesesuaian pemilik produk dan pemilik inventaris bahan baku
     if (inventory.floristId !== product.floristId) {
       return NextResponse.json(
         { success: false, message: "Inventory bukan milik florist produk ini" },
@@ -181,6 +202,7 @@ export async function POST(
       );
     }
 
+    // Periksa apakah komponen bahan baku sudah ada pada produk ini
     const existingComponent = await prisma.productComponent.findFirst({
       where: {
         productId,
@@ -198,6 +220,7 @@ export async function POST(
       );
     }
 
+    // Simpan data komponen produk baru ke database
     const component = await prisma.productComponent.create({
       data: {
         productId,
@@ -219,6 +242,7 @@ export async function POST(
       },
     });
 
+    // Kembalikan respon sukses pembuatan komponen produk
     return NextResponse.json(
       {
         success: true,
@@ -241,6 +265,7 @@ export async function POST(
       { status: 201 },
     );
   } catch (error) {
+    // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

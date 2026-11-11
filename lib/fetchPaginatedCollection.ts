@@ -1,4 +1,4 @@
-// Collect all pages before showing totals or filtering; APIs default to twenty rows.
+// Fungsi untuk mengambil seluruh halaman data terpaginasi dari endpoint API
 export async function fetchPaginatedCollection<T>(
   path: string,
   key: string,

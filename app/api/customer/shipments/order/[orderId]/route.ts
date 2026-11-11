@@ -3,17 +3,17 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getBiteshipClient, mapBiteshipStatus } from "@/lib/biteship";
 
-// GET: Fetch shipment info untuk order by orderId
+// Handler HTTP GET untuk mengambil informasi status pengiriman pesanan berdasarkan ID pesanan
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ orderId: string }> },
 ) {
   try {
-    // Validate user session dan parse orderId
+    // Validasi sesi pengguna dan ambil ID pesanan dari parameter rute
     const { userId } = await requireAuth(request);
     const { orderId } = await params;
 
-    // Query shipment dengan order details
+    // Ambil data pengiriman beserta relasi rincian pesanan
     const shipment = await prisma.shipment.findUnique({
       where: { orderId },
       include: {
@@ -29,7 +29,7 @@ export async function GET(
       },
     });
 
-    // Validate shipment existence
+    // Validasi keberadaan data pengiriman
     if (!shipment) {
       return NextResponse.json(
         {
@@ -40,7 +40,7 @@ export async function GET(
       );
     }
 
-    // Validate order ownership
+    // Validasi hak kepemilikan pesanan oleh pengguna
     if (shipment.order.userId !== userId) {
       return NextResponse.json(
         {
@@ -51,7 +51,7 @@ export async function GET(
       );
     }
 
-    // Sinkronkan data terbaru dari Biteship jika shipment otomatis dan belum delivered
+    // Sinkronkan status pengiriman terkini dari Biteship bila belum berstatus terkirim
     let currentShipment = shipment;
     if (shipment.biteshipOrderId && shipment.status !== "DELIVERED") {
       try {
@@ -70,7 +70,7 @@ export async function GET(
 
         const currentRank = STATUS_RANK[shipment.status] || 0;
         const nextRank = STATUS_RANK[newStatus] || 0;
-        // Hanya update status dari Biteship jika statusnya maju, jangan downgrade status yang sudah diperbarui florist
+        // Hanya perbarui status jika status baru lebih lanjut dari status saat ini
         const shouldUpdateStatus = nextRank > currentRank;
         const finalStatus = shouldUpdateStatus ? newStatus : shipment.status;
         const isTrackingChanged = waybillId && waybillId !== shipment.trackingNumber;
@@ -109,14 +109,14 @@ export async function GET(
       }
     }
 
-    // Return response dengan shipment data
+    // Kirim respons berhasil beserta data informasi pengiriman
     return NextResponse.json({
       success: true,
       message: "Informasi pengiriman berhasil diambil",
       data: { shipment: currentShipment },
     });
   } catch (error) {
-    // Handle auth errors
+    // Tangani galat otentikasi pengguna
     if (error instanceof NextResponse) {
       return error;
     }

@@ -1,18 +1,20 @@
-// Biteship API Client untuk automatic shipping label & tracking
+// Klien API Biteship untuk pengelolaan resi pengiriman dan pelacakan paket
 import axios from "axios";
 import type { AxiosInstance } from "axios";
 
+// URL dasar endpoint API Biteship sesuai lingkungan aplikasi
 const BITESHIP_BASE_URL =
   process.env.BITESHIP_ENV === "production"
     ? "https://api.biteship.com/v1"
     : "https://api.biteship.com/v1"; // Sandbox: ubah saat Biteship provide sandbox URL
 
+// Interface konfigurasi kredensial klien Biteship
 interface BiteshipConfig {
   apiKey: string;
   baseURL?: string;
 }
 
-// Response types dari Biteship API
+// Interface data wilayah administrasi dari API Biteship
 export interface BiteshipArea {
   id: string;
   name: string;
@@ -27,6 +29,7 @@ export interface BiteshipArea {
   postal_code: number;
 }
 
+// Interface spesifikasi barang untuk perhitungan tarif ongkos kirim
 export interface BiteshipRateItem {
   name: string;
   description?: string;
@@ -38,6 +41,7 @@ export interface BiteshipRateItem {
   weight: number; // gram
 }
 
+// Interface tarif dan layanan kurir pengiriman dari API Biteship
 export interface BiteshipCourierRate {
   available_for_cash_on_delivery: boolean;
   available_for_proof_of_delivery: boolean;
@@ -58,6 +62,7 @@ export interface BiteshipCourierRate {
   type: string;
 }
 
+// Interface respons daftar tarif kurir dari API Biteship
 export interface BiteshipRatesResponse {
   success: boolean;
   object: string;
@@ -68,6 +73,7 @@ export interface BiteshipRatesResponse {
   pricing: Array<BiteshipCourierRate>;
 }
 
+// Interface muatan data permintaan pembuatan order penjemputan kurir Biteship
 export interface BiteshipOrderRequest {
   shipper_contact_name: string;
   shipper_contact_phone: string;
@@ -116,7 +122,7 @@ export interface BiteshipOrderRequest {
   }>;
 }
 
-// Response order Biteship sesuai dokumentasi resmi create dan retrieve order
+// Interface data respons pesanan pengiriman dari API Biteship
 export interface BiteshipOrderResponse {
   success: boolean;
   object: string;
@@ -147,6 +153,7 @@ export interface BiteshipOrderResponse {
   items: any[];
 }
 
+// Interface data pelacakan pengiriman kurir dari API Biteship
 export interface BiteshipTrackingResponse {
   success: boolean;
   object: string;
@@ -168,9 +175,11 @@ export interface BiteshipTrackingResponse {
   status: string; // "confirmed", "allocated", "picking_up", "picked", "dropping_off", "delivered", "cancelled", "rejected", "courier_not_found", "returned"
 }
 
+// Kelas klien HTTP untuk interaksi langsung dengan layanan API Biteship
 class BiteshipClient {
   private client: AxiosInstance;
 
+  // Konstruktor inisialisasi instance klien axios Biteship
   constructor(config: BiteshipConfig) {
     this.client = axios.create({
       baseURL: config.baseURL || BITESHIP_BASE_URL,
@@ -182,7 +191,7 @@ class BiteshipClient {
     });
   }
 
-  // Search area by postal code, city name, atau district name
+  // Metode pencarian wilayah berdasarkan kode pos atau nama lokasi
   async searchAreas(query: string, types?: string[]): Promise<BiteshipArea[]> {
     const params: Record<string, any> = {
       countries: "ID",
@@ -204,7 +213,7 @@ class BiteshipClient {
     return response.data.areas || [];
   }
 
-  // Get shipping rates dari origin ke destination
+  // Metode untuk mendapatkan estimasi tarif ongkir kurir pengiriman
   async getRates(
     originPostalCode: number,
     destinationPostalCode: number,
@@ -232,7 +241,7 @@ class BiteshipClient {
     return response.data;
   }
 
-  // Create order & auto-generate AWB (nomor resi)
+  // Metode untuk membuat order pengiriman dan menerbitkan nomor resi
   async createOrder(
     orderData: BiteshipOrderRequest
   ): Promise<BiteshipOrderResponse> {
@@ -247,7 +256,7 @@ class BiteshipClient {
     return response.data;
   }
 
-  // Ambil detail order Biteship berdasarkan order id untuk status dan riwayat terbaru
+  // Metode untuk mengambil rincian pesanan pengiriman Biteship berdasarkan ID
   async getOrder(orderId: string): Promise<BiteshipOrderResponse> {
     const response = await this.client.get(`/orders/${orderId}`);
 
@@ -260,7 +269,7 @@ class BiteshipClient {
     return response.data;
   }
 
-  // Ambil URL file PDF shipping label resmi dari Biteship
+  // Metode untuk mendapatkan URL berkas label resi pengiriman format PDF
   async getShippingLabel(orderId: string): Promise<string | null> {
     try {
       const response = await this.client.get(`/orders/${orderId}/label`);
@@ -270,7 +279,7 @@ class BiteshipClient {
     }
   }
 
-  // Track shipment by order_id (Biteship internal ID)
+  // Metode untuk melacak status paket berdasarkan ID pesanan Biteship
   async trackByOrderId(orderId: string): Promise<BiteshipTrackingResponse> {
     const response = await this.client.get(`/trackings/${orderId}`);
 
@@ -283,7 +292,7 @@ class BiteshipClient {
     return response.data;
   }
 
-  // Track shipment by waybill_id (nomor resi) + courier company
+  // Metode untuk melacak paket berdasarkan nomor resi kurir dan nama ekspedisi
   async trackByWaybillId(
     waybillId: string,
     courierCompany: string
@@ -304,7 +313,7 @@ class BiteshipClient {
     return response.data;
   }
 
-  // Cancel order (hanya bisa sebelum kurir pickup)
+  // Metode untuk membatalkan pesanan penjemputan kurir Biteship
   async cancelOrder(orderId: string, reason?: string): Promise<boolean> {
     const payload: Record<string, any> = {};
     if (reason) {
@@ -320,9 +329,10 @@ class BiteshipClient {
   }
 }
 
-// Singleton instance
+// Instance tunggal klien Biteship untuk digunakan di seluruh aplikasi
 let biteshipClient: BiteshipClient | null = null;
 
+// Fungsi untuk mengembalikan instance tunggal klien API Biteship
 export function getBiteshipClient(): BiteshipClient {
   if (!process.env.BITESHIP_API_KEY) {
     throw new Error(
@@ -339,7 +349,7 @@ export function getBiteshipClient(): BiteshipClient {
   return biteshipClient;
 }
 
-// Helper: Mapping Biteship status ke status internal FloraHub
+// Fungsi pemetaan status pengiriman Biteship ke status internal pesanan FloraHub
 export function mapBiteshipStatus(
   biteshipStatus: string
 ): "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" {

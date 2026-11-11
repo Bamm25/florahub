@@ -2,6 +2,7 @@ import type { CartItem } from "@/types";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+// Interface data produk minimal saat ditambahkan ke keranjang belanja
 interface AddToCartProduct {
   id: string;
   name: string;
@@ -11,7 +12,7 @@ interface AddToCartProduct {
   floristId: string;
 }
 
-// state + actions
+// Interface state dan aksi untuk store keranjang belanja
 interface CartStore {
   items: CartItem[];
   addItem: (product: AddToCartProduct, quantity?: number) => void;
@@ -22,11 +23,12 @@ interface CartStore {
   getItemCount: () => number;
 }
 
+// Hook Zustand untuk mengelola state keranjang belanja dengan persistensi data
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      // Tambah item ke cart / update quantity
+      // Tambah item ke keranjang atau perbarui kuantitas jika sudah ada
       addItem: (product: AddToCartProduct, quantity: number = 1) => {
         set((state) => {
           const existingItem = state.items.find(
@@ -55,13 +57,13 @@ export const useCartStore = create<CartStore>()(
           return { items: [...state.items, newItem] };
         });
       },
-      // Hapus item dari cart by productId
+      // Hapus item dari keranjang berdasarkan ID produk
       removeItem: (productId: string) => {
         set((state) => ({
           items: state.items.filter((item) => item.productId !== productId),
         }));
       },
-      // Update quantity item tertentu
+      // Perbarui kuantitas item produk tertentu di keranjang
       updateQuantity: (productId: string, quantity: number) => {
         set((state) => ({
           items: state.items.map((item) =>
@@ -69,7 +71,7 @@ export const useCartStore = create<CartStore>()(
           ),
         }));
       },
-      // Kosongkan cart setelah checkout
+      // Kosongkan seluruh isi keranjang belanja
       clearCart: () => {
         set({ items: [] });
       },

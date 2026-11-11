@@ -1,29 +1,25 @@
 import React from "react";
-import { AlertTriangle } from "lucide-react";
 
+// Props interface untuk komponen status error
 interface ErrorStateProps {
   error: string;
   onRetry?: () => void;
   title?: string;
 }
 
-/**
- * ErrorState component
- * Error display with retry button
- */
+// Komponen status error pemuatan data dengan opsi coba lagi
 export default function ErrorState({
   error,
   onRetry,
-  title = "Gagal Memuat Data",
+  title = "Data belum bisa dimuat",
 }: ErrorStateProps) {
   return (
-    <div className="rounded-2xl border border-error/20 bg-error/5 p-8 text-center max-w-xl mx-auto">
-      <AlertTriangle className="h-10 w-10 text-error mx-auto mb-3" />
-      <h2 className="text-lg font-bold text-foreground mb-1">{title}</h2>
-      <p className="text-sm text-muted-foreground mb-6">{error}</p>
+    <div role="alert" className="surface-panel mx-auto max-w-xl border-error/30">
+      <h2 className="mb-2 text-xl font-semibold text-foreground">{title}</h2>
+      <p className="mb-6 text-sm leading-6 text-muted-foreground">{error}</p>
       {onRetry && (
-        <button onClick={onRetry} className="btn-primary text-sm">
-          Coba Lagi
+        <button type="button" onClick={onRetry} className="btn-primary text-sm">
+          Coba lagi
         </button>
       )}
     </div>

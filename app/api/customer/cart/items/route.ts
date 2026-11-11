@@ -4,16 +4,16 @@ import { NextResponse } from "next/server";
 import { createCartItemSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
-// POST: Create new cart item atau update quantity jika sudah ada
+// Handler HTTP POST untuk menambahkan item ke keranjang atau memperbarui kuantitas
 export async function POST(request: Request) {
   try {
-    // Validate user session dan parse request body
+    // Validasi sesi pengguna dan parse payload penambahan item
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const validated = createCartItemSchema.parse(body);
     const { productId, quantity } = validated;
 
-    // Query product details untuk validasi
+    // Ambil detail produk untuk keperluan validasi ketersediaan
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: {
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Validate product existence
+    // Validasi keberadaan produk
     if (!product) {
       return NextResponse.json(
         { success: false, message: "Produk tidak ditemukan" },
@@ -34,14 +34,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate product availability
+    // Validasi status keaktifan produk
     if (!product.isActive) {
       return NextResponse.json(
         { success: false, message: "Produk tidak tersedia" },
         { status: 400 },
       );
     }
-    // Validate stock availability
+    // Validasi kecukupan stok produk
     if (product.stock < quantity) {
       return NextResponse.json(
         {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find atau create cart untuk user
+    // Ambil atau buat keranjang baru untuk pengguna
     let cart = await prisma.cart.findUnique({
       where: { userId },
     });
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Check jika product sudah ada di cart
+    // Periksa apakah produk telah tersimpan sebelumnya di keranjang
     const existingItem = await prisma.cartItem.findFirst({
       where: {
         cartId: cart.id,
@@ -73,11 +73,11 @@ export async function POST(request: Request) {
 
     let cartItem;
 
-    // Update existing item quantity
+    // Perbarui jumlah kuantitas jika produk sudah ada dalam keranjang
     if (existingItem) {
       const newQuantity = existingItem.quantity + quantity;
 
-      // Validate total quantity tidak melebihi stock
+      // Validasi akumulasi kuantitas agar tidak melebihi sisa stok
       if (product.stock < newQuantity) {
         return NextResponse.json(
           {
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         },
       });
     } else {
-      // Create new cart item
+      // Simpan item produk baru ke dalam keranjang belanja
       cartItem = await prisma.cartItem.create({
         data: {
           cartId: cart.id,
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Return response dengan cart item data
+    // Kirim respons berhasil beserta data item keranjang
     return NextResponse.json(
       {
         success: true,
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
       { status: existingItem ? 200 : 201 },
     );
   } catch (error) {
-    // Handle validation errors
+    // Tangani galat validasi skema masukan
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    // Handle auth errors
+    // Tangani galat otentikasi pengguna
     if (error instanceof NextResponse) {
       return error;
     }

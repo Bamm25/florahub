@@ -4,12 +4,13 @@ import { NextResponse } from "next/server";
 import { createProductSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
+// Handler HTTP GET untuk mengambil daftar produk atau detail produk berdasarkan slug
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get("slug");
 
-    // query param slug
+    // Ambil detail produk spesifik jika parameter slug disertakan
     if (slug) {
       const product = await prisma.product.findFirst({
         where: {
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
         );
       }
 
+      // Hitung agregasi ulasan dan rating rata-rata produk
       const totalReviews = product.reviews.length;
       const averageRating =
         totalReviews > 0
@@ -60,6 +62,7 @@ export async function GET(request: Request) {
             )
           : 0;
 
+      // Format data produk untuk kebutuhan respons
       const formattedProduct = {
         id: product.id,
         name: product.name,
@@ -97,6 +100,8 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
+
+    // Susun klausa filter pencarian dan kategori produk
     const whereClause: any = {
       isActive: true,
     };
@@ -110,6 +115,7 @@ export async function GET(request: Request) {
       whereClause.categoryId = categoryId;
     }
 
+    // Ambil daftar produk dan hitung total data secara paralel
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where: whereClause,
@@ -165,16 +171,20 @@ export async function GET(request: Request) {
   }
 }
 
+// Handler HTTP POST untuk menambahkan produk baru
 export async function POST(request: Request) {
   try {
+    // Validasi otentikasi peran florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
 
     try {
+      // Parse dan validasi payload pembuatan produk
       const body = await request.json();
       const validatedData = createProductSchema.parse(body);
       const { name, description, price, stock, image, categoryId } =
         validatedData;
 
+      // Simpan produk baru ke database
       const newProduct = await prisma.product.create({
         data: {
           name: name.trim(),
@@ -199,6 +209,7 @@ export async function POST(request: Request) {
         },
       });
 
+      // Kirim respons berhasil pembuatan produk
       return NextResponse.json(
         {
           success: true,
@@ -208,6 +219,7 @@ export async function POST(request: Request) {
         { status: 201 },
       );
     } catch (error) {
+      // Tangani error validasi skema pembuatan produk
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { success: false, message: "Validation error", errors: error.issues },

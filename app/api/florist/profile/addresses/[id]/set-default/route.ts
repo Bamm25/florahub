@@ -2,20 +2,23 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-// PUT /api/florist/profile/addresses/[id]/set-default - Set address sebagai default
+// Handler HTTP PUT untuk menetapkan alamat sebagai alamat penjemputan default florist
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Autentikasi dan verifikasi hak akses florist atau admin
     const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Ambil parameter ID alamat dari URL
     const { id } = await params;
 
-    // Check ownership
+    // Cari data alamat target di database
     const targetAddress = await prisma.address.findUnique({
       where: { id },
     });
 
+    // Validasi keberadaan data alamat
     if (!targetAddress) {
       return NextResponse.json(
         {
@@ -26,6 +29,7 @@ export async function PUT(
       );
     }
 
+    // Validasi hak kepemilikan alamat oleh pengguna
     if (targetAddress.userId !== userId) {
       return NextResponse.json(
         {
@@ -36,12 +40,13 @@ export async function PUT(
       );
     }
 
+    // Cari profil toko florist pengguna
     const profile = await prisma.floristProfile.findUnique({ where: { userId } });
     if (!profile) {
       return NextResponse.json({ success: false, message: "Profil florist belum tersedia" }, { status: 404 });
     }
 
-    // Jika sudah default, skip
+    // Lewati pembaruan jika alamat tersebut sudah menjadi alamat default
     if (targetAddress.isDefault && profile?.defaultAddressId === id) {
       return NextResponse.json({
         success: true,
@@ -50,7 +55,7 @@ export async function PUT(
       });
     }
 
-    // Update alamat default dan profil dalam satu transaksi.
+    // Perbarui status default alamat dan profil florist dalam transaksi atomic
     const updatedAddress = await prisma.$transaction(async (tx) => {
       await tx.address.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } });
       const address = await tx.address.update({ where: { id, userId }, data: { isDefault: true } });
@@ -58,12 +63,14 @@ export async function PUT(
       return address;
     });
 
+    // Kembalikan respon sukses penetapan alamat default
     return NextResponse.json({
       success: true,
       message: "Alamat berhasil diset sebagai default",
       data: { address: updatedAddress },
     });
   } catch (error) {
+    // Tangani error otorisasi atau internal server error
     if (error instanceof NextResponse) {
       return error;
     }

@@ -1,19 +1,18 @@
-// API RESPONSE TYPES
-// Standard API success response (generic untuk semua endpoints)
+// Interface respons sukses standar API dengan data generik
 export interface ApiResponse<T> {
   success: true;
   message: string;
   data: T;
 }
 
-// API error response (untuk handle validation/server errors)
+// Interface respons galat standar API
 export interface ApiError {
   success: false;
   message: string;
   errors?: Record<string, string[]>;
 }
 
-// Paginated API response (untuk list endpoints dengan pagination)
+// Interface respons data terpaginasi standar API
 export interface PaginatedResponse<T> {
   success: true;
   message: string;
@@ -30,8 +29,7 @@ export interface PaginatedResponse<T> {
   };
 }
 
-// PRODUCT TYPES
-// Product dari database (matching Prisma model)
+// Interface entitas produk sesuai dengan model database
 export interface Product {
   id: string;
   name: string;
@@ -50,7 +48,7 @@ export interface Product {
   reviewCount?: number;
 }
 
-// Product dengan relasi florist (untuk display dengan info toko)
+// Interface entitas produk beserta informasi toko florist
 export interface ProductWithFlorist extends Product {
   florist: {
     id: string;
@@ -59,7 +57,7 @@ export interface ProductWithFlorist extends Product {
   };
 }
 
-// Product form data untuk create/update product (tanpa auto-generated fields)
+// Interface data formulir untuk pembuatan atau pembaruan produk
 export interface ProductFormData {
   name: string;
   description: string;
@@ -71,8 +69,7 @@ export interface ProductFormData {
   isActive: boolean;
 }
 
-// CART TYPES
-// Item di shopping cart (product + quantity user pilih)
+// Interface item produk di dalam keranjang belanja
 export interface CartItem {
   productId: string;
   name: string;
@@ -83,7 +80,7 @@ export interface CartItem {
   floristId: string;
 }
 
-// Cart state untuk Zustand store (global shopping cart)
+// Interface state dan aksi keranjang belanja pada Zustand store
 export interface CartState {
   items: CartItem[];
   addItem: (product: Product, quantity: number) => void;
@@ -94,8 +91,7 @@ export interface CartState {
   itemCount: () => number;
 }
 
-// ORDER TYPES
-// Order status enum (matching Prisma enum)
+// Tipe status pesanan sesuai dengan enum database
 export type OrderStatus =
   | "PENDING"
   | "PAID"
@@ -104,7 +100,7 @@ export type OrderStatus =
   | "DELIVERED"
   | "CANCELLED";
 
-// Order dari database (matching Prisma model)
+// Interface entitas pesanan sesuai dengan model database
 export interface Order {
   id: string;
   orderNumber: string;
@@ -121,7 +117,7 @@ export interface Order {
   updatedAt: string;
 }
 
-// Order item (produk dalam order dengan snapshot price)
+// Interface item rincian produk di dalam pesanan
 export interface OrderItem {
   id: string;
   orderId: string;
@@ -135,7 +131,7 @@ export interface OrderItem {
   };
 }
 
-// Order dengan relasi items & user (untuk detail page)
+// Interface entitas pesanan lengkap dengan daftar item dan data pengguna
 export interface OrderWithDetails extends Order {
   items: OrderItem[];
   user: {
@@ -144,11 +140,10 @@ export interface OrderWithDetails extends Order {
   };
 }
 
-// USER & AUTH TYPES
-// User role enum (matching Prisma enum)
+// Tipe peran pengguna dalam sistem aplikasi
 export type UserRole = "CUSTOMER" | "FLORIST" | "SUPPLIER" | "ADMIN";
 
-// User dari NextAuth session (tanpa sensitive data)
+// Interface data profil pengguna dalam sesi autentikasi
 export interface User {
   id: string;
   email: string;
@@ -157,7 +152,7 @@ export interface User {
   phone: string | null;
 }
 
-// Auth state untuk Zustand store (global auth state)
+// Interface state dan aksi autentikasi pada Zustand store
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
