@@ -7,7 +7,7 @@ interface LocationInfo {
 // Fungsi untuk menghitung estimasi hari pengiriman berdasarkan lokasi pelanggan dan florist
 export function calculateEstimatedDays(
   customerLocation: LocationInfo,
-  floristLocation: LocationInfo
+  floristLocation: LocationInfo,
 ): number {
   const customerCity = customerLocation.city.toLowerCase().trim();
   const customerProvince = customerLocation.province.toLowerCase().trim();
@@ -15,10 +15,12 @@ export function calculateEstimatedDays(
   const floristProvince = floristLocation.province.toLowerCase().trim();
 
   // Check if locations are in Jawa Timur
-  const isCustomerJatim = customerProvince.includes('jawa timur') || 
-                          customerProvince.includes('east java');
-  const isFloristJatim = floristProvince.includes('jawa timur') || 
-                         floristProvince.includes('east java');
+  const isCustomerJatim =
+    customerProvince.includes("jawa timur") ||
+    customerProvince.includes("east java");
+  const isFloristJatim =
+    floristProvince.includes("jawa timur") ||
+    floristProvince.includes("east java");
 
   // Customer not in Jawa Timur - default to 3 days
   if (!isCustomerJatim) {

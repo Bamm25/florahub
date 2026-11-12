@@ -49,13 +49,15 @@ export const checkoutSchema = z.object({
   shippingCost: z.number().min(0, "Ongkir tidak boleh negatif"),
   couponCode: z.string().min(3).toUpperCase().optional(),
   notes: z.string().max(500).optional(),
-  items: z.array(
-    z.object({
-      productId: z.string().min(1, "Product ID tidak valid"),
-      quantity: z.number().int().min(1, "Quantity minimal 1"),
-      price: z.number().min(0, "Harga tidak boleh negatif"),
-    })
-  ).min(1, "Cart tidak boleh kosong"),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1, "Product ID tidak valid"),
+        quantity: z.number().int().min(1, "Quantity minimal 1"),
+        price: z.number().min(0, "Harga tidak boleh negatif"),
+      }),
+    )
+    .min(1, "Cart tidak boleh kosong"),
 });
 
 // Skema validasi pembuatan kupon diskon baru oleh admin
@@ -200,9 +202,8 @@ export const updateStockSchema = z.object({
   variety: z.string().min(1).max(100).optional(),
   unit: z.string().min(1).max(20).optional(),
   pricePerUnit: z.number().min(0).optional(),
-  minimumOrder: z.number().min(1).optional(),
-  description: z.string().max(1000).optional(),
-  image: z.url().optional(),
+  quantity: z.number().min(0).optional(),
+  isAvailable: z.boolean().optional(),
 });
 
 // Skema validasi pembuatan pengumuman panen oleh supplier
@@ -232,7 +233,9 @@ export const updateHarvestAnnouncementSchema = z.object({
 
 // Skema validasi pembuatan pesanan prapesan dari pengumuman panen
 export const createPreorderSchema = z.object({
-  harvestAnnouncementId: z.string().min(1, "Harvest announcement ID tidak valid"),
+  harvestAnnouncementId: z
+    .string()
+    .min(1, "Harvest announcement ID tidak valid"),
   quantity: z.number().min(1, "Quantity minimal 1"),
   notes: z.string().max(500).nullable().optional(),
 });
@@ -240,7 +243,10 @@ export const createPreorderSchema = z.object({
 // Skema validasi pembaruan status pesanan prapesan
 export const updatePreorderSchema = z.object({
   status: z.enum(["PENDING", "CONFIRMED", "CANCELLED", "FULFILLED"]),
-  cancelReason: z.string().min(10, "Alasan pembatalan minimal 10 karakter").optional(),
+  cancelReason: z
+    .string()
+    .min(10, "Alasan pembatalan minimal 10 karakter")
+    .optional(),
 });
 
 // Skema validasi pembuatan pembelian pasokan bunga
@@ -267,7 +273,13 @@ export const createShipmentSchema = z.object({
 
 // Skema validasi pembaruan status dan informasi pengiriman pesanan
 export const updateShipmentStatusSchema = z.object({
-  status: z.enum(["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"]),
+  status: z.enum([
+    "PENDING",
+    "PROCESSING",
+    "SHIPPED",
+    "DELIVERED",
+    "CANCELLED",
+  ]),
   courier: z.string().min(1).max(50).optional(),
   service: z.string().max(20).nullable().optional(),
   trackingNumber: z.string().max(100).nullable().optional(),

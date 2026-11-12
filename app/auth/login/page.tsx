@@ -38,7 +38,9 @@ function BrandPanel() {
         </ul>
       </div>
 
-      <p className="text-sm text-white/50">© {new Date().getFullYear()} FloraHub</p>
+      <p className="text-sm text-white/50">
+        © {new Date().getFullYear()} FloraHub
+      </p>
     </aside>
   );
 }
@@ -47,7 +49,10 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCallback = searchParams.get("callbackUrl");
-  const callbackUrl = requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//") ? requestedCallback : "/";
+  const callbackUrl =
+    requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
+      ? requestedCallback
+      : "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -79,7 +84,9 @@ function LoginForm() {
     setFormErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -96,7 +103,9 @@ function LoginForm() {
         redirect: false,
       });
       if (res?.error) {
-        setErrorMessage("Email atau kata sandi salah. Periksa kembali, lalu coba lagi.");
+        setErrorMessage(
+          "Email atau kata sandi salah. Periksa kembali, lalu coba lagi.",
+        );
         setIsLoading(false);
         return;
       }
@@ -107,16 +116,26 @@ function LoginForm() {
 
       const role = (session?.user as { role?: string } | undefined)?.role;
       const roleHome: Record<string, string> = {
-        FLORIST: "/florist/dashboard", SUPPLIER: "/", ADMIN: "/", CUSTOMER: "/",
+        FLORIST: "/florist/dashboard",
+        SUPPLIER: "/supplier/dashboard",
+        ADMIN: "/",
+        CUSTOMER: "/",
       };
       const target = roleHome[role || ""] || "/";
-      const allowedCallback = callbackUrl === "/" ||
-        (role === "CUSTOMER" && !/^\/(admin|supplier|florist)(\/|$)/.test(callbackUrl)) ||
-        (role === "FLORIST" && callbackUrl.startsWith("/florist/"));
-      router.push(allowedCallback && callbackUrl !== "/" ? callbackUrl : target);
+      const allowedCallback =
+        callbackUrl === "/" ||
+        (role === "CUSTOMER" &&
+          !/^\/(admin|supplier|florist)(\/|$)/.test(callbackUrl)) ||
+        (role === "FLORIST" && callbackUrl.startsWith("/florist/")) ||
+        (role === "SUPPLIER" && callbackUrl.startsWith("/supplier/"));
+      router.push(
+        allowedCallback && callbackUrl !== "/" ? callbackUrl : target,
+      );
       router.refresh();
     } catch {
-      setErrorMessage("Koneksi terputus. Periksa internet Anda, lalu coba lagi.");
+      setErrorMessage(
+        "Koneksi terputus. Periksa internet Anda, lalu coba lagi.",
+      );
       setIsLoading(false);
     }
   };
@@ -147,7 +166,10 @@ function LoginForm() {
               role="alert"
               className="mt-8 flex items-start gap-3 rounded-xl border border-error/40 bg-error/5 p-4 text-sm text-foreground"
             >
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-error" aria-hidden="true" />
+              <AlertCircle
+                className="mt-0.5 h-5 w-5 shrink-0 text-error"
+                aria-hidden="true"
+              />
               <span className="font-medium">{errorMessage}</span>
             </div>
           )}
@@ -197,13 +219,19 @@ function LoginForm() {
                   }}
                   placeholder="Masukkan kata sandi"
                   aria-invalid={Boolean(formErrors.password)}
-                  aria-describedby={formErrors.password ? "password-error" : undefined}
+                  aria-describedby={
+                    formErrors.password ? "password-error" : undefined
+                  }
                   className={`input-field h-12 pr-12 ${formErrors.password ? "border-error" : ""}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                  aria-label={
+                    showPassword
+                      ? "Sembunyikan kata sandi"
+                      : "Tampilkan kata sandi"
+                  }
                   aria-pressed={showPassword}
                   className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-muted-foreground hover:text-foreground"
                 >
