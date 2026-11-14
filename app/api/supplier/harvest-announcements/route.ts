@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { createHarvestAnnouncementSchema } from "@/lib/validations/schemas";
+import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     if (activeOnly === "true") {
       whereClause.isActive = true;
       whereClause.harvestDate = {
-        gte: new Date(),
+        gte: new Date(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) + "T00:00:00.000Z"),
       };
     }
 
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
           by: ["announcementId"],
           where: {
             announcementId: { in: announcements.map((announcement) => announcement.id) },
-            status: { in: ["PENDING", "CONFIRMED"] },
+            status: { in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"] },
           },
           _sum: { quantity: true },
         })
@@ -142,6 +143,13 @@ export async function POST(request: Request) {
             success: false,
             message: "Tanggal panen tidak boleh di masa lalu",
           },
+          { status: 400 },
+        );
+      }
+
+      if (harvestDayEndWib(parsedHarvestDate).getTime() <= now.getTime() + 3 * 24 * 60 * 60 * 1000) {
+        return NextResponse.json(
+          { success: false, message: "Jadwal panen harus lebih dari 3 hari ke depan agar DP memiliki masa bayar 3 hari." },
           { status: 400 },
         );
       }

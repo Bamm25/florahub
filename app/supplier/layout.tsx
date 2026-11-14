@@ -1,24 +1,26 @@
 "use client";
 
-import { Menu, Sprout, X } from "lucide-react";
+import { Menu, Sprout, X, Bell } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 const navigationSections = [
   {
     title: "Operasional",
     items: [
       { name: "Ringkasan", href: "/supplier/dashboard" },
-      { name: "Penjualan & Pembayaran", href: "/supplier/sales" },
+      { name: "Penjualan Stok", href: "/supplier/sales" },
+      { name: "Pengiriman", href: "/supplier/shipments" },
+      { name: "Notifikasi", href: "/supplier/notifications" },
     ],
   },
   {
-    title: "Pasokan & Panen",
+    title: "Pasokan",
     items: [
-      { name: "Katalog Stok", href: "/supplier/stocks" },
-      { name: "Rencana Panen", href: "/supplier/harvest-announcements" },
+      { name: "Stok Bunga", href: "/supplier/stocks" },
+      { name: "Panen & Pre-order", href: "/supplier/harvest-announcements" },
     ],
   },
 ];
@@ -32,6 +34,30 @@ export default function SupplierLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications?unreadOnly=true&limit=1");
+      if (res.ok) {
+        const json = await res.json();
+        setUnreadCount(json.data?.unreadCount ?? 0);
+      }
+    } catch {
+      // Abaikan error polling latar belakang
+    }
+  }, []);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      const initial = window.setTimeout(() => void fetchUnreadCount(), 0);
+      const interval = window.setInterval(() => void fetchUnreadCount(), 30000);
+      return () => {
+        window.clearTimeout(initial);
+        window.clearInterval(interval);
+      };
+    }
+  }, [status, fetchUnreadCount, pathname]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -88,13 +114,8 @@ export default function SupplierLayout({
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-2 leading-tight"
           >
-            <Sprout className="h-6 w-6 text-emerald-400" />
-            <div>
-              <span className="block text-xl font-bold tracking-tight text-white">
-                FloraHub
-              </span>
-              <span className="block text-xs text-white/60">Area supplier</span>
-            </div>
+            <Sprout className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold tracking-tight text-white">FloraHub</span>
           </Link>
           <button
             type="button"
@@ -109,9 +130,6 @@ export default function SupplierLayout({
         <div className="border-b border-white/10 px-6 py-5">
           <p className="truncate text-sm font-semibold text-white">
             {session?.user?.name || "Kebun Supplier"}
-          </p>
-          <p className="truncate text-xs text-white/60">
-            {session?.user?.email}
           </p>
         </div>
         {/* Daftar Tautan Menu Navigasi */}
@@ -136,13 +154,18 @@ export default function SupplierLayout({
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
                       aria-current={isActive ? "page" : undefined}
-                      className={`block rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                      className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                         isActive
                           ? "bg-white/10 font-semibold text-white"
                           : "text-white/70 hover:bg-white/10 hover:text-white"
                       }`}
                     >
-                      {item.name}
+                      <span>{item.name}</span>
+                      {item.href === "/supplier/notifications" && unreadCount > 0 && (
+                        <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
@@ -181,9 +204,19 @@ export default function SupplierLayout({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-              Mitra Kebun
-            </span>
+            <Link
+              href="/supplier/notifications"
+              className="relative rounded-xl border border-border bg-surface p-2 text-foreground hover:bg-surface-container transition-colors shadow-2xs"
+              title="Notifikasi"
+              aria-label="Lihat notifikasi"
+            >
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </Link>
           </div>
         </header>
         {/* Tempat Render Sub Halaman */}

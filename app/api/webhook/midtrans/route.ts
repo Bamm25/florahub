@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
+import { settlePreorder, settleStock } from "@/lib/supply-chain/midtrans-payments";
 import { NextResponse } from "next/server";
 
 // Handler HTTP POST webhook untuk memproses notifikasi pembayaran dari Midtrans
@@ -16,7 +17,13 @@ export async function POST(request: Request) {
       payment_type,
     } = body;
 
-    const serverKey = process.env.MIDTRANS_SERVER_KEY || "";
+    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+    if (!serverKey) return NextResponse.json({ success: false, message: "Midtrans not configured" }, { status: 503 });
+    if (typeof order_id !== "string" || typeof status_code !== "string" ||
+        typeof gross_amount !== "string" || typeof signature_key !== "string" ||
+        !/^[a-f0-9]{128}$/.test(signature_key)) {
+      return NextResponse.json({ success: false, message: "Invalid notification" }, { status: 400 });
+    }
 
     // Verifikasi validitas kunci tanda tangan SHA512 dari Midtrans
     const expectedSignature = crypto
@@ -24,7 +31,7 @@ export async function POST(request: Request) {
       .update(order_id + status_code + gross_amount + serverKey)
       .digest("hex");
 
-    if (signature_key !== expectedSignature) {
+    if (!crypto.timingSafeEqual(Buffer.from(signature_key, "hex"), Buffer.from(expectedSignature, "hex"))) {
       return NextResponse.json(
         {
           success: false,
@@ -33,6 +40,23 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
+
+    // Pre-order and ready-stock payments have distinct namespaces.
+    const match = /^(DP|FINAL|STOCK)_([a-z0-9]{25})_[a-zA-Z0-9_]+$/.exec(order_id);
+    if (match) {
+      const [, kind, id] = match;
+      const payment = { order_id, transaction_id, transaction_status, fraud_status: body.fraud_status, gross_amount };
+      if (typeof transaction_id !== "string" || !transaction_id) return NextResponse.json({ success: false, message: "Missing transaction ID" }, { status: 400 });
+      const result = kind === "STOCK"
+        ? await settleStock(payment, id)
+        : await settlePreorder(payment, kind as "DP" | "FINAL", id);
+      if (!result.changed && result.reason !== "Payment not settled" && result.reason !== "Already processed") {
+        console.error("Midtrans payment requires reconciliation", { order_id, reason: result.reason });
+        return NextResponse.json({ success: false, message: result.reason }, { status: 409 });
+      }
+      return NextResponse.json({ success: true, message: result.reason });
+    }
+    if (/^(DP|FINAL|STOCK)_/.test(order_id)) return NextResponse.json({ success: false, message: "Invalid payment order ID" }, { status: 400 });
 
     // Cari data pesanan berdasarkan nomor pesanan
     const order = await prisma.order.findFirst({
@@ -55,7 +79,7 @@ export async function POST(request: Request) {
 
     // Validasi kesesuaian gross_amount callback dengan total order
     const receivedGross = Math.round(parseFloat(gross_amount));
-    if (receivedGross !== order.totalAmount) {
+    if (!Number.isFinite(receivedGross) || receivedGross !== order.totalAmount) {
       return NextResponse.json(
         {
           success: false,
@@ -67,7 +91,7 @@ export async function POST(request: Request) {
 
     if (
       transaction_status === "settlement" ||
-      transaction_status === "capture"
+      transaction_status === "capture" && body.fraud_status === "accept"
     ) {
       // Eksekusi transisi status secara atomic untuk mencegah duplicate notification & late settlement
       const transitionResult = await prisma.$transaction(async (tx) => {
@@ -138,9 +162,9 @@ export async function POST(request: Request) {
       transaction_status === "cancel"
     ) {
       // Perbarui status pembayaran menjadi gagal dan kembalikan kuota stok pesanan
-      await prisma.$transaction(async (tx: any) => {
+      await prisma.$transaction(async (tx) => {
         await tx.payment.updateMany({
-          where: { orderId: order.id },
+          where: { orderId: order.id, status: "PENDING" },
           data: {
             status: "FAILED",
           },

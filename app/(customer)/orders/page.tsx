@@ -181,9 +181,9 @@ export default function OrderHistoryPage() {
                   setSelectedStatus(tab.id);
                   setCurrentPage(1);
                 }}
-                className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 font-medium transition-colors ${
+                className={`whitespace-nowrap rounded-xl px-4 py-2 text-xs sm:text-sm font-semibold transition-colors ${
                   isActive
-                    ? "bg-[#10121b] text-white shadow-xs"
+                    ? "bg-primary text-primary-foreground shadow-xs"
                     : "bg-surface-container-low text-muted-foreground hover:bg-surface-container hover:text-foreground"
                 }`}
               >

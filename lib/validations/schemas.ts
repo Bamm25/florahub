@@ -192,8 +192,8 @@ export const createStockSchema = z.object({
   name: z.string().min(1, "Nama stock wajib diisi").max(100),
   variety: z.string().min(1, "Varietas wajib diisi").max(100),
   unit: z.string().min(1, "Unit wajib diisi").max(20),
-  pricePerUnit: z.number().min(0, "Harga tidak boleh negatif"),
-  quantity: z.number().min(0, "Quantity tidak boleh negatif"),
+  pricePerUnit: z.number().int().min(0, "Harga tidak boleh negatif"),
+  quantity: z.number().int().min(0, "Quantity tidak boleh negatif"),
 });
 
 // Skema validasi pembaruan data stok pasokan oleh supplier
@@ -201,8 +201,8 @@ export const updateStockSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   variety: z.string().min(1).max(100).optional(),
   unit: z.string().min(1).max(20).optional(),
-  pricePerUnit: z.number().min(0).optional(),
-  quantity: z.number().min(0).optional(),
+  pricePerUnit: z.number().int().min(0).optional(),
+  quantity: z.number().int().min(0).optional(),
   isAvailable: z.boolean().optional(),
 });
 
@@ -210,8 +210,8 @@ export const updateStockSchema = z.object({
 export const createHarvestAnnouncementSchema = z.object({
   flowerName: z.string().min(1, "Nama bunga wajib diisi").max(100),
   variety: z.string().max(100).optional(),
-  estimatedQuantity: z.number().min(1, "Quantity minimal 1"),
-  pricePerUnit: z.number().min(0, "Harga tidak boleh negatif"),
+  estimatedQuantity: z.number().int().min(1, "Quantity minimal 1"),
+  pricePerUnit: z.number().int().min(0, "Harga tidak boleh negatif"),
   harvestDate: z.iso.datetime(),
   description: z.string().min(10, "Deskripsi minimal 10 karakter").optional(),
   location: z.string().max(200).optional(),
@@ -222,8 +222,8 @@ export const createHarvestAnnouncementSchema = z.object({
 export const updateHarvestAnnouncementSchema = z.object({
   flowerName: z.string().min(1).max(100).optional(),
   variety: z.string().max(100).optional(),
-  estimatedQuantity: z.number().min(0).optional(),
-  pricePerUnit: z.number().min(0).optional(),
+  estimatedQuantity: z.number().int().min(0).optional(),
+  pricePerUnit: z.number().int().min(0).optional(),
   harvestDate: z.iso.datetime().optional(),
   description: z.string().min(10).optional(),
   location: z.string().max(200).optional(),
@@ -236,13 +236,13 @@ export const createPreorderSchema = z.object({
   harvestAnnouncementId: z
     .string()
     .min(1, "Harvest announcement ID tidak valid"),
-  quantity: z.number().min(1, "Quantity minimal 1"),
+  quantity: z.number().int().positive("Quantity minimal 1"),
   notes: z.string().max(500).nullable().optional(),
 });
 
-// Skema validasi pembaruan status pesanan prapesan
+// Skema validasi persetujuan/penolakan pesanan prapesan
 export const updatePreorderSchema = z.object({
-  status: z.enum(["PENDING", "CONFIRMED", "CANCELLED", "FULFILLED"]),
+  status: z.enum(["CONFIRMED", "CANCELLED"]),
   cancelReason: z
     .string()
     .min(10, "Alasan pembatalan minimal 10 karakter")
@@ -252,7 +252,7 @@ export const updatePreorderSchema = z.object({
 // Skema validasi pembuatan pembelian pasokan bunga
 export const createPurchaseSchema = z.object({
   stockId: z.string().min(1, "Stock ID tidak valid"),
-  quantity: z.number().min(1, "Quantity minimal 1"),
+  quantity: z.number().int().positive("Quantity minimal 1"),
   notes: z.string().max(500).optional(),
 });
 
@@ -289,7 +289,9 @@ export const updateShipmentStatusSchema = z.object({
 
 // Skema validasi pembaruan status transaksi penjualan
 export const updateSaleSchema = z.object({
-  status: z.enum(["PAID", "CANCELLED"]).optional(),
+  status: z.enum(["PAID", "SHIPPED", "DELIVERED", "CANCELLED"]).optional(),
+  courier: z.string().max(100).optional(),
+  trackingNumber: z.string().max(100).optional(),
   deliveredAt: z.iso.datetime().optional(),
 });
 

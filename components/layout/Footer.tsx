@@ -73,6 +73,11 @@ export default function Footer() {
                     Portal Florist
                   </Link>
                 </li>
+                <li>
+                  <Link href="/supplier/dashboard" className="transition-colors hover:text-white">
+                    Portal Supplier
+                  </Link>
+                </li>
               </ul>
             </div>
 
@@ -85,6 +90,11 @@ export default function Footer() {
                 <li>
                   <Link href="/orders" className="transition-colors hover:text-white">
                     Pesanan Saya
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/notifications" className="transition-colors hover:text-white">
+                    Notifikasi
                   </Link>
                 </li>
                 <li>

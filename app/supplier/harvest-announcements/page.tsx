@@ -12,6 +12,8 @@ import {
   X,
   Loader2,
   MapPin,
+  Truck,
+  Navigation,
 } from "lucide-react";
 import {
   getSupplierHarvestAnnouncements,
@@ -20,6 +22,7 @@ import {
   deleteHarvestAnnouncement,
   updatePreOrderStatus,
   HarvestAnnouncementItem,
+  HarvestPreOrderItem,
   CreateHarvestAnnouncementInput,
 } from "@/lib/api/supplier";
 import { formatRupiah, formatDate } from "@/lib/utils/formatters";
@@ -27,6 +30,8 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import StatusBadge from "@/components/ui/StatusBadge";
+import SupplierDeliveryStatus from "@/components/ui/SupplierDeliveryStatus";
+import ShipmentTrackingModal from "@/components/ui/ShipmentTrackingModal";
 
 export default function SupplierHarvestAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<HarvestAnnouncementItem[]>(
@@ -53,6 +58,7 @@ export default function SupplierHarvestAnnouncementsPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] =
     useState<HarvestAnnouncementItem | null>(null);
+  const [trackingPreOrder, setTrackingPreOrder] = useState<HarvestPreOrderItem | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
@@ -75,7 +81,7 @@ export default function SupplierHarvestAnnouncementsPage() {
     }
   };
   useEffect(() => {
-    fetchAnnouncements();
+    void Promise.resolve().then(() => fetchAnnouncements());
   }, []);
 
   // Handler simpan pengumuman panen baru
@@ -225,8 +231,7 @@ export default function SupplierHarvestAnnouncementsPage() {
             Rencana & Jadwal Panen
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Umumkan tanggal panen bunga segar mendatang agar florist dapat
-            melakukan pemesanan di muka (*pre-order*).
+            Umumkan panen dan kelola pre-order florist.
           </p>
         </div>
         <button
@@ -235,7 +240,7 @@ export default function SupplierHarvestAnnouncementsPage() {
             setAddError(null);
             setIsAddModalOpen(true);
           }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
           <span>Buat Jadwal Panen</span>
@@ -297,13 +302,13 @@ export default function SupplierHarvestAnnouncementsPage() {
                   {/* Informasi Tanggal & Lokasi */}
                   <div className="mt-4 space-y-2 border-y border-border py-3 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-emerald-600" />
+                      <Calendar className="h-4 w-4 text-primary" />
                       <span>
                         Panen: <strong>{formatDate(item.harvestDate)}</strong>
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-emerald-600" />
+                      <MapPin className="h-4 w-4 text-primary" />
                       <span>{item.location || "Kebun Utama"}</span>
                     </div>
                   </div>
@@ -317,7 +322,7 @@ export default function SupplierHarvestAnnouncementsPage() {
                     </div>
                     <div className="rounded-xl bg-surface-container-low p-2.5">
                       <p className="text-muted-foreground">Dipesan Florist</p>
-                      <p className="mt-1 font-bold text-emerald-600">
+                      <p className="mt-1 font-bold text-foreground">
                         {reserved.toLocaleString("id-ID")} unit
                       </p>
                     </div>
@@ -338,7 +343,7 @@ export default function SupplierHarvestAnnouncementsPage() {
                     onClick={() => handleOpenDetail(item.id)}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-surface-container py-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-high"
                   >
-                    <Users className="h-4 w-4 text-emerald-600" />
+                    <Users className="h-4 w-4 text-primary" />
                     <span>
                       Lihat Pemesan ({item._count?.preOrders || 0} florist)
                     </span>
@@ -491,7 +496,7 @@ export default function SupplierHarvestAnnouncementsPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingAdd}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   {isSubmittingAdd && (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -528,7 +533,7 @@ export default function SupplierHarvestAnnouncementsPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mt-4 max-h-[60vh] overflow-y-auto">
+            <div className="mt-4 max-h-[65vh] overflow-y-auto pr-1">
               {isLoadingDetail ? (
                 <div className="py-12 flex justify-center">
                   <LoadingSpinner message="Memuat daftar pesanan florist..." />
@@ -539,76 +544,176 @@ export default function SupplierHarvestAnnouncementsPage() {
                   Belum ada florist yang pre-order untuk jadwal panen ini.
                 </div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="space-y-3">
                   {selectedAnnouncement.preOrders.map((order) => {
                     const isActionLoading = actionLoadingId === order.id;
                     return (
                       <div
                         key={order.id}
-                        className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                        className="rounded-xl border border-border bg-surface-container-low/40 p-4 space-y-3 transition-colors hover:border-primary/40"
                       >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-foreground">
+                        {/* Baris 1: Header Florist & Status Badge */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2.5">
+                          <div>
+                            <p className="font-semibold text-foreground text-sm">
                               {order.florist.name}
                             </p>
-                            {/* Menggunakan Reusable StatusBadge */}
-                            <StatusBadge
-                              status={order.status}
-                              variant="preorder"
-                              size="sm"
-                            />
+                            <p className="text-xs text-muted-foreground">
+                              Dipesan: {formatDate(order.createdAt)}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {order.florist.email} • Dipesan:{" "}
-                            {formatDate(order.createdAt)}
+                          {order.biteshipOrderId ? <SupplierDeliveryStatus status={order.status} booked={true} /> : <StatusBadge status={order.status} variant="preorder" size="sm" />}
+                        </div>
+
+                        {/* Baris 2: Kartu Rincian Finansial & Bunga */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                          <div className="rounded-lg bg-surface p-2.5 border border-border">
+                            <span className="text-muted-foreground block text-[11px]">
+                              Jumlah Bunga
+                            </span>
+                            <span className="font-bold text-foreground text-sm">
+                              {order.quantity.toLocaleString("id-ID")} tangkai
+                            </span>
+                          </div>
+
+                          <div className="rounded-lg bg-surface p-2.5 border border-border">
+                            <span className="text-muted-foreground block text-[11px]">
+                              Total Tagihan
+                            </span>
+                            <span className="font-bold text-foreground text-sm">
+                              {formatRupiah(order.totalPrice)}
+                            </span>
+                          </div>
+
+                          <div className="rounded-lg bg-surface p-2.5 border border-border col-span-2 sm:col-span-1">
+                            <span className="text-muted-foreground block text-[11px]">
+                              Skema DP 50%
+                            </span>
+                            <div className="flex items-center justify-between mt-0.5">
+                              <span className="font-semibold text-foreground">
+                                {formatRupiah(
+                                  order.depositAmount ||
+                                    Math.round(order.totalPrice * 0.5),
+                                )}
+                              </span>
+                              {order.status === "CONFIRMED" &&
+                                order.depositDeadline && (
+                                  <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                    Batas: {formatDate(order.depositDeadline)}
+                                  </span>
+                                )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Catatan florist jika ada */}
+                        {order.notes && (
+                          <p className="text-xs italic text-muted-foreground bg-surface p-2 rounded-lg border border-border">
+                            Catatan florist: &ldquo;{order.notes}&rdquo;
                           </p>
-                          <p className="mt-1 text-xs text-foreground font-medium">
-                            Pesanan: <strong>{order.quantity} tangkai</strong> (
-                            {formatRupiah(order.totalPrice)})
+                        )}
+
+                        {/* Alasan batal jika ada */}
+                        {order.cancelReason && (
+                          <p className="text-xs text-rose-700 bg-rose-50 p-2 rounded-lg border border-rose-200">
+                            Alasan pembatalan: {order.cancelReason}
                           </p>
-                          {order.notes && (
-                            <p className="mt-1 text-xs italic text-muted-foreground">
-                              Catatan florist: &ldquo;{order.notes}&rdquo;
-                            </p>
+                        )}
+
+                        {order.status === "DEPOSIT_PAID" && order.finalDeadline && (
+                          <p className="text-xs text-amber-700">Batas pelunasan: {formatDate(order.finalDeadline)}</p>
+                        )}
+
+                        {/* Baris 3: Area Aksi dan Informasi Pengiriman */}
+                        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border">
+                          {order.status === "PENDING" && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={isActionLoading}
+                                onClick={() =>
+                                  handleUpdatePreOrder(order.id, "CONFIRMED")
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                              >
+                                {isActionLoading ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                )}
+                                <span>Konfirmasi (DP 50%)</span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isActionLoading}
+                                onClick={() =>
+                                  handleUpdatePreOrder(order.id, "CANCELLED")
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition-colors"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                                <span>Tolak</span>
+                              </button>
+                            </>
                           )}
-                          {order.cancelReason && (
-                            <p className="mt-1 text-xs text-rose-600 font-medium">
-                              Alasan dibatalkan: {order.cancelReason}
-                            </p>
+
+                          {order.status === "CONFIRMED" && (
+                            <span className="text-xs text-amber-700 font-medium bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200">
+                              Menunggu DP 50% • Batas: {order.depositDeadline ? formatDate(order.depositDeadline) : "belum ditentukan"}
+                            </span>
+                          )}
+
+                          {order.status === "DEPOSIT_PAID" && (
+                            <span className="text-xs text-blue-700 font-medium bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200">
+                              DP Diterima • Batas pelunasan: {order.finalDeadline ? formatDate(order.finalDeadline) : "saat panen"}
+                            </span>
+                          )}
+
+                          {order.status === "PAID" && !order.biteshipOrderId && (
+                            <a
+                              href="/supplier/shipments"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-xs"
+                            >
+                              <Truck className="h-3.5 w-3.5" />
+                              <span>Atur Pengiriman Biteship</span>
+                            </a>
+                          )}
+
+                          {order.biteshipOrderId && (
+                            <div className="space-y-2">
+                              <SupplierDeliveryStatus
+                                status={order.status}
+                                booked={true}
+                                courier={order.courier}
+                                trackingNumber={order.trackingNumber}
+                                bookedAt={order.shippedAt}
+                                deliveredAt={order.deliveredAt}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const ord = order;
+                                  setIsDetailModalOpen(false);
+                                  setTrackingPreOrder(ord);
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
+                              >
+                                <Navigation className="h-3.5 w-3.5 text-primary" />
+                                <span>Lacak & Kontrol Kurir</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {order.status === "DELIVERED" && !order.biteshipOrderId && (
+                            <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                              <span>
+                                Selesai • Diterima Florist pada{" "}
+                                {formatDate(order.deliveredAt || null)}
+                              </span>
+                            </div>
                           )}
                         </div>
-                        {/* Tombol Aksi Konfirmasi / Tolak */}
-                        {order.status === "PENDING" && (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              type="button"
-                              disabled={isActionLoading}
-                              onClick={() =>
-                                handleUpdatePreOrder(order.id, "CONFIRMED")
-                              }
-                              className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-                            >
-                              {isActionLoading ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                              )}
-                              <span>Konfirmasi</span>
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isActionLoading}
-                              onClick={() =>
-                                handleUpdatePreOrder(order.id, "CANCELLED")
-                              }
-                              className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                              <span>Tolak</span>
-                            </button>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -617,6 +722,27 @@ export default function SupplierHarvestAnnouncementsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL PELACAKAN PENGIRIMAN PRE-ORDER UNTUK SUPPLIER */}
+      {trackingPreOrder && (
+        <ShipmentTrackingModal
+          isOpen={Boolean(trackingPreOrder)}
+          onClose={() => setTrackingPreOrder(null)}
+          shipmentId={trackingPreOrder.id}
+          orderNumber={`PO-${trackingPreOrder.id.slice(-8).toUpperCase()}`}
+          orderType="PREORDER"
+          courierName={trackingPreOrder.courier}
+          trackingNumber={trackingPreOrder.trackingNumber}
+          currentStatus={trackingPreOrder.status}
+          recipientName={trackingPreOrder.florist?.name}
+          shippedAt={trackingPreOrder.shippedAt}
+          deliveredAt={trackingPreOrder.deliveredAt}
+          userRole="SUPPLIER"
+          onStatusUpdated={() => {
+            void fetchAnnouncements();
+          }}
+        />
       )}
     </div>
   );

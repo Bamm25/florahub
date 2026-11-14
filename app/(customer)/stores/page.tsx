@@ -18,7 +18,10 @@ export default async function StoresPage() {
       <section className="container-custom pt-6 sm:pt-8">
         <div className="relative overflow-hidden rounded-3xl bg-[#10121b] p-8 text-white sm:p-12 lg:p-16 border border-white/10">
           <div className="relative z-10 max-w-3xl">
-            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b4aeff]">
+              Direktori Florist Mitra
+            </p>
+            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
               Toko Florist Terpercaya
             </h1>
             <p className="mt-4 max-w-2xl text-base text-white/70 sm:text-lg leading-relaxed">

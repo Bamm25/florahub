@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
 import { NextResponse } from "next/server";
 import { updateHarvestAnnouncementSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -134,10 +135,60 @@ export async function PUT(request: Request, { params }: RouteParams) {
       parsedHarvestDate = new Date(harvestDate);
     }
 
-    // Perbarui data pengumuman panen di database
-    const updatedAnnouncement = await prisma.harvestAnnouncement.update({
-      where: { id: announcementId },
-      data: {
+    if (harvestDate !== undefined && harvestDayEndWib(parsedHarvestDate).getTime() <= Date.now() + 3 * 24 * 60 * 60 * 1000) {
+      return NextResponse.json({ success: false, message: "Jadwal panen harus lebih dari 3 hari ke depan agar DP dapat dibayar tepat waktu." }, { status: 400 });
+    }
+
+    // Harga dan tanggal panen terkunci setelah ada pemesan agar kontrak DP/pelunasan tetap sah.
+    if (pricePerUnit !== undefined || harvestDate !== undefined) {
+      const relatedOrders = await prisma.harvestPreOrder.count({
+        where: { announcementId },
+      });
+      if (relatedOrders > 0) {
+        return NextResponse.json(
+          { success: false, message: "Harga dan tanggal panen tidak dapat diubah setelah ada pre-order." },
+          { status: 409 },
+        );
+      }
+    }
+
+    // Total kapasitas tidak boleh diturunkan di bawah alokasi pesanan aktif.
+    if (estimatedQuantity !== undefined) {
+      const reserved = await prisma.harvestPreOrder.aggregate({
+        where: {
+          announcementId,
+          status: { in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"] },
+        },
+        _sum: { quantity: true },
+      });
+      if (estimatedQuantity < (reserved._sum.quantity ?? 0)) {
+        return NextResponse.json(
+          { success: false, message: `Kapasitas tidak boleh kurang dari ${(reserved._sum.quantity ?? 0)} tangkai yang sudah dialokasikan.` },
+          { status: 409 },
+        );
+      }
+    }
+
+    // Kunci baris pengumuman sebelum membaca kuota dan mengubahnya.
+    // Lock yang sama digunakan saat florist mengajukan pesanan.
+    const updatedAnnouncement = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "HarvestAnnouncement" WHERE id = ${announcementId} FOR UPDATE`;
+      const latest = await tx.harvestAnnouncement.findUnique({ where: { id: announcementId } });
+      if (!latest || (userRole === "SUPPLIER" && latest.supplierId !== userId)) return null;
+      if (pricePerUnit !== undefined || harvestDate !== undefined) {
+        const totalOrders = await tx.harvestPreOrder.count({ where: { announcementId } });
+        if (totalOrders > 0) return null;
+      }
+      if (estimatedQuantity !== undefined) {
+        const active = await tx.harvestPreOrder.aggregate({
+          where: { announcementId, status: { in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"] } },
+          _sum: { quantity: true },
+        });
+        if (estimatedQuantity < (active._sum.quantity ?? 0)) return null;
+      }
+      return tx.harvestAnnouncement.update({
+        where: { id: announcementId },
+        data: {
         flowerName:
           flowerName !== undefined
             ? flowerName.trim()
@@ -180,7 +231,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
             ? Boolean(isActive)
             : existingAnnouncement.isActive,
       },
+      });
     });
+    if (!updatedAnnouncement) {
+      return NextResponse.json({ success: false, message: "Pengumuman berubah atau kapasitas sedang dipesan. Muat ulang lalu coba lagi." }, { status: 409 });
+    }
 
     // Kembalikan respon sukses pembaruan pengumuman panen
     return NextResponse.json({
@@ -253,7 +308,17 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Hapus data pengumuman panen dari database
+    const relatedOrders = await prisma.harvestPreOrder.count({
+      where: { announcementId },
+    });
+    if (relatedOrders > 0) {
+      return NextResponse.json(
+        { success: false, message: "Pengumuman dengan pre-order tidak dapat dihapus karena riwayat transaksi harus tetap tercatat. Nonaktifkan pengumuman sebagai gantinya." },
+        { status: 409 },
+      );
+    }
+
+    // Hapus hanya pengumuman yang belum pernah dipesan
     await prisma.harvestAnnouncement.delete({
       where: { id: announcementId },
     });

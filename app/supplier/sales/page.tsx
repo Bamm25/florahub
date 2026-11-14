@@ -1,23 +1,11 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import {
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Eye,
-  ExternalLink,
-  Receipt,
-  Check,
-  X,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
-import {
-  getSupplierSales,
-  confirmSalePayment,
-  StockTransactionItem,
-} from "@/lib/api/supplier";
+import { Eye, Receipt, X, Truck, Navigation } from "lucide-react";
+import { getSupplierSales, StockTransactionItem } from "@/lib/api/supplier";
+import StatusBadge from "@/components/ui/StatusBadge";
+import SupplierDeliveryStatus from "@/components/ui/SupplierDeliveryStatus";
+import ShipmentTrackingModal from "@/components/ui/ShipmentTrackingModal";
 import {
   formatRupiah,
   formatDate,
@@ -36,13 +24,14 @@ export default function SupplierSalesPage() {
   // Filter State
   const [activeFilter, setActiveFilter] = useState("ALL");
 
-  // Modal Verifikasi Bukti Pembayaran
+  // Rincian pesanan; pembayaran hanya melalui Midtrans
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<StockTransactionItem | null>(
     null,
   );
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [modalError, setModalError] = useState<string | null>(null);
+  const [trackingSale, setTrackingSale] = useState<StockTransactionItem | null>(
+    null,
+  );
 
   // Ambil daftar riwayat penjualan dari backend
   const fetchSales = async () => {
@@ -63,7 +52,7 @@ export default function SupplierSalesPage() {
   };
 
   useEffect(() => {
-    fetchSales();
+    void Promise.resolve().then(() => fetchSales());
   }, []);
 
   // Filter data berdasarkan tab yang dipilih
@@ -73,6 +62,12 @@ export default function SupplierSalesPage() {
     }
     if (activeFilter === "PAID") {
       return sales.filter((sale) => sale.status === "PAID");
+    }
+    if (activeFilter === "SHIPPED") {
+      return sales.filter((sale) => sale.status === "SHIPPED");
+    }
+    if (activeFilter === "DELIVERED") {
+      return sales.filter((sale) => sale.status === "DELIVERED");
     }
     if (activeFilter === "CANCELLED") {
       return sales.filter((sale) => sale.status === "CANCELLED");
@@ -85,78 +80,30 @@ export default function SupplierSalesPage() {
     { id: "ALL", label: "Semua", count: sales.length },
     {
       id: "PENDING",
-      label: "Menunggu Konfirmasi",
+      label: "Menunggu Pembayaran",
       count: sales.filter((s) => s.status === "PENDING").length,
     },
     {
       id: "PAID",
-      label: "Lunas",
+      label: "Lunas (Siap Kirim)",
       count: sales.filter((s) => s.status === "PAID").length,
     },
     {
-      id: "CANCELLED",
-      label: "Dibatalkan",
-      count: sales.filter((s) => s.status === "CANCELLED").length,
+      id: "SHIPPED",
+      label: "Resi Dibuat",
+      count: sales.filter((s) => s.status === "SHIPPED").length,
+    },
+    {
+      id: "DELIVERED",
+      label: "Selesai",
+      count: sales.filter((s) => s.status === "DELIVERED").length,
     },
   ];
 
-  // Helper tampilan lencana status transaksi
-  const getStatusBadge = (status: StockTransactionItem["status"]) => {
-    switch (status) {
-      case "PAID":
-        return {
-          label: "Lunas",
-          color: "bg-emerald-50 text-emerald-800 border-emerald-200",
-          icon: CheckCircle2,
-        };
-      case "PENDING":
-        return {
-          label: "Menunggu Konfirmasi",
-          color: "bg-amber-50 text-amber-800 border-amber-200",
-          icon: Clock,
-        };
-      case "CANCELLED":
-        return {
-          label: "Dibatalkan",
-          color: "bg-gray-100 text-gray-700 border-gray-200",
-          icon: XCircle,
-        };
-      default:
-        return {
-          label: status,
-          color: "bg-gray-100 text-gray-700 border-gray-200",
-          icon: Clock,
-        };
-    }
-  };
-
-  // Buka modal verifikasi bukti bayar
+  // Buka modal rincian transaksi penjualan
   const handleOpenModal = (sale: StockTransactionItem) => {
     setSelectedSale(sale);
-    setModalError(null);
     setIsModalOpen(true);
-  };
-
-  // Konfirmasi pembayaran lunas (memicu pemotongan stok otomatis di backend)
-  const handleConfirmPayment = async () => {
-    if (!selectedSale) return;
-
-    try {
-      setIsConfirming(true);
-      setModalError(null);
-
-      await confirmSalePayment(selectedSale.id);
-
-      setIsModalOpen(false);
-      setSelectedSale(null);
-      await fetchSales();
-    } catch (err) {
-      setModalError(
-        err instanceof Error ? err.message : "Gagal mengonfirmasi pembayaran",
-      );
-    } finally {
-      setIsConfirming(false);
-    }
   };
 
   // Loading & Error States
@@ -179,11 +126,10 @@ export default function SupplierSalesPage() {
       {/* Header Halaman */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Penjualan & Konfirmasi Pembayaran
+          Penjualan Stok Bunga
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Periksa bukti transfer pembayaran dari florist dan konfirmasi
-          pelunasan stok bunga.
+          Pantau pembelian stok florist dan pembayaran Midtrans.
         </p>
       </div>
 
@@ -228,9 +174,6 @@ export default function SupplierSalesPage() {
                     Total Tagihan
                   </th>
                   <th scope="col" className="px-6 py-4">
-                    Bukti Transfer
-                  </th>
-                  <th scope="col" className="px-6 py-4">
                     Status
                   </th>
                   <th scope="col" className="px-6 py-4 text-right">
@@ -240,9 +183,6 @@ export default function SupplierSalesPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredSales.map((sale) => {
-                  const statusInfo = getStatusBadge(sale.status);
-                  const StatusIcon = statusInfo.icon;
-
                   return (
                     <tr
                       key={sale.id}
@@ -277,39 +217,38 @@ export default function SupplierSalesPage() {
                         {formatRupiah(sale.totalPrice)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {sale.paymentProof ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>Sudah Unggah</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" />
-                            <span>Belum Ada</span>
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusInfo.color}`}
-                        >
-                          <StatusIcon className="h-3.5 w-3.5" />
-                          <span>{statusInfo.label}</span>
-                        </span>
+                        {sale.biteshipOrderId ? <SupplierDeliveryStatus status={sale.status} booked /> : <StatusBadge status={sale.status} variant="shipment" size="sm" />}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenModal(sale)}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-container"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          <span>
-                            {sale.status === "PENDING"
-                              ? "Verifikasi"
-                              : "Rincian"}
-                          </span>
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          {sale.status === "PAID" && !sale.biteshipOrderId && (
+                            <a
+                              href="/supplier/shipments"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-xs"
+                            >
+                              <Truck className="h-3.5 w-3.5" />
+                              <span>Atur Pengiriman</span>
+                            </a>
+                          )}
+                          {sale.biteshipOrderId && (
+                            <button
+                              type="button"
+                              onClick={() => setTrackingSale(sale)}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition-colors"
+                            >
+                              <Navigation className="h-3.5 w-3.5 text-indigo-600" />
+                              <span>Lacak & Kontrol Kurir</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenModal(sale)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-container transition-colors"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span>Rincian</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -320,7 +259,7 @@ export default function SupplierSalesPage() {
         </div>
       )}
 
-      {/* Modal Verifikasi Pembayaran & Bukti Transfer */}
+      {/* Rincian transaksi dan status pembayaran otomatis */}
       {isModalOpen && selectedSale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl">
@@ -341,13 +280,6 @@ export default function SupplierSalesPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-
-            {modalError && (
-              <div className="mt-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{modalError}</span>
-              </div>
-            )}
 
             <div className="mt-4 space-y-4 text-sm">
               {/* Rincian Pemesan & Bunga */}
@@ -383,43 +315,61 @@ export default function SupplierSalesPage() {
                 </div>
                 <div className="flex justify-between border-t border-border pt-2 text-sm font-bold text-foreground">
                   <span>Total Tagihan:</span>
-                  <span className="text-emerald-600">
+                  <span className="text-foreground">
                     {formatRupiah(selectedSale.totalPrice)}
                   </span>
                 </div>
               </div>
 
-              {/* Bukti Pembayaran */}
-              <div>
-                <p className="text-xs font-semibold text-foreground mb-2">
-                  Bukti Pembayaran Florist:
+              {selectedSale.status === "PENDING" && (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  Menunggu pembayaran florist melalui Midtrans. Hanya pembayaran yang terverifikasi otomatis dapat diproses untuk pengiriman.
                 </p>
-                {selectedSale.paymentProof ? (
-                  <div className="rounded-xl border border-border p-3 text-center space-y-2">
-                    <div className="max-h-56 overflow-hidden rounded-lg bg-black/5 flex items-center justify-center">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={selectedSale.paymentProof}
-                        alt="Bukti Transfer Florist"
-                        className="max-h-56 w-auto object-contain"
-                      />
-                    </div>
-                    <a
-                      href={selectedSale.paymentProof}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:underline pt-1"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      <span>Buka Bukti Ukuran Penuh</span>
-                    </a>
+              )}
+              {selectedSale.biteshipOrderId && (
+                <div className="rounded-xl border border-border bg-surface-container-low p-4 space-y-3">
+                  <SupplierDeliveryStatus
+                    status={selectedSale.status}
+                    booked={true}
+                    courier={selectedSale.courier}
+                    trackingNumber={selectedSale.trackingNumber}
+                    bookedAt={selectedSale.shippedAt}
+                    deliveredAt={selectedSale.deliveredAt}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const saleToTrack = selectedSale;
+                      setIsModalOpen(false);
+                      setTrackingSale(saleToTrack);
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+                  >
+                    <Navigation className="h-4 w-4" />
+                    <span>Buka Pelacakan & Kontrol Serah Terima Kurir</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Arahkan ke menu Pengiriman Biteship saat status Lunas (PAID) */}
+              {selectedSale.status === "PAID" && !selectedSale.biteshipOrderId && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2 text-xs text-foreground">
+                  <div className="flex items-center gap-2 font-semibold text-primary">
+                    <Truck className="h-4 w-4" />
+                    <span>Pesanan Lunas — Siap Diproses untuk Pengiriman</span>
                   </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-                    Florist belum mengunggah gambar bukti transfer pembayaran.
-                  </div>
-                )}
-              </div>
+                  <p className="text-muted-foreground">
+                    Buka menu Pengiriman untuk memilih kurir Biteship, menghitung ongkos kirim, dan menerbitkan resi otomatis.
+                  </p>
+                  <a
+                    href="/supplier/shipments"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    <Truck className="h-3.5 w-3.5" />
+                    <span>Atur Pengiriman Biteship</span>
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Tombol Aksi */}
@@ -432,24 +382,30 @@ export default function SupplierSalesPage() {
                 Tutup
               </button>
 
-              {selectedSale.status === "PENDING" && (
-                <button
-                  type="button"
-                  disabled={isConfirming}
-                  onClick={handleConfirmPayment}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-                >
-                  {isConfirming ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4" />
-                  )}
-                  <span>Konfirmasi Pembayaran Lunas</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL PELACAKAN PENGIRIMAN PASOKAN UNTUK SUPPLIER */}
+      {trackingSale && (
+        <ShipmentTrackingModal
+          isOpen={Boolean(trackingSale)}
+          onClose={() => setTrackingSale(null)}
+          shipmentId={trackingSale.id}
+          orderNumber={`SO-${trackingSale.id.slice(-8).toUpperCase()}`}
+          orderType="DIRECT_SALE"
+          courierName={trackingSale.courier}
+          trackingNumber={trackingSale.trackingNumber}
+          currentStatus={trackingSale.status}
+          recipientName={trackingSale.florist?.name}
+          shippedAt={trackingSale.shippedAt}
+          deliveredAt={trackingSale.deliveredAt}
+          userRole="SUPPLIER"
+          onStatusUpdated={() => {
+            void fetchSales();
+          }}
+        />
       )}
     </div>
   );

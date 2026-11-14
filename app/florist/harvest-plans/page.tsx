@@ -5,9 +5,16 @@ import { Calendar } from "lucide-react";
 import SearchInput from "@/components/ui/SearchInput";
 import DataStateWrapper from "@/components/ui/DataStateWrapper";
 import AnnouncementCard from "@/components/florist/AnnouncementCard";
-import PreOrderTable from "@/components/florist/PreOrderTable";
+import PreOrderTable, { PreOrder } from "@/components/florist/PreOrderTable";
 import PreOrderModal from "@/components/florist/PreOrderModal";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
+import {
+  getPreOrderDepositSnapToken,
+  getPreOrderFinalSnapToken,
+  confirmPreOrderDepositMidtrans,
+  confirmPreOrderFinalMidtrans,
+  receivePreOrder,
+} from "@/lib/api/supplier";
 
 interface HarvestAnnouncement {
   id: string;
@@ -32,28 +39,6 @@ interface HarvestAnnouncement {
   totalReservedQuantity?: number;
 }
 
-interface PreOrder {
-  id: string;
-  quantity: number;
-  pricePerUnit: number;
-  totalPrice: number;
-  status: string;
-  notes: string | null;
-  createdAt: string;
-  confirmedAt: string | null;
-  announcement: {
-    id: string;
-    flowerName: string;
-    variety: string | null;
-    harvestDate: string;
-    supplier: {
-      id: string;
-      name: string;
-      email: string;
-    };
-  };
-}
-
 export default function FloristHarvestPlansPage() {
   const [announcements, setAnnouncements] = useState<HarvestAnnouncement[]>([]);
   const [myPreOrders, setMyPreOrders] = useState<PreOrder[]>([]);
@@ -68,6 +53,133 @@ export default function FloristHarvestPlansPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] =
     useState<HarvestAnnouncement | null>(null);
+
+  // State loading saat membuka Midtrans Snap
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+
+  const handlePayDepositMidtrans = async (order: PreOrder) => {
+    try {
+      setPayingOrderId(order.id);
+      const res = await getPreOrderDepositSnapToken(order.id);
+
+      if (typeof window !== "undefined" && window.snap) {
+        window.snap.pay(res.snapToken, {
+          onSuccess: async (result: MidtransTransactionResult) => {
+            try {
+              await confirmPreOrderDepositMidtrans(
+                order.id,
+                result?.transaction_id,
+              );
+              await fetchData();
+              alert(
+                "Pembayaran DP 50% berhasil! DP terverifikasi. Status pesanan telah diperbarui.",
+              );
+            } catch (err) {
+              console.error("Error confirming deposit:", err);
+              await fetchData();
+              alert("Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.");
+            }
+          },
+          onPending: async () => {
+            alert(
+              "Pembayaran sedang diproses / menunggu transfer Virtual Account.",
+            );
+            await fetchData();
+          },
+          onError: () => {
+            alert("Pembayaran Midtrans gagal atau dibatalkan. Pesanan belum lunas.");
+            void fetchMyPreOrders();
+          },
+          onClose: () => {
+            console.log("Customer closed the Midtrans Snap modal");
+          },
+        });
+      } else {
+        alert("Midtrans Snap belum siap. Silakan muat ulang halaman.");
+      }
+    } catch (err) {
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Gagal memulai pembayaran DP Midtrans",
+      );
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
+  const handlePayFinalMidtrans = async (order: PreOrder) => {
+    try {
+      setPayingOrderId(order.id);
+      const res = await getPreOrderFinalSnapToken(order.id);
+
+      if (typeof window !== "undefined" && window.snap) {
+        window.snap.pay(res.snapToken, {
+          onSuccess: async (result: MidtransTransactionResult) => {
+            try {
+              await confirmPreOrderFinalMidtrans(
+                order.id,
+                result?.transaction_id,
+              );
+              await fetchData();
+              alert(
+                "Pelunasan berhasil! Pelunasan terverifikasi. Supplier akan menyiapkan pengiriman Biteship.",
+              );
+            } catch (err) {
+              console.error("Error confirming final payment:", err);
+              await fetchData();
+              alert("Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.");
+            }
+          },
+          onPending: async () => {
+            alert(
+              "Pembayaran sedang diproses / menunggu transfer Virtual Account.",
+            );
+            await fetchData();
+          },
+          onError: () => {
+            alert("Pembayaran Midtrans gagal atau dibatalkan. Pesanan belum lunas.");
+            void fetchMyPreOrders();
+          },
+          onClose: () => {
+            console.log("Customer closed the Midtrans Snap modal");
+          },
+        });
+      } else {
+        alert("Midtrans Snap belum siap. Silakan muat ulang halaman.");
+      }
+    } catch (err) {
+      alert(
+        err instanceof Error ? err.message : "Gagal memulai pelunasan Midtrans",
+      );
+    } finally {
+      setPayingOrderId(null);
+    }
+  };
+
+  const [isReceivingId, setIsReceivingId] = useState<string | null>(null);
+
+  const handleReceivePreOrder = async (order: PreOrder) => {
+    const confirmed = window.confirm(
+      `Apakah Anda yakin telah menerima bunga "${order.announcement.flowerName}" (${order.quantity} tangkai)?`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsReceivingId(order.id);
+      await receivePreOrder(order.id);
+      await fetchMyPreOrders();
+      alert("Konfirmasi penerimaan berhasil! Bunga telah diterima.");
+    } catch (err) {
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Gagal mengonfirmasi penerimaan bunga",
+      );
+    } finally {
+      setIsReceivingId(null);
+    }
+  };
 
   const fetchData = async () => {
     await Promise.all([fetchAnnouncements(), fetchMyPreOrders()]);
@@ -277,7 +389,14 @@ export default function FloristHarvestPlansPage() {
           onRetry={fetchData}
           loadingMessage="Memuat data..."
         >
-          <PreOrderTable preOrders={filteredPreOrders} />
+          <PreOrderTable
+            preOrders={filteredPreOrders}
+            onPayDeposit={handlePayDepositMidtrans}
+            onPayFinal={handlePayFinalMidtrans}
+            payingOrderId={payingOrderId}
+            onReceiveOrder={handleReceivePreOrder}
+            isReceivingId={isReceivingId}
+          />
         </DataStateWrapper>
       )}
 

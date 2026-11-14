@@ -88,6 +88,7 @@ export async function PUT(
         select: {
           id: true,
           supplierId: true,
+          quantity: true,
         },
       });
 
@@ -133,11 +134,19 @@ export async function PUT(
         );
       }
 
-      // Perbarui data stok di database
-      const updatedStock = await prisma.stock.update({
-        where: { id },
+      // Conditional update: admin stok tidak boleh menimpa pengurangan stok
+      // yang baru saja dibayar florist di webhook Midtrans.
+      const stockUpdate = await prisma.stock.updateMany({
+        where: { id, supplierId: userId, quantity: existingStock.quantity },
         data: validatedData,
       });
+      if (!stockUpdate.count) {
+        return NextResponse.json(
+          { success: false, message: "Stok berubah saat transaksi berlangsung. Muat ulang sebelum mengubah." },
+          { status: 409 },
+        );
+      }
+      const updatedStock = await prisma.stock.findUniqueOrThrow({ where: { id } });
 
       // Siapkan rekaman perubahan nilai lama dan baru untuk audit log
       const oldValues: any = {};

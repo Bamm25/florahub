@@ -1,5 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { autoExpireOverduePreOrders } from "@/lib/supply-chain/expire-preorders";
+import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
 import { NextResponse } from "next/server";
 import { createPreorderSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -26,6 +29,9 @@ export async function GET(request: Request) {
     if (status) {
       whereClause.status = status;
     }
+
+    // Periksa dan batalkan otomatis pre-order yang melebihi batas pembayaran DP 3 hari
+    await autoExpireOverduePreOrders();
 
     // Ambil data pre-order beserta informasi jadwal panen supplier dan total data
     const [preOrders, total] = await Promise.all([
@@ -103,7 +109,7 @@ export async function POST(request: Request) {
         preOrders: {
           where: {
             status: {
-              in: ["PENDING", "CONFIRMED"],
+              in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"],
             },
           },
         },
@@ -135,7 +141,7 @@ export async function POST(request: Request) {
 
     // Validasi tanggal panen belum terlewati
     const now = new Date();
-    if (now > announcement.harvestDate) {
+    if (now >= harvestDayEndWib(announcement.harvestDate)) {
       return NextResponse.json(
         {
           success: false,
@@ -175,7 +181,7 @@ export async function POST(request: Request) {
     const availableQuantity =
       announcement.estimatedQuantity - totalOrderedQuantity;
 
-    const requestedQuantity = Math.round(quantity);
+    const requestedQuantity = quantity;
     if (requestedQuantity > availableQuantity) {
       return NextResponse.json(
         {
@@ -186,41 +192,40 @@ export async function POST(request: Request) {
       );
     }
 
-    // Hitung total nominal biaya pre-order
-    const totalPrice = requestedQuantity * announcement.pricePerUnit;
-
-    // Simpan data pre-order baru ke database
-    const preOrder = await prisma.harvestPreOrder.create({
-      data: {
-        announcementId: announcement.id,
-        floristId: userId,
-        quantity: requestedQuantity,
-        pricePerUnit: announcement.pricePerUnit,
-        totalPrice: totalPrice,
-        status: "PENDING",
-        notes: notes ? notes.trim() : null,
-      },
-      include: {
-        announcement: {
-          include: {
-            supplier: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
+    // Simpan pre-order dalam transaksi serializable dengan lock pengumuman
+    const preOrder = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "HarvestAnnouncement" WHERE id = ${announcementId} FOR UPDATE`;
+      const latest = await tx.harvestAnnouncement.findUnique({ where: { id: announcementId } });
+      const used = await tx.harvestPreOrder.aggregate({
+        where: {
+          announcementId,
+          status: { in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"] },
         },
-        florist: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+        _sum: { quantity: true },
+      });
+      if (!latest?.isActive || !latest || new Date() > harvestDayEndWib(latest.harvestDate) ||
+          (used._sum.quantity ?? 0) + requestedQuantity > latest.estimatedQuantity) {
+        return null;
+      }
+      return tx.harvestPreOrder.create({
+        data: {
+          announcementId,
+          floristId: userId,
+          quantity: requestedQuantity,
+          pricePerUnit: latest.pricePerUnit,
+          totalPrice: requestedQuantity * latest.pricePerUnit,
+          status: "PENDING",
+          notes: notes ? notes.trim() : null,
         },
-      },
-    });
+        include: {
+          announcement: { include: { supplier: { select: { id: true, name: true, email: true } } } },
+          florist: { select: { id: true, name: true, email: true } },
+        },
+      });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    if (!preOrder) {
+      return NextResponse.json({ success: false, message: "Kapasitas panen berubah atau jadwal tidak aktif. Muat ulang dan coba kembali." }, { status: 409 });
+    }
 
     // Kirim notifikasi pesanan masuk ke supplier
     const florist = await prisma.user.findUnique({

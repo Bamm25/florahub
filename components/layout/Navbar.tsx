@@ -15,6 +15,7 @@ import {
   X,
   Home,
   Store,
+  Bell,
 } from "lucide-react";
 
 // Komponen navigasi utama aplikasi dengan menu responsif dan autentikasi peran
@@ -122,12 +123,22 @@ export default function Navbar() {
                     </div>
                     {isBusiness ? (
                       <Link
-                        href={role === "FLORIST" ? "/florist/dashboard" : "/"}
+                        href={
+                          role === "FLORIST"
+                            ? "/florist/dashboard"
+                            : role === "SUPPLIER"
+                            ? "/supplier/dashboard"
+                            : "/admin"
+                        }
                         onClick={() => setIsDropdownOpen(false)}
                         className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
                       >
                         <Home className="h-4 w-4 text-muted-foreground" />
-                        {role === "FLORIST" ? "Area florist" : "Beranda"}
+                        {role === "FLORIST"
+                          ? "Dashboard Florist"
+                          : role === "SUPPLIER"
+                          ? "Dashboard Supplier"
+                          : "Dashboard Admin"}
                       </Link>
                     ) : (
                       <>
@@ -147,6 +158,15 @@ export default function Navbar() {
                         >
                           <Package className="h-4 w-4 text-muted-foreground" />
                           Pesanan Saya
+                        </Link>
+
+                        <Link
+                          href="/notifications"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
+                        >
+                          <Bell className="h-4 w-4 text-muted-foreground" />
+                          Notifikasi
                         </Link>
 
                         <Link
@@ -234,12 +254,22 @@ export default function Navbar() {
                 <div className="h-px bg-border my-2" />
                 {isBusiness ? (
                   <Link
-                    href={role === "FLORIST" ? "/florist/dashboard" : "/"}
+                    href={
+                      role === "FLORIST"
+                        ? "/florist/dashboard"
+                        : role === "SUPPLIER"
+                        ? "/supplier/dashboard"
+                        : "/admin"
+                    }
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
                   >
                     <Home className="h-5 w-5 text-muted-foreground" />
-                    {role === "FLORIST" ? "Area florist" : "Beranda"}
+                    {role === "FLORIST"
+                      ? "Dashboard Florist"
+                      : role === "SUPPLIER"
+                      ? "Dashboard Supplier"
+                      : "Dashboard Admin"}
                   </Link>
                 ) : (
                   <>
@@ -258,6 +288,14 @@ export default function Navbar() {
                     >
                       <Package className="h-5 w-5 text-muted-foreground" />
                       Pesanan Saya
+                    </Link>
+                    <Link
+                      href="/notifications"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
+                    >
+                      <Bell className="h-5 w-5 text-muted-foreground" />
+                      Notifikasi
                     </Link>
                     <Link
                       href="/profile/addresses"

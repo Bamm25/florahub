@@ -249,24 +249,33 @@ model Stock {
 }
 
 model StockTransaction {
-  id           String            @id @default(cuid()) @db.Char(25)
-  stockId      String            @db.Char(25)
-  floristId    String            @db.Char(25)
-  quantity     Int
-  pricePerUnit Int
-  totalPrice   Int
-  status       TransactionStatus @default(PENDING)
-  paymentProof String?           @db.VarChar(500)
-  deliveredAt  DateTime?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  florist      User              @relation("FloristPurchases", fields: [floristId], references: [id], onDelete: Cascade)
-  stock        Stock             @relation(fields: [stockId], references: [id])
+  id               String            @id @default(cuid()) @db.Char(25)
+  stockId          String            @db.Char(25)
+  floristId        String            @db.Char(25)
+  quantity         Int
+  pricePerUnit     Int
+  totalPrice       Int
+  status           TransactionStatus @default(PENDING)
+  paymentProof     String?           @db.VarChar(500)
+  courier          String?           @db.VarChar(100)
+  service          String?           @db.VarChar(50)
+  trackingNumber   String?           @db.VarChar(100)
+  shippingCost     Int?
+  weight           Int?
+  biteshipOrderId  String?           @db.VarChar(100)
+  biteshipLabelUrl String?           @db.VarChar(500)
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  florist          User              @relation("FloristPurchases", fields: [floristId], references: [id], onDelete: Cascade)
+  stock            Stock             @relation(fields: [stockId], references: [id])
 
   @@index([floristId])
   @@index([stockId])
   @@index([status])
   @@index([createdAt])
+  @@index([biteshipOrderId])
 }
 
 model HarvestAnnouncement {
@@ -304,8 +313,25 @@ model HarvestPreOrder {
   notes          String?
   confirmedAt    DateTime?
   cancelledAt    DateTime?
-  cancelReason   String?
-  createdAt      DateTime              @default(now())
+  cancelReason     String?
+  depositAmount    Int?
+  depositDeadline  DateTime?
+  depositProof     String?           @db.VarChar(500)
+  depositPaidAt    DateTime?
+  remainingAmount  Int?
+  finalProof       String?           @db.VarChar(500)
+  finalPaidAt      DateTime?
+  finalDeadline    DateTime?
+  courier          String?           @db.VarChar(100)
+  service          String?           @db.VarChar(50)
+  trackingNumber   String?           @db.VarChar(100)
+  shippingCost     Int?
+  weight           Int?
+  biteshipOrderId  String?           @db.VarChar(100)
+  biteshipLabelUrl String?           @db.VarChar(500)
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  createdAt        DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   announcement   HarvestAnnouncement   @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   florist        User                  @relation("FloristPreOrders", fields: [floristId], references: [id], onDelete: Cascade)
@@ -314,6 +340,7 @@ model HarvestPreOrder {
   @@index([floristId])
   @@index([status])
   @@index([announcementId])
+  @@index([biteshipOrderId])
 }
 
 model FloristInventory {
@@ -489,13 +516,20 @@ enum ShipmentStatus {
 enum TransactionStatus {
   PENDING
   PAID
+  SHIPPED
+  DELIVERED
   CANCELLED
 }
 
 enum HarvestPreOrderStatus {
   PENDING
   CONFIRMED
+  DEPOSIT_PAID
+  PAID
+  SHIPPED
+  DELIVERED
   CANCELLED
+  EXPIRED
 }
 
 enum NotificationType {

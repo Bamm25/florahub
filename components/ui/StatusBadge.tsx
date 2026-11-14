@@ -50,12 +50,32 @@ export default function StatusBadge({ status, variant, size = "md" }: StatusBadg
           className: "bg-warning/10 text-warning border-warning/20",
         },
         CONFIRMED: {
-          label: "Dikonfirmasi",
+          label: "Menunggu DP",
+          className: "bg-amber-500/10 text-amber-700 border-amber-500/20",
+        },
+        DEPOSIT_PAID: {
+          label: "DP Diterima",
+          className: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+        },
+        PAID: {
+          label: "Lunas",
           className: "bg-success/10 text-success border-success/20",
+        },
+        SHIPPED: {
+          label: "Dalam Pengiriman",
+          className: "bg-indigo-500/10 text-indigo-700 border-indigo-500/20",
+        },
+        DELIVERED: {
+          label: "Diterima / Selesai",
+          className: "bg-emerald-600/10 text-emerald-800 border-emerald-600/20",
         },
         CANCELLED: {
           label: "Dibatalkan",
           className: "bg-error/10 text-error border-error/20",
+        },
+        EXPIRED: {
+          label: "Kedaluwarsa",
+          className: "bg-surface-container text-muted-foreground border-border",
         },
       },
       product: {

@@ -2,9 +2,9 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Bell } from "lucide-react";
 
 // Struktur menu navigasi sidebar operasional florist
 const navigationSections = [
@@ -21,8 +21,9 @@ const navigationSections = [
     title: "Katalog & stok",
     items: [
       { name: "Produk", href: "/florist/products" },
-      { name: "Bahan Baku & Stok", href: "/florist/inventory" },
-      { name: "Rencana panen", href: "/florist/harvest-plans" },
+      { name: "Bahan Baku", href: "/florist/inventory" },
+      { name: "Pasokan Kebun", href: "/florist/supplier-stocks" },
+      { name: "Rencana Panen", href: "/florist/harvest-plans" },
     ],
   },
   {
@@ -41,6 +42,31 @@ export default function FloristLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Polling unread count notifikasi florist
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications?unreadOnly=true&limit=1");
+      if (res.ok) {
+        const json = await res.json();
+        setUnreadCount(json.data?.unreadCount ?? 0);
+      }
+    } catch {
+      // Abaikan error polling
+    }
+  }, []);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      const initial = window.setTimeout(() => void fetchUnreadCount(), 0);
+      const interval = window.setInterval(() => void fetchUnreadCount(), 30000);
+      return () => {
+        window.clearTimeout(initial);
+        window.clearInterval(interval);
+      };
+    }
+  }, [status, fetchUnreadCount, pathname]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -92,8 +118,7 @@ export default function FloristLayout({
       >
         <div className="flex min-h-20 items-center justify-between border-b border-white/10 px-6">
           <Link href="/florist/dashboard" onClick={() => setMobileMenuOpen(false)} className="leading-tight">
-            <span className="block text-xl font-bold tracking-tight text-white">FloraHub</span>
-            <span className="block text-xs text-white/60">Area florist</span>
+            <span className="text-xl font-bold tracking-tight text-white">FloraHub</span>
           </Link>
           <button
             type="button"
@@ -109,7 +134,6 @@ export default function FloristLayout({
           <p className="truncate text-sm font-semibold text-white">
             {session?.user?.name || "Toko florist"}
           </p>
-          <p className="truncate text-xs text-white/60">{session?.user?.email}</p>
         </div>
 
         <nav aria-label="Navigasi florist" className="flex-1 overflow-y-auto px-3 py-5">
@@ -129,13 +153,18 @@ export default function FloristLayout({
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
                       aria-current={isActive ? "page" : undefined}
-                      className={`block rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                      className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                         isActive
                           ? "bg-white/10 font-semibold text-white"
                           : "text-white/70 hover:bg-white/10 hover:text-white"
                       }`}
                     >
-                      {item.name}
+                      <span>{item.name}</span>
+                      {item.href === "/florist/notifications" && unreadCount > 0 && (
+                        <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
@@ -172,14 +201,29 @@ export default function FloristLayout({
               {session?.user?.name || "Area florist"}
             </span>
           </div>
-          <Link
-            href={`/stores/${(session?.user as { id?: string } | undefined)?.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:text-sm"
-          >
-            Lihat toko
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/florist/notifications"
+              className="relative rounded-xl border border-border bg-surface p-2 text-foreground hover:bg-surface-container transition-colors shadow-2xs"
+              title="Notifikasi"
+              aria-label="Lihat notifikasi"
+            >
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </Link>
+            <Link
+              href={`/stores/${(session?.user as { id?: string } | undefined)?.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:text-sm"
+            >
+              Lihat toko
+            </Link>
+          </div>
         </header>
 
         <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-10">{children}</main>

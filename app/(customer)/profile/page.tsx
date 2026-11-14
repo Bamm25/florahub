@@ -119,7 +119,7 @@ export default function ProfilePage() {
             href="/profile/addresses"
             className="btn-secondary h-11 px-5 py-0 text-sm font-semibold"
           >
-            Buku Alamat
+            Alamat Saya
           </Link>
           <button
             onClick={() => setShowEditModal(true)}

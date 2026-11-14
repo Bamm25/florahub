@@ -1,115 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import prisma from "@/lib/prisma";
-import { mapBiteshipStatus } from "@/lib/biteship";
+import { getBiteshipClient, mapBiteshipStatus } from "@/lib/biteship";
+import { fulfillPreOrderToInventory, fulfillSaleToInventory } from "@/lib/supply-chain/fulfill-inventory";
 
-// Handler HTTP POST webhook untuk menerima pembaruan status dan nomor resi dari Biteship
+// Configure these custom headers in the Biteship dashboard and server env.
 export async function POST(req: NextRequest) {
+  const key = process.env.BITESHIP_WEBHOOK_SIGNATURE_KEY;
+  const secret = process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET;
+  if (!key || !secret || !/^[a-z0-9-]+$/i.test(key)) return NextResponse.json({ success: false, message: "Webhook not configured" }, { status: 503 });
+  const expected = Buffer.from(secret);
+  const supplied = Buffer.from(req.headers.get(key) || "");
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   try {
     const body = await req.json();
-    const event = body.event;
-    const biteshipOrderId = body.order_id;
-
-    // Filter tipe event Biteship yang relevan untuk diproses
-    if (event && !["order.status", "order.waybill_id", "order.price"].includes(event)) {
-      return NextResponse.json(
-        { success: true, message: `Event ${event} diabaikan` },
-        { status: 200 }
-      );
+    if (!["order.status", "order.waybill_id", "order.price"].includes(body?.event)) return NextResponse.json({ success: true, message: "Event ignored" });
+    if (typeof body.order_id !== "string" || !body.order_id) return NextResponse.json({ success: false, message: "Missing order ID" }, { status: 400 });
+    const id = body.order_id;
+    const shipment = await prisma.shipment.findFirst({ where: { biteshipOrderId: id }, include: { order: true } });
+    const preOrder = await prisma.harvestPreOrder.findFirst({ where: { biteshipOrderId: id } });
+    const sale = await prisma.stockTransaction.findFirst({ where: { biteshipOrderId: id } });
+    if (!shipment && !preOrder && !sale) return NextResponse.json({ success: true, message: "Unknown order ignored" });
+    // Never trust status or waybill supplied by the callback; read the actual order.
+    const remote = await getBiteshipClient().getOrder(id);
+    if (remote.id !== id && remote.order_id !== id) throw new Error("Biteship order mismatch");
+    const status = mapBiteshipStatus(remote.status);
+    const waybill = remote.courier?.waybill_id || undefined;
+    const now = new Date();
+    if (preOrder && !["DELIVERED", "CANCELLED"].includes(preOrder.status)) {
+      if (status === "DELIVERED") await fulfillPreOrderToInventory(preOrder.id);
+      else if (status === "SHIPPED") await prisma.harvestPreOrder.updateMany({ where: { id: preOrder.id, status: "PAID" }, data: { status: "SHIPPED", shippedAt: preOrder.shippedAt || now } });
     }
-
-    // Validasi keberadaan ID pesanan pada payload webhook
-    if (!biteshipOrderId) {
-      return NextResponse.json(
-        { success: false, message: "Order ID tidak ditemukan dalam payload webhook" },
-        { status: 400 }
-      );
+    if (preOrder && waybill) await prisma.harvestPreOrder.updateMany({ where: { id: preOrder.id, status: { in: ["PAID", "SHIPPED", "DELIVERED"] } }, data: { trackingNumber: waybill } });
+    if (sale && !["DELIVERED", "CANCELLED"].includes(sale.status)) {
+      if (status === "DELIVERED") await fulfillSaleToInventory(sale.id);
+      else if (status === "SHIPPED") await prisma.stockTransaction.updateMany({ where: { id: sale.id, status: "PAID" }, data: { status: "SHIPPED", shippedAt: sale.shippedAt || now } });
     }
-
-    // Cari data pengiriman berdasarkan ID pesanan Biteship
-    const shipment = await prisma.shipment.findFirst({
-      where: { biteshipOrderId },
-      include: {
-        order: {
-          include: {
-            user: true,
-          },
-        },
-      },
-    });
-
-    if (!shipment) {
-      return NextResponse.json(
-        { success: true, message: `Shipment untuk order ${biteshipOrderId} tidak ditemukan di database` },
-        { status: 200 }
-      );
+    if (sale && waybill) await prisma.stockTransaction.updateMany({ where: { id: sale.id, status: { in: ["PAID", "SHIPPED", "DELIVERED"] } }, data: { trackingNumber: waybill } });
+    if (shipment && !["DELIVERED", "CANCELLED"].includes(shipment.status)) {
+      if (["SHIPPED", "DELIVERED"].includes(status)) {
+        await prisma.shipment.updateMany({ where: { id: shipment.id, status: { notIn: ["DELIVERED", "CANCELLED"] } }, data: { status, trackingNumber: waybill || shipment.trackingNumber, shippedAt: status === "SHIPPED" ? shipment.shippedAt || now : undefined, deliveredAt: status === "DELIVERED" ? shipment.deliveredAt || now : undefined } });
+        const moved = await prisma.order.updateMany({ where: { id: shipment.orderId, status: { in: status === "DELIVERED" ? ["PROCESSING", "SHIPPED"] : ["PROCESSING"] } }, data: { status } });
+        if (moved.count) await prisma.notification.create({ data: { userId: shipment.order.userId, type: "SHIPMENT_UPDATE", title: status === "DELIVERED" ? "Pesanan Telah Sampai" : "Pesanan Dalam Pengiriman", message: `Pesanan #${shipment.order.orderNumber} ${status === "DELIVERED" ? "telah diterima" : "sedang dikirim"}.` } });
+      } else if (waybill) await prisma.shipment.update({ where: { id: shipment.id }, data: { trackingNumber: waybill } });
     }
-
-    // Ambil nomor resi dan tentukan pemetaan status pengiriman baru
-    const waybillId = body.courier_waybill_id || shipment.trackingNumber;
-    const rawStatus = body.status || "";
-    const newStatus = rawStatus ? mapBiteshipStatus(rawStatus) : shipment.status;
-
-    // Perbarui status pengiriman dan catatan waktu di basis data
-    await prisma.shipment.update({
-      where: { id: shipment.id },
-      data: {
-        status: newStatus,
-        trackingNumber: waybillId,
-        shippedAt: newStatus === "SHIPPED" && !shipment.shippedAt ? new Date() : undefined,
-        deliveredAt: newStatus === "DELIVERED" && !shipment.deliveredAt ? new Date() : undefined,
-      },
-    });
-
-    // Perbarui status pesanan menjadi dikirim dan beri tahu pembeli
-    if (newStatus === "SHIPPED" && shipment.order.status === "PROCESSING") {
-      await prisma.order.update({
-        where: { id: shipment.orderId },
-        data: { status: "SHIPPED" },
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: shipment.order.userId,
-          type: "SHIPMENT_UPDATE",
-          title: "Pesanan Dalam Pengiriman",
-          message: `Pesanan #${shipment.order.orderNumber} sedang dikirim${waybillId ? ` dengan nomor resi ${waybillId}` : ""}`,
-        },
-      });
-    }
-
-    // Perbarui status pesanan menjadi diterima saat paket sampai
-    if (newStatus === "DELIVERED" && shipment.order.status !== "DELIVERED") {
-      await prisma.order.update({
-        where: { id: shipment.orderId },
-        data: { status: "DELIVERED" },
-      });
-
-      await prisma.notification.create({
-        data: {
-          userId: shipment.order.userId,
-          type: "SHIPMENT_UPDATE",
-          title: "Pesanan Telah Sampai",
-          message: `Pesanan #${shipment.order.orderNumber} telah diterima. Terima kasih!`,
-        },
-      });
-    }
-
-    // Kirim respons berhasil atas pemrosesan data webhook
-    return NextResponse.json({
-      success: true,
-      message: `Webhook ${event} berhasil diproses`,
-      data: {
-        shipmentId: shipment.id,
-        status: newStatus,
-        trackingNumber: waybillId,
-      },
-    });
-  } catch (error: any) {
-    // Tangani kesalahan saat memproses data webhook Biteship
+    return NextResponse.json({ success: true, message: "Webhook processed" });
+  } catch (error) {
     console.error("[BITESHIP_WEBHOOK_ERROR]", error);
-    return NextResponse.json(
-      { success: false, message: error.message || "Gagal memproses webhook Biteship" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: "Webhook processing failed" }, { status: 500 });
   }
 }

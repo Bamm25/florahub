@@ -248,7 +248,6 @@ export default function FloristDashboardPage() {
                       <td className="px-5 py-4 font-semibold text-foreground sm:px-6">{order.orderNumber}</td>
                       <td className="px-5 py-4 sm:px-6">
                         <p className="font-medium text-foreground">{order.user.name}</p>
-                        <p className="text-xs text-muted-foreground">{order.user.email}</p>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-muted-foreground sm:px-6">
                         {new Date(order.createdAt).toLocaleDateString("id-ID", {

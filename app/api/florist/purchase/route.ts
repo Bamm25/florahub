@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { formatRupiah } from "@/lib/utils/formatters";
 import { NextResponse } from "next/server";
 import { createPurchaseSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -24,6 +25,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, message: "Stok tidak ditemukan" },
         { status: 404 },
+      );
+    }
+
+    // Hanya stok katalog milik supplier yang tersedia bisa dibeli langsung.
+    if (!stock.isAvailable || stock.quantity <= 0 || stock.supplierId === userId) {
+      return NextResponse.json(
+        { success: false, message: "Pasokan supplier tidak tersedia untuk pembelian langsung." },
+        { status: 400 },
       );
     }
 
@@ -57,8 +66,27 @@ export async function POST(request: Request) {
             name: true,
             variety: true,
             quantity: true,
+            supplierId: true,
           },
         },
+        florist: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Kirim notifikasi ke supplier kebun
+    await prisma.notification.create({
+      data: {
+        userId: stock.supplierId,
+        title: "Pesanan Pasokan Bunga Baru!",
+        message: `Florist ${transaction.florist.name} memesan ${quantity} tangkai ${stock.name} (${formatRupiah(totalPrice)}). Silakan periksa di menu Penjualan & Pembayaran.`,
+        type: "ORDER_CREATED",
+        link: "/supplier/sales",
+        isRead: false,
       },
     });
 

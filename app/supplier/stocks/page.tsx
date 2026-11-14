@@ -61,7 +61,8 @@ export default function SupplierStocksPage() {
   };
 
   useEffect(() => {
-    fetchStocks();
+    const timer = window.setTimeout(() => void fetchStocks(), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // Filter stok berdasarkan pencarian teks dan tab filter yang aktif
@@ -233,8 +234,7 @@ export default function SupplierStocksPage() {
             Katalog Stok Bunga
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Kelola kuantitas pasokan segar dan harga jual bahan baku untuk mitra
-            florist.
+            Kelola stok siap jual untuk florist.
           </p>
         </div>
         <button
@@ -243,7 +243,7 @@ export default function SupplierStocksPage() {
             setAddError(null);
             setIsAddModalOpen(true);
           }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
           <span>Tambah Stok Bunga</span>
@@ -513,7 +513,7 @@ export default function SupplierStocksPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingAdd}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   {isSubmittingAdd && (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -637,7 +637,7 @@ export default function SupplierStocksPage() {
                       isAvailable: e.target.checked,
                     }))
                   }
-                  className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500"
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                 />
                 <label
                   htmlFor="isAvailableCheck"
@@ -657,7 +657,7 @@ export default function SupplierStocksPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingEdit}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
                   {isSubmittingEdit && (
                     <Loader2 className="h-4 w-4 animate-spin" />

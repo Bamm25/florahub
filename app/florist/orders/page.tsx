@@ -157,10 +157,10 @@ export default function FloristOrdersPage() {
             Operasional Pesanan
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
-            Kelola Pesanan Customer
+            Pesanan
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
-            Pantau pesanan masuk, alur perakitan buket, verifikasi status pembayaran, dan pengiriman kurir.
+            Pesanan masuk, pembayaran, dan pengiriman ke customer.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -305,7 +305,6 @@ export default function FloristOrdersPage() {
                     <td className="px-5 py-4">
                       <div className="space-y-0.5">
                         <p className="font-medium text-foreground">{order.user.name}</p>
-                        <p className="text-xs text-muted-foreground">{order.user.email}</p>
                       </div>
                     </td>
                     <td className="px-5 py-4 text-xs text-muted-foreground">

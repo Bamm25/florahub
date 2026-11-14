@@ -425,10 +425,10 @@ export default function FloristShipmentsPage() {
             Logistik & Pengiriman
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
-            Pengiriman Florist
+            Pengiriman
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
-            Kelola pengiriman buket ke customer, integrasi resi otomatis Biteship, serta pembaruan status logistik.
+            Buat resi, pilih kurir, dan pantau paket ke customer.
           </p>
         </div>
         <div className="flex items-center gap-3">
