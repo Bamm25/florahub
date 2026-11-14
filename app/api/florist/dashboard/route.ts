@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -282,7 +283,7 @@ export async function GET(request: Request) {
     if (error instanceof NextResponse) {
       return error;
     }
-    console.error("[FLORIST_DASHBOARD_ERROR]", error);
+    reportServerError("[FLORIST_DASHBOARD_ERROR]", error);
     return NextResponse.json(
       { success: false, message: "Gagal mengambil dashboard data" },
       { status: 500 },

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -110,7 +111,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error fetching ready-to-ship orders:", error);
+    reportServerError("Error fetching ready-to-ship orders:", error);
     if (error instanceof NextResponse) {
       return error;
     }

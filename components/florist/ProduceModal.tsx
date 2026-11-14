@@ -70,7 +70,7 @@ export default function ProduceModal({
         }
       })
       .catch((err) => {
-        console.error("[ProduceModal] Error loading components:", err);
+
       });
   }, [isOpen, product?.id]);
 

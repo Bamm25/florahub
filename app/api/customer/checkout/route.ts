@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -483,7 +484,7 @@ export async function POST(request: Request) {
       );
     }
     if (error && typeof error === 'object' && 'name' in error && error.name === "ZodError" && 'issues' in error) {
-      console.error("Zod validation error checkout:", error.issues);
+      reportServerError("Zod validation error checkout:");
       return NextResponse.json(
         {
           success: false,
@@ -503,7 +504,7 @@ export async function POST(request: Request) {
       );
     }
     const message = error instanceof Error ? error.message : "Gagal membuat order";
-    console.error("Error checkout:", error);
+    reportServerError("Error checkout:", error);
     return NextResponse.json(
       {
         success: false,

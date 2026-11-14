@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import {
@@ -91,7 +92,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       { status: 404 },
     );
   } catch (error) {
-    console.error("Error simulating delivered shipment:", error);
+    reportServerError("Error simulating delivered shipment:", error);
     if (error instanceof NextResponse) {
       return error;
     }

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -99,7 +100,7 @@ export async function GET(
     if (error instanceof NextResponse) {
       return error;
     }
-    console.error("Error fetching order detail:", error);
+    reportServerError("Error fetching order detail:", error);
     return NextResponse.json(
       { success: false, message: "Gagal mengambil detail pesanan" },
       { status: 500 }

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { fulfillPreOrderToInventory } from "@/lib/supply-chain/fulfill-inventory";
@@ -86,7 +87,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       data: { preOrder: updatedPreOrder },
     });
   } catch (error) {
-    console.error("Error receiving pre-order:", error);
+    reportServerError("Error receiving pre-order:", error);
     if (error instanceof NextResponse) {
       return error;
     }

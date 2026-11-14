@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { getBiteshipClient } from "@/lib/biteship";
@@ -94,7 +95,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error("Error getting Biteship label:", error);
+    reportServerError("Error getting Biteship label:", error);
     if (error instanceof NextResponse) {
       return error;
     }

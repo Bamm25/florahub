@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { getBiteshipClient, mapBiteshipStatus } from "@/lib/biteship";
@@ -187,7 +188,7 @@ export async function POST(request: Request) {
     try {
       biteshipOrder = await biteshipClient.createOrder(biteshipPayload);
     } catch (biteshipError: any) {
-      console.error("[SUPPLIER_BITESHIP_CREATE_ERROR]", biteshipError?.response?.data || biteshipError?.message || biteshipError);
+      reportServerError("[SUPPLIER_BITESHIP_CREATE_ERROR]");
       return NextResponse.json(
         {
           success: false,
@@ -297,7 +298,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error auto-creating Biteship order for supplier:", error);
+    reportServerError("Error auto-creating Biteship order for supplier:", error);
     if (error instanceof NextResponse) {
       return error;
     }

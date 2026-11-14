@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 // Endpoint untuk memeriksa tarif ongkos kirim melalui Biteship API
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     // Tangani error internal server
-    console.error("[GET_RATES_ERROR]", error);
+    reportServerError("[GET_RATES_ERROR]", error);
     return NextResponse.json(
       {
         success: false,

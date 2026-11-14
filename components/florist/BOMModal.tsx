@@ -77,40 +77,40 @@ export default function BOMModal({
   useEffect(() => {
     if (!isOpen || !productId) return;
     let active = true;
-    
+
     // Ambil daftar komponen BOM produk
     fetchPaginatedCollection<ProductComponent>(`/api/florist/products/${productId}/components`, "items")
-      .then((items) => { 
+      .then((items) => {
         if (active) {
           setComponents(items);
-          console.log('[BOMModal] Loaded components:', items.length);
+
         }
       })
-      .catch((err) => { 
+      .catch((err) => {
         if (active) {
           const msg = err instanceof Error ? err.message : "Gagal memuat komponen";
           setError(msg);
-          console.error('[BOMModal] Components error:', msg);
+
         }
       })
       .finally(() => { if (active) setIsLoading(false); });
-    
+
     // Ambil daftar bahan baku inventaris untuk pilihan dropdown
     fetchPaginatedCollection<FloristInventory>("/api/florist/inventory", "inventories")
-      .then((inventories) => { 
+      .then((inventories) => {
         if (active) {
           setInventoryList(inventories);
-          console.log('[BOMModal] Loaded inventory options:', inventories.length, inventories);
+
         }
       })
-      .catch((err) => { 
+      .catch((err) => {
         if (active) {
           const msg = err instanceof Error ? err.message : "Gagal memuat inventory";
           setError(msg);
-          console.error('[BOMModal] Inventory error:', msg);
+
         }
       });
-    
+
     return () => { active = false; };
   }, [isOpen, productId]);
 

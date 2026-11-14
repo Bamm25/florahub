@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
 
     // Kelompokkan item produk berdasarkan ID florist pengirim
     const floristGroups = new Map<string, { floristId: string; totalWeight: number; products: string[] }>();
-    
+
     for (const item of items) {
       const product = products.find((p) => p.id === item.productId);
       if (!product) continue;
@@ -165,7 +166,7 @@ export async function POST(request: Request) {
 
     if (!biteshipResponse.ok) {
       const errorText = await biteshipResponse.text();
-      console.error("[BITESHIP_RATES_ERROR]", biteshipResponse.status, errorText);
+      reportServerError("[BITESHIP_RATES_ERROR]");
       // Gunakan tarif flat cadangan jika terjadi kesalahan pada API Biteship
       return NextResponse.json({
         success: true,
@@ -193,14 +194,14 @@ export async function POST(request: Request) {
 
     // Format respons opsi tarif kurir dari Biteship
     const rates = biteshipData.pricing
-      .filter((rate: { available_for_cash_on_delivery: boolean; available_for_instant_waybill_id: boolean }) => 
-        rate.available_for_cash_on_delivery === false && 
+      .filter((rate: { available_for_cash_on_delivery: boolean; available_for_instant_waybill_id: boolean }) =>
+        rate.available_for_cash_on_delivery === false &&
         rate.available_for_instant_waybill_id === true
       )
-      .map((rate: { 
-        courier_name: string; 
-        courier_service_name: string; 
-        price: number; 
+      .map((rate: {
+        courier_name: string;
+        courier_service_name: string;
+        price: number;
         duration: string;
       }) => ({
         courier: rate.courier_name.toUpperCase(),
@@ -255,7 +256,7 @@ export async function POST(request: Request) {
     if (error instanceof NextResponse) {
       return error;
     }
-    console.error("[CALCULATE_SHIPPING_ERROR]", error);
+    reportServerError("[CALCULATE_SHIPPING_ERROR]", error);
     return NextResponse.json(
       {
         success: false,

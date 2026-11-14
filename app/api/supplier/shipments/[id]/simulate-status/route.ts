@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import {
@@ -151,7 +152,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ success: false, message: "Unhandled status" }, { status: 400 });
   } catch (error) {
-    console.error("Error simulating shipment status:", error);
+    reportServerError("Error simulating shipment status:", error);
     if (error instanceof NextResponse) return error;
     return NextResponse.json(
       {

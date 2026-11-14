@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -173,7 +174,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
         { status: 400 },
       );
     }
-    console.error("[PUT /api/customer/addresses/[id] error]:", error);
+    reportServerError("[PUT /api/customer/addresses/[id] error]:", error);
     return NextResponse.json(
       {
         success: false,

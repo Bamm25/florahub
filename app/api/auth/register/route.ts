@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
         },
       );
     }
-    console.error("Error register user:", error);
+    reportServerError("Error register user:", error);
     return NextResponse.json(
       {
         success: false,

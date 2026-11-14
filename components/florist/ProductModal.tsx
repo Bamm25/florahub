@@ -100,7 +100,7 @@ export default function ProductModal({
       setPreviewError(false);
       onChange("image", data.url);
     } catch (error) {
-      console.error("Upload error:", error);
+
       setUploadError(error instanceof Error ? error.message : "Gagal mengupload gambar. Coba lagi");
     } finally {
       setIsUploading(false);

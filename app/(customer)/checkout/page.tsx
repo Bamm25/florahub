@@ -160,7 +160,7 @@ export default function CheckoutPage() {
         setSelectedShipping(null);
       }
     } catch (error) {
-      console.error("Calculate shipping error:", error);
+
       setShippingCost(15000);
       setShippingRates([]);
       setSelectedShipping(null);
@@ -185,16 +185,16 @@ export default function CheckoutPage() {
     try {
       const response = await createAddress(data);
       const newAddress = response.data.address;
-      
+
       // Perbarui daftar alamat pengguna
       const addressesResponse = await getCustomerAddresses();
       const addressList = addressesResponse.data.items;
       setAddresses(addressList);
-      
+
       // Otomatis pilih alamat baru yang baru ditambahkan
       setSelectedAddressId(newAddress.id);
       void calculateShipping(newAddress.id);
-      
+
       // Tutup modal formulir alamat
       setShowAddressForm(false);
       setFormErrors({});

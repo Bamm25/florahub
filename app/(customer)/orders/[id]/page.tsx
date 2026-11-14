@@ -134,7 +134,7 @@ export default function OrderDetailPage({
         setOrder(result.data.order);
       }
     } catch (error) {
-      console.error("Refresh order error:", error);
+
     } finally {
       setIsRefreshing(false);
     }

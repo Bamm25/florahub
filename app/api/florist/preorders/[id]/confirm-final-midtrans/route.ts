@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { fetchMidtransPayment, isSettled, settlePreorder } from "@/lib/supply-chain/midtrans-payments";
@@ -20,7 +21,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ success: true, data: { preOrder: current } });
   } catch (error) {
     if (error instanceof NextResponse) return error;
-    console.error("Midtrans payment verification failed", error);
+    reportServerError("Midtrans payment verification failed", error);
     return NextResponse.json({ success: false, message: "Tidak dapat memverifikasi pembayaran Midtrans" }, { status: 502 });
   }
 }

@@ -75,7 +75,7 @@ export default function FloristHarvestPlansPage() {
                 "Pembayaran DP 50% berhasil! DP terverifikasi. Status pesanan telah diperbarui.",
               );
             } catch (err) {
-              console.error("Error confirming deposit:", err);
+
               await fetchData();
               alert("Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.");
             }
@@ -91,7 +91,7 @@ export default function FloristHarvestPlansPage() {
             void fetchMyPreOrders();
           },
           onClose: () => {
-            console.log("Customer closed the Midtrans Snap modal");
+            void fetchMyPreOrders();
           },
         });
       } else {
@@ -126,7 +126,7 @@ export default function FloristHarvestPlansPage() {
                 "Pelunasan berhasil! Pelunasan terverifikasi. Supplier akan menyiapkan pengiriman Biteship.",
               );
             } catch (err) {
-              console.error("Error confirming final payment:", err);
+
               await fetchData();
               alert("Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.");
             }
@@ -142,7 +142,7 @@ export default function FloristHarvestPlansPage() {
             void fetchMyPreOrders();
           },
           onClose: () => {
-            console.log("Customer closed the Midtrans Snap modal");
+            void fetchMyPreOrders();
           },
         });
       } else {

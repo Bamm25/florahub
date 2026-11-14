@@ -86,7 +86,7 @@ export default function CustomerNotificationsPage() {
       await fetchNotifications();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Terjadi kesalahan";
-      console.error("Gagal menandai notifikasi:", message);
+
       alert("Gagal menandai notifikasi: " + message);
     }
   };
@@ -102,7 +102,7 @@ export default function CustomerNotificationsPage() {
       await fetchNotifications();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Terjadi kesalahan";
-      console.error("Gagal menandai semua notifikasi:", message);
+
       alert("Gagal menandai semua notifikasi: " + message);
     }
   };
@@ -120,7 +120,7 @@ export default function CustomerNotificationsPage() {
       await fetchNotifications();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Terjadi kesalahan";
-      console.error("Gagal menghapus notifikasi:", message);
+
       alert("Gagal menghapus notifikasi: " + message);
     }
   };

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { Prisma } from "@prisma/client";
 import prisma from "./prisma";
 
@@ -29,11 +30,7 @@ export async function createAuditLog({
   userAgent?: string;
 }): Promise<void> {
   if (!action || !entity || !entityId) {
-    console.error("createAuditLog: Missing required fields", {
-      action,
-      entity,
-      entityId,
-    });
+    reportServerError("createAuditLog: Missing required fields");
     return;
   }
 
@@ -51,6 +48,6 @@ export async function createAuditLog({
       },
     });
   } catch (error) {
-    console.error("Failed to create audit log:", error);
+    reportServerError("Failed to create audit log:", error);
   }
 }

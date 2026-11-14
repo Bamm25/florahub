@@ -89,7 +89,7 @@ export default function SupplierShipmentsPage() {
         setSelectedRate(rates[0].rate_id);
       }
     } catch (err) {
-      console.error("Gagal mengambil tarif Biteship:", err);
+
       setModalError(err instanceof Error ? err.message : "Gagal mengambil tarif Biteship");
     } finally {
       setIsFetchingRates(false);

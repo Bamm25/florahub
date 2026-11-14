@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
@@ -226,7 +227,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       data: { preOrder: updatedPreOrder },
     });
   } catch (error) {
-    console.error("Error in PATCH /api/supplier/preorders/[id]:", error);
+    reportServerError("Error in PATCH /api/supplier/preorders/[id]:", error);
     // Tangani error validasi Zod, otorisasi, atau internal server error
     if (error instanceof z.ZodError) {
       return NextResponse.json(

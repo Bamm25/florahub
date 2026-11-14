@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -302,7 +303,7 @@ export async function PUT(
     if (error instanceof NextResponse) {
       return error;
     }
-    console.error("Error updating florist product:", error);
+    reportServerError("Error updating florist product:", error);
     return NextResponse.json(
       { success: false, message: "Gagal memperbarui produk florist" },
       { status: 500 }
@@ -361,7 +362,7 @@ export async function DELETE(
     if (error instanceof NextResponse) {
       return error;
     }
-    console.error("Error deleting florist product:", error);
+    reportServerError("Error deleting florist product:", error);
     return NextResponse.json(
       { success: false, message: "Gagal menghapus produk florist" },
       { status: 500 }

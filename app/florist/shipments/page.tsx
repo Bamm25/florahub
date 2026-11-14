@@ -86,7 +86,7 @@ export default function FloristShipmentsPage() {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // State untuk mode pengiriman otomatis Biteship dan pilihan tarif kurir
   const [shipmentMode, setShipmentMode] = useState<"auto" | "manual">("auto");
   const [availableRates, setAvailableRates] = useState<Array<{
@@ -111,7 +111,7 @@ export default function FloristShipmentsPage() {
       }
       await fetchData();
     } catch (err) {
-      console.error("[SYNC_ERROR]", err);
+
     } finally {
       setSyncingId(null);
     }
@@ -124,7 +124,7 @@ export default function FloristShipmentsPage() {
   const fetchShipments = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const data = await fetchPaginatedCollection<Shipment>("/api/florist/shipments", "shipments");
       setShipments(data);
@@ -171,13 +171,13 @@ export default function FloristShipmentsPage() {
     setAvailableRates([]);
     setSelectedRate("");
     setIsModalOpen(true);
-    
+
     // Auto-fetch rates untuk mode otomatis
     if (orderId) {
       await fetchRates(orderId);
     }
   };
-  
+
   const fetchRates = async (orderId: string) => {
     setIsFetchingRates(true);
     try {
@@ -186,19 +186,19 @@ export default function FloristShipmentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId }),
       });
-      
+
       const data = await res.json();
-      console.log('[DEBUG] Rates API Response:', data);
-      
+
+
       if (!res.ok) {
         throw new Error(data.message || "Gagal fetch ongkir");
       }
-      
-      console.log('[DEBUG] Setting rates:', data.rates);
+
+
       setAvailableRates(data.rates || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error fetching rates";
-      console.error('[DEBUG] Fetch rates error:', err);
+
       setFormErrors({ rates: message });
     } finally {
       setIsFetchingRates(false);
@@ -273,12 +273,12 @@ export default function FloristShipmentsPage() {
         setFormErrors({ rates: "Pilih kurir terlebih dahulu" });
         return;
       }
-      
+
       setIsSubmitting(true);
       try {
         const selectedRateData = availableRates.find(r => r.rate_id === selectedRate);
         if (!selectedRateData) throw new Error("Rate tidak ditemukan");
-        
+
         const res = await fetch("/api/florist/shipments/auto-create", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -288,12 +288,12 @@ export default function FloristShipmentsPage() {
             courierType: selectedRateData.courier.service_code,
           }),
         });
-        
+
         const json = await res.json();
         if (!res.ok) {
           throw new Error(json.message || "Gagal membuat shipment otomatis");
         }
-        
+
         await fetchData();
         await fetchPaidOrders();
         closeModal();
@@ -322,7 +322,7 @@ export default function FloristShipmentsPage() {
         orderId?: string;
         status?: string;
       }
-      
+
       const payload: ShipmentPayload = {
         courier: formData.courier.trim(),
         service: formData.service.trim() || null,
@@ -330,9 +330,9 @@ export default function FloristShipmentsPage() {
         estimatedDays: formData.estimatedDays ? parseInt(formData.estimatedDays, 10) : null,
         weight: formData.weight ? parseFloat(formData.weight) : null,
       };
-      
+
       // Validasi akhir nilai numerik sebelum dikirim ke server
-      if ((payload.estimatedDays !== null && isNaN(payload.estimatedDays)) || 
+      if ((payload.estimatedDays !== null && isNaN(payload.estimatedDays)) ||
           (payload.weight !== null && isNaN(payload.weight))) {
         throw new Error("Invalid numeric values");
       }
@@ -538,7 +538,7 @@ export default function FloristShipmentsPage() {
                   <p className="text-xs text-muted-foreground">Customer: {selectedShipment.order.user.name}</p>
                 </div>
               )}
-              
+
               {modalMode === "create" && (
                 <div className="flex gap-2 p-1 bg-surface-container-low rounded-xl border border-border">
                   <button

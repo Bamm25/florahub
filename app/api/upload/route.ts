@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { isR2Configured, uploadToR2 } from "@/lib/r2";
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       const image = await fetch(publicUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) });
       reachable = image.ok && (image.headers.get("content-type")?.startsWith("image/") ?? false);
     } catch (error) {
-      console.error("R2 public image verification failed:", error);
+      reportServerError("R2 public image verification failed:", error);
     }
     if (!reachable) {
       return NextResponse.json(
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     // Tangani kegagalan saat proses unggah berkas
-    console.error("Upload error:", error);
+    reportServerError("Upload error:", error);
     return NextResponse.json(
       { error: "Gagal mengupload gambar. Coba lagi" },
       { status: 500 }

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -65,7 +66,7 @@ export async function POST(
 
     // Periksa kecukupan stok bahan baku untuk jumlah produksi yang diminta
     const insufficientMaterials: string[] = [];
-    
+
     for (const component of product.productComponents) {
       const requiredQty = component.quantity * quantity;
       const availableQty = component.inventory.quantity;
@@ -165,7 +166,7 @@ export async function POST(
       return error;
     }
 
-    console.error("[Produce Error]", error);
+    reportServerError("[Produce Error]", error);
     return NextResponse.json(
       { success: false, message: "Gagal memproduksi produk" },
       { status: 500 }

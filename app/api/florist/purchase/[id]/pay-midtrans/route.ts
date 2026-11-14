@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import { snap } from "@/lib/midtrans";
 import prisma from "@/lib/prisma";
@@ -29,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ success: true, data: { snapToken: transaction.token, redirectUrl: transaction.redirect_url, orderId } });
   } catch (error) {
     if (error instanceof NextResponse) return error;
-    console.error("Midtrans direct stock payment error", error);
+    reportServerError("Midtrans direct stock payment error", error);
     return NextResponse.json({ success: false, message: "Gagal membuat transaksi Midtrans" }, { status: 502 });
   }
 }

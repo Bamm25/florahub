@@ -107,7 +107,7 @@ export default function FloristSupplierStocksPage() {
             await confirmDirectPurchaseMidtrans(id, result?.transaction_id || result?.order_id);
             setBuySuccess("Pembayaran Midtrans berhasil diverifikasi! Pesanan Anda kini berstatus Lunas.");
           } catch (confirmErr) {
-            console.error("Auto confirm direct sale error:", confirmErr);
+
             setBuySuccess("Pembayaran diterima Midtrans. Klik 'Cek Status Pembayaran' jika status belum berubah.");
           }
           setActiveTab("orders");

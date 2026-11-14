@@ -88,7 +88,7 @@ export default function FloristProductsPage() {
   const fetchProducts = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const productList = await fetchPaginatedCollection<Product>("/api/florist/products", "products");
       setProducts(productList);
@@ -109,7 +109,7 @@ export default function FloristProductsPage() {
         setCategories(json.data?.items || []);
       }
     } catch (err) {
-      console.error("Failed to fetch categories:", err);
+
     }
   };
 
@@ -168,7 +168,7 @@ export default function FloristProductsPage() {
       // Ambil data lengkap produk beserta komponen BOM
       const res = await fetch(`/api/florist/products/${product.id}`);
       const json = await res.json();
-      
+
       if (res.ok && json.success) {
         setSelectedProductForProduce(json.data);
         setIsProduceModalOpen(true);
@@ -203,7 +203,7 @@ export default function FloristProductsPage() {
     const stockValue = Number(formData.stock);
     const isStockInvalid = !formData.stock.trim() || !Number.isSafeInteger(stockValue) || stockValue < 0;
     if (isStockInvalid) errors.stock = "Stok tidak boleh negatif";
-    
+
     // Validasi berat produk jika diisi (harus bilangan bulat positif)
     const hasWeight = formData.weight && formData.weight.trim();
     if (hasWeight) {
@@ -231,13 +231,13 @@ export default function FloristProductsPage() {
       const priceValue = Number(formData.price);
       const stockValue = Number(formData.stock);
       const weightValue = formData.weight ? Number(formData.weight) : null;
-      
+
       // Validasi akhir nilai numerik sebelum dikirim ke server
       if (!Number.isSafeInteger(priceValue) || !Number.isSafeInteger(stockValue) ||
           (weightValue !== null && !Number.isSafeInteger(weightValue))) {
         throw new Error("Nilai harga atau stok tidak valid");
       }
-      
+
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
@@ -258,7 +258,7 @@ export default function FloristProductsPage() {
         modalMode === "create"
           ? "/api/florist/products"
           : `/api/florist/products/${selectedProduct?.id || ""}`;
-      
+
       if (modalMode === "edit" && !selectedProduct?.id) {
         throw new Error("Product ID is missing");
       }

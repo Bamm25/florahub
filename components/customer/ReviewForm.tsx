@@ -56,7 +56,7 @@ export default function ReviewForm({
         }
       } catch (error) {
         if (!cancelled) {
-          console.error("Failed to check purchase status:", error);
+
         }
       } finally {
         if (!cancelled) {

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { getBiteshipClient } from "@/lib/biteship";
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Error calculating Biteship rates for supplier:", error);
+    reportServerError("Error calculating Biteship rates for supplier:", error);
     if (error instanceof NextResponse) {
       return error;
     }

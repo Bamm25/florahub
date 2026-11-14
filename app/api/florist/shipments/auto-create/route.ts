@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 // Endpoint untuk pembuatan pengiriman otomatis dengan Biteship API dan pembuatan resi AWB
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -35,10 +36,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { orderId, courierCompany, courierType, deliveryType, deliveryDate, deliveryTime } = body;
 
-    console.log('[AUTO-CREATE] Request body:', { orderId, courierCompany, courierType });
+
 
     if (!orderId || !courierCompany || !courierType) {
-      console.log('[AUTO-CREATE] Validation failed:', { orderId, courierCompany, courierType });
+
       return NextResponse.json(
         { success: false, message: "orderId, courierCompany, dan courierType wajib diisi" },
         { status: 400 }
@@ -169,7 +170,7 @@ export async function POST(req: NextRequest) {
     try {
       biteshipOrder = await biteshipClient.createOrder(biteshipRequest);
     } catch (biteshipError: any) {
-      console.error("[BITESHIP_CREATE_ERROR]", biteshipError);
+      reportServerError("[BITESHIP_CREATE_ERROR]", biteshipError);
       await prisma.order.update({ where: { id: order.id }, data: { status: "PAID" } });
       return NextResponse.json(
         { success: false, message: `Biteship API error: ${biteshipError.message || "Gagal membuat shipment"}` },
@@ -191,7 +192,7 @@ export async function POST(req: NextRequest) {
     }
 
     const courierCompanyCode = (biteshipOrder.courier?.company || courierCompany).toUpperCase();
-    
+
     // Ambil URL PDF shipping label resmi dari Biteship
     let biteshipLabelUrl: string | null = null;
     try {
@@ -246,9 +247,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     // Tangani error internal server
-    console.error("[AUTO_CREATE_SHIPMENT_ERROR]", error);
-    console.error("[AUTO_CREATE_SHIPMENT_ERROR] Stack:", error.stack);
-    console.error("[AUTO_CREATE_SHIPMENT_ERROR] Response:", error.response?.data);
+    reportServerError("[AUTO_CREATE_SHIPMENT_ERROR]", error);
+    reportServerError("[AUTO_CREATE_SHIPMENT_ERROR] Stack:");
+    reportServerError("[AUTO_CREATE_SHIPMENT_ERROR] Response:");
     return NextResponse.json(
       {
         success: false,

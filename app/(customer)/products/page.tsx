@@ -37,7 +37,7 @@ function ProductsPageContent() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "all");
   const [sortBy, setSortBy] = useState(searchParams.get("sortBy") || "newest");
-  
+
   // State navigasi nomor halaman dan total hasil
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
   const [totalPages, setTotalPages] = useState(1);
@@ -54,7 +54,7 @@ function ProductsPageContent() {
           setCategories(data.data.items || []);
         }
       } catch (err) {
-        console.error("Failed to fetch categories:", err);
+
       }
     }
     fetchCategories();
@@ -70,7 +70,7 @@ function ProductsPageContent() {
         const params = new URLSearchParams();
         params.set("page", currentPage.toString());
         params.set("limit", PRODUCTS_PER_PAGE.toString());
-        
+
         if (searchQuery) params.set("search", searchQuery);
         if (selectedCategory && selectedCategory !== "all") params.set("categoryId", selectedCategory);
         if (sortBy) params.set("sortBy", sortBy);
@@ -172,7 +172,7 @@ function ProductsPageContent() {
                 className="w-full"
               />
             </div>
-            
+
             {/* 2 Dropdowns - grid on desktop, stack on mobile */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Category Filter */}

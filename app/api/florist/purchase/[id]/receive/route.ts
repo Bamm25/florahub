@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { fulfillSaleToInventory } from "@/lib/supply-chain/fulfill-inventory";
@@ -100,7 +101,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       data: { transaction: updatedSale },
     });
   } catch (error) {
-    console.error("Error receiving direct sale shipment:", error);
+    reportServerError("Error receiving direct sale shipment:", error);
     if (error instanceof NextResponse) return error;
     return NextResponse.json(
       {

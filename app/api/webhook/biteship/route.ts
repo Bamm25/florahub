@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import prisma from "@/lib/prisma";
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ success: true, message: "Webhook processed" });
   } catch (error) {
-    console.error("[BITESHIP_WEBHOOK_ERROR]", error);
+    reportServerError("[BITESHIP_WEBHOOK_ERROR]", error);
     return NextResponse.json({ success: false, message: "Webhook processing failed" }, { status: 500 });
   }
 }

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
       throw error;
     }
 
-    console.error("Error fetching profile:", error);
+    reportServerError("Error fetching profile:", error);
     return NextResponse.json(
       {
         success: false,
@@ -173,7 +174,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    console.error("Error updating profile:", error);
+    reportServerError("Error updating profile:", error);
     return NextResponse.json(
       {
         success: false,

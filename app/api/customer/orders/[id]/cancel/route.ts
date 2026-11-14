@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -93,7 +94,7 @@ export async function POST(
     if (error instanceof NextResponse) {
       return error;
     }
-    console.error("[CANCEL ORDER ERROR]", error);
+    reportServerError("[CANCEL ORDER ERROR]", error);
     return NextResponse.json(
       { success: false, message: "Gagal membatalkan pesanan" },
       { status: 500 },

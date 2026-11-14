@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/middleware/requireAuth";
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
     if (error instanceof Response || error instanceof NextResponse) {
       return error;
     }
-    console.error("[GET /api/customer/addresses error]:", error);
+    reportServerError("[GET /api/customer/addresses error]:", error);
     return NextResponse.json(
       {
         success: false,
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    console.error("[POST /api/customer/addresses error]:", error);
+    reportServerError("[POST /api/customer/addresses error]:", error);
     return NextResponse.json(
       {
         success: false,

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -105,7 +106,7 @@ export async function GET(
           }
         }
       } catch (syncErr) {
-        console.warn("[CUSTOMER_TRACKING_SYNC_WARN]", syncErr);
+        reportServerError("[CUSTOMER_TRACKING_SYNC_WARN]", syncErr);
       }
     }
 

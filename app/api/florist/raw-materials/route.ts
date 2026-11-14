@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -129,7 +130,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error("[GET_RAW_MATERIALS_ERROR]", error);
+    reportServerError("[GET_RAW_MATERIALS_ERROR]", error);
     return NextResponse.json(
       {
         success: false,
@@ -210,7 +211,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error: any) {
-    console.error("[POST_RAW_MATERIALS_ERROR]", error);
+    reportServerError("[POST_RAW_MATERIALS_ERROR]", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
 import { settlePreorder, settleStock } from "@/lib/supply-chain/midtrans-payments";
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
         ? await settleStock(payment, id)
         : await settlePreorder(payment, kind as "DP" | "FINAL", id);
       if (!result.changed && result.reason !== "Payment not settled" && result.reason !== "Already processed") {
-        console.error("Midtrans payment requires reconciliation", { order_id, reason: result.reason });
+        reportServerError("Midtrans payment requires reconciliation");
         return NextResponse.json({ success: false, message: result.reason }, { status: 409 });
       }
       return NextResponse.json({ success: true, message: result.reason });
@@ -202,7 +203,7 @@ export async function POST(request: Request) {
       message: "Webhook processed",
     });
   } catch (error) {
-    console.error("Error processing webhook:", error);
+    reportServerError("Error processing webhook:", error);
     return NextResponse.json(
       {
         success: false,

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { fetchMidtransPayment, isSettled, settleStock } from "@/lib/supply-chain/midtrans-payments";
@@ -65,7 +66,7 @@ export async function PATCH(
     });
   } catch (error) {
     if (error instanceof NextResponse) return error;
-    console.error("Midtrans stock payment confirmation failed", error);
+    reportServerError("Midtrans stock payment confirmation failed", error);
     return NextResponse.json(
       {
         success: false,

@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import { snap } from "@/lib/midtrans";
 import { paymentOrder } from "@/lib/supply-chain/midtrans-payments";
@@ -112,7 +113,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error("Error creating Midtrans DP transaction:", error);
+    reportServerError("Error creating Midtrans DP transaction:", error);
     if (error instanceof NextResponse) {
       return error;
     }

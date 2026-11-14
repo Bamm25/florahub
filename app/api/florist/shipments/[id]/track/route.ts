@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 // Endpoint pelacakan pengiriman melalui Biteship API
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
@@ -169,7 +170,7 @@ export async function GET(
     });
   } catch (error: any) {
     // Tangani error internal server
-    console.error("[TRACK_SHIPMENT_ERROR]", error);
+    reportServerError("[TRACK_SHIPMENT_ERROR]", error);
     return NextResponse.json(
       {
         success: false,

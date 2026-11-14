@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
@@ -177,7 +178,7 @@ export async function PUT(
       data: updated,
     });
   } catch (error: any) {
-    console.error("[PUT_RAW_MATERIALS_ERROR]", error);
+    reportServerError("[PUT_RAW_MATERIALS_ERROR]", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, message: error.issues[0]?.message || "Validasi gagal", errors: error.issues },
@@ -252,7 +253,7 @@ export async function DELETE(
       message: `Bahan baku "${inventory.stock.name}" berhasil dihapus`,
     });
   } catch (error: any) {
-    console.error("[DELETE_RAW_MATERIALS_ERROR]", error);
+    reportServerError("[DELETE_RAW_MATERIALS_ERROR]", error);
     return NextResponse.json(
       { success: false, message: error.message || "Gagal menghapus bahan baku" },
       { status: 500 },

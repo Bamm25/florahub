@@ -1,3 +1,4 @@
+import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { randomUUID } from "crypto";
@@ -205,7 +206,7 @@ export async function POST(request: Request) {
         );
       }
     } catch (error) {
-      console.error("R2 image verification failed:", error);
+      reportServerError("R2 image verification failed:", error);
       return NextResponse.json(
         { success: false, message: "Tidak dapat memverifikasi gambar di Cloudflare R2" },
         { status: 503 },
@@ -292,7 +293,7 @@ export async function POST(request: Request) {
     if (error instanceof NextResponse) {
       return error;
     }
-    console.error("Error creating florist product:", error);
+    reportServerError("Error creating florist product:", error);
     return NextResponse.json(
       { success: false, message: "Gagal menambahkan produk florist" },
       { status: 500 },
