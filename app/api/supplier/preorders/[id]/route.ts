@@ -16,11 +16,7 @@ type RouteParams = {
 // Handler HTTP PATCH untuk memperbarui status pre-order panen oleh supplier
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
-    // Autentikasi dan verifikasi hak akses supplier atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "SUPPLIER",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["SUPPLIER"]);
     // Ambil parameter ID pre-order dari URL
     const { id: preOrderId } = await params;
     // Cari data pre-order beserta pengumuman dan informasi florist
@@ -50,10 +46,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     // Validasi hak kepemilikan pengumuman panen oleh supplier
-    if (
-      userRole === "SUPPLIER" &&
-      existingPreOrder.announcement.supplierId !== userId
-    ) {
+    if (existingPreOrder.announcement.supplierId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -97,9 +90,17 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     // Perbarui status pre-order di database
     const now = new Date();
     const isConfirming = status === "CONFIRMED";
-    if (isConfirming && now.getTime() + 3 * 24 * 60 * 60 * 1000 > harvestDayEndWib(existingPreOrder.announcement.harvestDate).getTime()) {
+    if (
+      isConfirming &&
+      now.getTime() + 3 * 24 * 60 * 60 * 1000 >
+        harvestDayEndWib(existingPreOrder.announcement.harvestDate).getTime()
+    ) {
       return NextResponse.json(
-        { success: false, message: "Tidak dapat menyetujui: batas DP 3 hari melampaui hari panen. Perbarui jadwal panen sebelum menerima pesanan." },
+        {
+          success: false,
+          message:
+            "Tidak dapat menyetujui: batas DP 3 hari melampaui hari panen. Perbarui jadwal panen sebelum menerima pesanan.",
+        },
         { status: 409 },
       );
     }
@@ -118,13 +119,17 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (isConfirming) {
       const depositAmount = Math.round(existingPreOrder.totalPrice * 0.5);
       const remainingAmount = existingPreOrder.totalPrice - depositAmount;
-      const depositDeadline = new Date(
-        now.getTime() + 3 * 24 * 60 * 60 * 1000,
-      ); // 3 hari kalender
-      const finalDeadline = harvestDayEndWib(existingPreOrder.announcement.harvestDate);
+      const depositDeadline = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 hari kalender
+      const finalDeadline = harvestDayEndWib(
+        existingPreOrder.announcement.harvestDate,
+      );
       if (!existingPreOrder.announcement.isActive || now > finalDeadline) {
         return NextResponse.json(
-          { success: false, message: "Pengumuman tidak aktif atau tanggal panen sudah lewat; pre-order tidak dapat disetujui." },
+          {
+            success: false,
+            message:
+              "Pengumuman tidak aktif atau tanggal panen sudah lewat; pre-order tidak dapat disetujui.",
+          },
           { status: 409 },
         );
       }
@@ -144,13 +149,29 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       const active = await prisma.harvestPreOrder.aggregate({
         where: {
           announcementId: existingPreOrder.announcementId,
-          status: { in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"] },
+          status: {
+            in: [
+              "PENDING",
+              "CONFIRMED",
+              "DEPOSIT_PAID",
+              "PAID",
+              "SHIPPED",
+              "DELIVERED",
+            ],
+          },
         },
         _sum: { quantity: true },
       });
-      if ((active._sum.quantity || 0) > existingPreOrder.announcement.estimatedQuantity) {
+      if (
+        (active._sum.quantity || 0) >
+        existingPreOrder.announcement.estimatedQuantity
+      ) {
         return NextResponse.json(
-          { success: false, message: "Kapasitas panen tidak mencukupi untuk menyetujui pre-order ini." },
+          {
+            success: false,
+            message:
+              "Kapasitas panen tidak mencukupi untuk menyetujui pre-order ini.",
+          },
           { status: 409 },
         );
       }
@@ -159,15 +180,29 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const updatedPreOrder = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "HarvestAnnouncement" WHERE id = ${existingPreOrder.announcementId} FOR UPDATE`;
       if (isConfirming) {
-        const latest = await tx.harvestAnnouncement.findUnique({ where: { id: existingPreOrder.announcementId } });
+        const latest = await tx.harvestAnnouncement.findUnique({
+          where: { id: existingPreOrder.announcementId },
+        });
         const active = await tx.harvestPreOrder.aggregate({
           where: {
             announcementId: existingPreOrder.announcementId,
-            status: { in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"] },
+            status: {
+              in: [
+                "PENDING",
+                "CONFIRMED",
+                "DEPOSIT_PAID",
+                "PAID",
+                "SHIPPED",
+                "DELIVERED",
+              ],
+            },
           },
           _sum: { quantity: true },
         });
-        if (!latest?.isActive || (active._sum.quantity ?? 0) > latest.estimatedQuantity) {
+        if (
+          !latest?.isActive ||
+          (active._sum.quantity ?? 0) > latest.estimatedQuantity
+        ) {
           return null;
         }
       }
@@ -181,7 +216,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       });
     });
     if (!updatedPreOrder) {
-      return NextResponse.json({ success: false, message: "Alokasi panen tidak tersedia; muat ulang pesanan." }, { status: 409 });
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Alokasi panen tidak tersedia; muat ulang pesanan.",
+        },
+        { status: 409 },
+      );
     }
 
     let notificationTitle = "";

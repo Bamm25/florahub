@@ -24,7 +24,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id } = await params;
 
     const inventory = await prisma.floristInventory.findUnique({
@@ -73,8 +73,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID inventaris dari URL
     const { id } = await params;
     // Parsing dan validasi request body menggunakan skema Zod
@@ -116,7 +116,8 @@ export async function PUT(
           where: { id: inventory.id },
           data: {
             quantity: newQuantity,
-            lastRestockDate: type === "ADD" ? new Date() : inventory.lastRestockDate,
+            lastRestockDate:
+              type === "ADD" ? new Date() : inventory.lastRestockDate,
           },
           include: { stock: true },
         });
@@ -149,8 +150,14 @@ export async function PUT(
       const updatedInv = await tx.floristInventory.update({
         where: { id: inventory.id },
         data: {
-          minThreshold: validated.minThreshold !== undefined ? validated.minThreshold : inventory.minThreshold,
-          location: validated.location !== undefined ? validated.location : inventory.location,
+          minThreshold:
+            validated.minThreshold !== undefined
+              ? validated.minThreshold
+              : inventory.minThreshold,
+          location:
+            validated.location !== undefined
+              ? validated.location
+              : inventory.location,
         },
       });
 
@@ -162,8 +169,14 @@ export async function PUT(
             name: validated.name?.trim() || inventory.stock.name,
             variety: validated.category?.trim() || inventory.stock.variety,
             unit: validated.unit?.trim().toLowerCase() || inventory.stock.unit,
-            pricePerUnit: validated.pricePerUnit !== undefined ? validated.pricePerUnit : inventory.stock.pricePerUnit,
-            location: validated.location !== undefined ? validated.location : inventory.stock.location,
+            pricePerUnit:
+              validated.pricePerUnit !== undefined
+                ? validated.pricePerUnit
+                : inventory.stock.pricePerUnit,
+            location:
+              validated.location !== undefined
+                ? validated.location
+                : inventory.stock.location,
           },
         });
       }
@@ -181,12 +194,19 @@ export async function PUT(
     reportServerError("[PUT_RAW_MATERIALS_ERROR]", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, message: error.issues[0]?.message || "Validasi gagal", errors: error.issues },
+        {
+          success: false,
+          message: error.issues[0]?.message || "Validasi gagal",
+          errors: error.issues,
+        },
         { status: 400 },
       );
     }
     return NextResponse.json(
-      { success: false, message: error.message || "Gagal memperbarui bahan baku" },
+      {
+        success: false,
+        message: error.message || "Gagal memperbarui bahan baku",
+      },
       { status: 500 },
     );
   }
@@ -198,7 +218,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id } = await params;
 
     const inventory = await prisma.floristInventory.findUnique({
@@ -255,7 +275,10 @@ export async function DELETE(
   } catch (error: any) {
     reportServerError("[DELETE_RAW_MATERIALS_ERROR]", error);
     return NextResponse.json(
-      { success: false, message: error.message || "Gagal menghapus bahan baku" },
+      {
+        success: false,
+        message: error.message || "Gagal menghapus bahan baku",
+      },
       { status: 500 },
     );
   }

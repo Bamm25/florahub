@@ -6,20 +6,15 @@ import { NextResponse } from "next/server";
 // Handler HTTP GET untuk mengambil pesanan yang sudah LUNAS (PAID) dan siap dibuatkan resi pengiriman
 export async function GET(request: Request) {
   try {
-    const { userId, userRole } = await requireAuth(request, [
-      "SUPPLIER",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["SUPPLIER"]);
 
     // 1. Pre-Order Panen yang sudah LUNAS (PAID) dan belum berstatus SHIPPED / DELIVERED
     const preOrderWhere: any = {
       status: "PAID",
       shippedAt: null,
       biteshipOrderId: null,
+      announcement: { supplierId: userId },
     };
-    if (userRole === "SUPPLIER") {
-      preOrderWhere.announcement = { supplierId: userId };
-    }
 
     const preOrders = await prisma.harvestPreOrder.findMany({
       where: preOrderWhere,
@@ -42,10 +37,8 @@ export async function GET(request: Request) {
       status: "PAID",
       shippedAt: null,
       biteshipOrderId: null,
+      stock: { supplierId: userId },
     };
-    if (userRole === "SUPPLIER") {
-      saleWhere.stock = { supplierId: userId };
-    }
 
     const directSales = await prisma.stockTransaction.findMany({
       where: saleWhere,
@@ -78,7 +71,9 @@ export async function GET(request: Request) {
             name: p.florist.name,
             email: p.florist.email,
             phone: p.florist.phone || destAddr?.phone || null,
-            address: destAddr ? `${destAddr.fullAddress}, ${destAddr.city}` : null,
+            address: destAddr
+              ? `${destAddr.fullAddress}, ${destAddr.city}`
+              : null,
             postalCode: destAddr?.postalCode || null,
           },
         };
@@ -97,7 +92,9 @@ export async function GET(request: Request) {
             name: s.florist.name,
             email: s.florist.email,
             phone: s.florist.phone || destAddr?.phone || null,
-            address: destAddr ? `${destAddr.fullAddress}, ${destAddr.city}` : null,
+            address: destAddr
+              ? `${destAddr.fullAddress}, ${destAddr.city}`
+              : null,
             postalCode: destAddr?.postalCode || null,
           },
         };

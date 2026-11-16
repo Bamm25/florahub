@@ -9,8 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID pengiriman dari URL
     const { id } = await params;
 
@@ -21,17 +21,27 @@ export async function GET(
 
     // Validasi keberadaan data pengiriman
     if (!shipment) {
-      return NextResponse.json({ success: false, message: "Shipment tidak ditemukan" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: "Shipment tidak ditemukan" },
+        { status: 404 },
+      );
     }
 
     // Alihkan langsung jika tautan PDF label publik sudah tersedia
-    if (shipment.biteshipLabelUrl && shipment.biteshipLabelUrl.includes("biteship.s3") && !shipment.biteshipLabelUrl.includes("undefined")) {
+    if (
+      shipment.biteshipLabelUrl &&
+      shipment.biteshipLabelUrl.includes("biteship.s3") &&
+      !shipment.biteshipLabelUrl.includes("undefined")
+    ) {
       return NextResponse.redirect(shipment.biteshipLabelUrl, 307);
     }
 
     // Validasi keterhubungan pengiriman dengan Biteship
     if (!shipment.biteshipOrderId) {
-      return NextResponse.json({ success: false, message: "Shipment tidak terhubung ke Biteship" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Shipment tidak terhubung ke Biteship" },
+        { status: 400 },
+      );
     }
 
     // Ambil tautan label pengiriman resmi dari Biteship API
@@ -39,7 +49,13 @@ export async function GET(
     const pdfUrl = await client.getShippingLabel(shipment.biteshipOrderId);
 
     if (!pdfUrl) {
-      return NextResponse.json({ success: false, message: "Gagal mengambil URL PDF label dari Biteship" }, { status: 502 });
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Gagal mengambil URL PDF label dari Biteship",
+        },
+        { status: 502 },
+      );
     }
 
     // Simpan tautan label pengiriman ke database untuk permintaan berikutnya

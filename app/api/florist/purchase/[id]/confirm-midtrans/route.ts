@@ -1,7 +1,11 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { fetchMidtransPayment, isSettled, settleStock } from "@/lib/supply-chain/midtrans-payments";
+import {
+  fetchMidtransPayment,
+  isSettled,
+  settleStock,
+} from "@/lib/supply-chain/midtrans-payments";
 import { NextResponse } from "next/server";
 
 export async function PATCH(
@@ -9,7 +13,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, userRole } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id } = await params;
 
     const sale = await prisma.stockTransaction.findUnique({
@@ -17,14 +21,24 @@ export async function PATCH(
       include: { stock: true, florist: true },
     });
     if (!sale) {
-      return NextResponse.json({ success: false, message: "Pembelian tidak ditemukan" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: "Pembelian tidak ditemukan" },
+        { status: 404 },
+      );
     }
-    if (userRole !== "ADMIN" && sale.floristId !== userId) {
-      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    if (sale.floristId !== userId) {
+      return NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 },
+      );
     }
 
     if (["PAID", "SHIPPED", "DELIVERED"].includes(sale.status)) {
-      return NextResponse.json({ success: true, data: { transaction: sale }, message: "Sudah lunas" });
+      return NextResponse.json({
+        success: true,
+        data: { transaction: sale },
+        message: "Sudah lunas",
+      });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -37,7 +51,11 @@ export async function PATCH(
 
     if (!queryId) {
       return NextResponse.json(
-        { success: false, message: "ID transaksi atau order Midtrans wajib disertakan untuk verifikasi" },
+        {
+          success: false,
+          message:
+            "ID transaksi atau order Midtrans wajib disertakan untuk verifikasi",
+        },
         { status: 400 },
       );
     }
@@ -56,7 +74,10 @@ export async function PATCH(
         !isSettled(payment) ||
         current?.status !== "PAID")
     ) {
-      return NextResponse.json({ success: false, message: result.reason }, { status: 409 });
+      return NextResponse.json(
+        { success: false, message: result.reason },
+        { status: 409 },
+      );
     }
 
     return NextResponse.json({
@@ -70,7 +91,10 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Tidak dapat memverifikasi pembayaran Midtrans",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Tidak dapat memverifikasi pembayaran Midtrans",
       },
       { status: 502 },
     );

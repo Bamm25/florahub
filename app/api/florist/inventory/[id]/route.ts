@@ -11,10 +11,7 @@ export async function GET(
 ) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID inventaris dari URL
     const { id } = await params;
 
@@ -62,7 +59,7 @@ export async function GET(
     }
 
     // Validasi hak kepemilikan inventaris oleh florist
-    if (userRole === "FLORIST" && inventory.floristId !== userId) {
+    if (inventory.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -102,10 +99,7 @@ export async function PUT(
 ) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID inventaris dari URL
     const { id } = await params;
     // Parsing dan validasi request body menggunakan skema Zod
@@ -130,7 +124,7 @@ export async function PUT(
     }
 
     // Validasi hak kepemilikan inventaris oleh florist
-    if (userRole === "FLORIST" && existingInventory.floristId !== userId) {
+    if (existingInventory.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -171,10 +165,7 @@ export async function PUT(
     });
 
     // Kirim notifikasi peringatan jika kuantitas inventaris turun di bawah ambang batas minimum
-    if (
-      quantity !== undefined &&
-      inventory.quantity < inventory.minThreshold
-    ) {
+    if (quantity !== undefined && inventory.quantity < inventory.minThreshold) {
       // Periksa apakah notifikasi peringatan serupa yang belum dibaca sudah ada
       const existingAlert = await prisma.notification.findFirst({
         where: {
@@ -240,10 +231,7 @@ export async function DELETE(
 ) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID inventaris dari URL
     const { id } = await params;
 
@@ -264,7 +252,7 @@ export async function DELETE(
     }
 
     // Validasi hak kepemilikan inventaris oleh florist
-    if (userRole === "FLORIST" && existingInventory.floristId !== userId) {
+    if (existingInventory.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,

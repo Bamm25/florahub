@@ -7,7 +7,7 @@ import { z } from "zod";
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
 
     // Cari data profil toko florist di database
     const profile = await prisma.floristProfile.findUnique({
@@ -86,16 +86,21 @@ const updateProfileSchema = z.object({
 export async function PUT(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
 
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updateProfileSchema.parse(body);
 
     // Cari data profil toko florist eksisting
-    const profile = await prisma.floristProfile.findUnique({ where: { userId } });
+    const profile = await prisma.floristProfile.findUnique({
+      where: { userId },
+    });
     if (!profile) {
-      return NextResponse.json({ success: false, message: "Profil florist tidak ditemukan" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: "Profil florist tidak ditemukan" },
+        { status: 404 },
+      );
     }
 
     // Perbarui data informasi toko florist di database

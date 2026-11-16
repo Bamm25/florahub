@@ -8,11 +8,15 @@ import { NextResponse } from "next/server";
 // Handler HTTP POST untuk mengecek tarif kurir Biteship dari kebun supplier ke florist
 export async function POST(request: Request) {
   try {
-    const { userId, userRole } = await requireAuth(request, ["SUPPLIER", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["SUPPLIER"]);
     const body = await request.json();
     const { orderType, orderId } = body;
 
-    if (!["PREORDER", "DIRECT_SALE"].includes(orderType) || typeof orderId !== "string" || !orderId) {
+    if (
+      !["PREORDER", "DIRECT_SALE"].includes(orderType) ||
+      typeof orderId !== "string" ||
+      !orderId
+    ) {
       return NextResponse.json(
         { success: false, message: "orderType dan orderId wajib diisi" },
         { status: 400 },
@@ -36,8 +40,16 @@ export async function POST(request: Request) {
           { status: 404 },
         );
       }
-      if (userRole !== "ADMIN" && preOrder.announcement.supplierId !== userId) return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
-      if (preOrder.status !== "PAID" || preOrder.biteshipOrderId) return NextResponse.json({ success: false, message: "Pesanan tidak siap dikirim" }, { status: 409 });
+      if (preOrder.announcement.supplierId !== userId)
+        return NextResponse.json(
+          { success: false, message: "Forbidden" },
+          { status: 403 },
+        );
+      if (preOrder.status !== "PAID" || preOrder.biteshipOrderId)
+        return NextResponse.json(
+          { success: false, message: "Pesanan tidak siap dikirim" },
+          { status: 409 },
+        );
       supplierId = preOrder.announcement.supplierId;
       floristId = preOrder.floristId;
       itemName = preOrder.announcement.flowerName;
@@ -54,8 +66,16 @@ export async function POST(request: Request) {
           { status: 404 },
         );
       }
-      if (userRole !== "ADMIN" && sale.stock.supplierId !== userId) return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
-      if (sale.status !== "PAID" || sale.biteshipOrderId) return NextResponse.json({ success: false, message: "Pesanan tidak siap dikirim" }, { status: 409 });
+      if (sale.stock.supplierId !== userId)
+        return NextResponse.json(
+          { success: false, message: "Forbidden" },
+          { status: 403 },
+        );
+      if (sale.status !== "PAID" || sale.biteshipOrderId)
+        return NextResponse.json(
+          { success: false, message: "Pesanan tidak siap dikirim" },
+          { status: 409 },
+        );
       supplierId = sale.stock.supplierId;
       floristId = sale.floristId;
       itemName = sale.stock.name;
@@ -64,7 +84,10 @@ export async function POST(request: Request) {
     }
 
     // 1. Alamat asal penjemputan (Kebun Supplier)
-    const supplierAddress = await prisma.address.findFirst({ where: { userId: supplierId }, orderBy: { isDefault: "desc" } });
+    const supplierAddress = await prisma.address.findFirst({
+      where: { userId: supplierId },
+      orderBy: { isDefault: "desc" },
+    });
     if (!supplierAddress?.postalCode) {
       return NextResponse.json(
         {
@@ -85,8 +108,18 @@ export async function POST(request: Request) {
       });
     }
 
-    if (!floristAddress || !/^\d{5}$/.test(floristAddress.postalCode) || !/^\d{5}$/.test(supplierAddress.postalCode)) {
-      return NextResponse.json({ success: false, message: "Alamat penjemputan/tujuan dan kode pos valid wajib diisi" }, { status: 400 });
+    if (
+      !floristAddress ||
+      !/^\d{5}$/.test(floristAddress.postalCode) ||
+      !/^\d{5}$/.test(supplierAddress.postalCode)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Alamat penjemputan/tujuan dan kode pos valid wajib diisi",
+        },
+        { status: 400 },
+      );
     }
     const destinationPostalCode = floristAddress.postalCode;
 

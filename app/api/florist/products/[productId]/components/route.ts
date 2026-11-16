@@ -11,10 +11,7 @@ export async function GET(
 ) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID produk dari URL
     const { productId } = await params;
 
@@ -40,7 +37,7 @@ export async function GET(
     }
 
     // Validasi hak kepemilikan produk oleh florist
-    if (userRole === "FLORIST" && product.floristId !== userId) {
+    if (product.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -130,10 +127,7 @@ export async function POST(
 ) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID produk dari URL
     const { productId } = await params;
     // Parsing dan validasi request body menggunakan skema Zod
@@ -156,7 +150,7 @@ export async function POST(
     }
 
     // Validasi hak kepemilikan produk oleh florist
-    if (userRole === "FLORIST" && product.floristId !== userId) {
+    if (product.floristId !== userId) {
       return NextResponse.json(
         { success: false, message: "Anda tidak memiliki akses ke produk ini" },
         { status: 403 },
@@ -184,7 +178,7 @@ export async function POST(
     }
 
     // Validasi hak kepemilikan inventaris oleh florist
-    if (userRole === "FLORIST" && inventory.floristId !== userId) {
+    if (inventory.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,

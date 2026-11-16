@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 // Handler HTTP GET untuk florist menjelajahi stok bunga langsung milik supplier (transaksi biasa tanpa pre-order)
 export async function GET(request: Request) {
   try {
-    await requireAuth(request, ["FLORIST", "ADMIN"]);
+    await requireAuth(request, ["FLORIST"]);
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";

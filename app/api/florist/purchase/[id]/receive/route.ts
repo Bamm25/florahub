@@ -11,10 +11,7 @@ type RouteParams = {
 // Handler HTTP PATCH untuk menandai pasokan bunga langsung telah diterima oleh florist
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id: transactionId } = await params;
 
     const sale = await prisma.stockTransaction.findUnique({
@@ -33,12 +30,15 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     if (!sale) {
       return NextResponse.json(
-        { success: false, message: "Transaksi pembelian pasokan tidak ditemukan" },
+        {
+          success: false,
+          message: "Transaksi pembelian pasokan tidak ditemukan",
+        },
         { status: 404 },
       );
     }
 
-    if (userRole === "FLORIST" && sale.floristId !== userId) {
+    if (sale.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -66,11 +66,25 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       });
     }
 
+    if (sale.status !== "SHIPPED") {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Pesanan harus dalam pengiriman sebelum dapat dikonfirmasi diterima",
+        },
+        { status: 409 },
+      );
+    }
+
     // Eksekusi pemenuhan inventaris florist
     const credited = await fulfillSaleToInventory(transactionId);
     if (!credited) {
       return NextResponse.json(
-        { success: false, message: "Pesanan sudah diterima atau status tidak memenuhi syarat" },
+        {
+          success: false,
+          message: "Pesanan sudah diterima atau status tidak memenuhi syarat",
+        },
         { status: 409 },
       );
     }
@@ -97,7 +111,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({
       success: true,
-      message: "Bunga berhasil dikonfirmasi diterima. Stok masuk ke inventaris Anda.",
+      message:
+        "Bunga berhasil dikonfirmasi diterima. Stok masuk ke inventaris Anda.",
       data: { transaction: updatedSale },
     });
   } catch (error) {

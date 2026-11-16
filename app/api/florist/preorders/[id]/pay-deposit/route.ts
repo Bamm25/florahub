@@ -12,10 +12,14 @@ type RouteParams = {
 // Handler HTTP POST untuk membuat token transaksi Midtrans Snap untuk pembayaran DP 50%
 export async function POST(request: Request, { params }: RouteParams) {
   try {
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id: preOrderId } = await params;
 
-    if (!process.env.MIDTRANS_SERVER_KEY) return NextResponse.json({ success: false, message: "Midtrans belum dikonfigurasi" }, { status: 503 });
+    if (!process.env.MIDTRANS_SERVER_KEY)
+      return NextResponse.json(
+        { success: false, message: "Midtrans belum dikonfigurasi" },
+        { status: 503 },
+      );
     const preOrder = await prisma.harvestPreOrder.findUnique({
       where: { id: preOrderId },
       include: {
@@ -47,7 +51,10 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     if (preOrder.floristId !== userId) {
       return NextResponse.json(
-        { success: false, message: "Forbidden: Pre-order ini bukan milik Anda" },
+        {
+          success: false,
+          message: "Forbidden: Pre-order ini bukan milik Anda",
+        },
         { status: 403 },
       );
     }
@@ -75,12 +82,17 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     const depositAmount = preOrder.depositAmount;
-    if (!depositAmount || depositAmount <= 0) return NextResponse.json({ success: false, message: "DP belum dihitung" }, { status: 409 });
+    if (!depositAmount || depositAmount <= 0)
+      return NextResponse.json(
+        { success: false, message: "DP belum dihitung" },
+        { status: 409 },
+      );
 
     // Buat order_id unik untuk transaksi DP Midtrans (maksimal 50 karakter)
     const midtransOrderId = paymentOrder("DP", preOrder.id);
 
-    if (midtransOrderId.length > 50) throw new Error("Midtrans order ID too long");
+    if (midtransOrderId.length > 50)
+      throw new Error("Midtrans order ID too long");
     // Buat transaksi Midtrans Snap
     const transaction = await snap.createTransaction({
       transaction_details: {

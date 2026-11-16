@@ -12,13 +12,13 @@ const produceSchema = z.object({
 // Handler HTTP POST untuk memproduksi stok produk jadi dari bahan baku inventaris
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ productId: string }> }
+  { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
     // Ambil parameter ID produk dari URL
     const { productId } = await params;
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
 
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
@@ -44,23 +44,27 @@ export async function POST(
     if (!product) {
       return NextResponse.json(
         { success: false, message: "Produk tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Validasi hak kepemilikan produk oleh florist
-    if (userRole === "FLORIST" && product.floristId !== userId) {
+    if (product.floristId !== userId) {
       return NextResponse.json(
         { success: false, message: "Anda tidak memiliki akses ke produk ini" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Validasi keberadaan komponen bahan baku (Bill of Materials) pada produk
     if (product.productComponents.length === 0) {
       return NextResponse.json(
-        { success: false, message: "Produk ini belum memiliki Bill of Materials (BOM). Tambahkan komponen terlebih dahulu." },
-        { status: 400 }
+        {
+          success: false,
+          message:
+            "Produk ini belum memiliki Bill of Materials (BOM). Tambahkan komponen terlebih dahulu.",
+        },
+        { status: 400 },
       );
     }
 
@@ -73,7 +77,7 @@ export async function POST(
 
       if (availableQty < requiredQty) {
         insufficientMaterials.push(
-          `${component.inventory.stock.name} (butuh ${requiredQty} ${component.inventory.stock.unit}, tersedia ${availableQty} ${component.inventory.stock.unit})`
+          `${component.inventory.stock.name} (butuh ${requiredQty} ${component.inventory.stock.unit}, tersedia ${availableQty} ${component.inventory.stock.unit})`,
         );
       }
     }
@@ -85,7 +89,7 @@ export async function POST(
           message: "Bahan baku tidak mencukupi untuk produksi",
           data: { insufficientMaterials },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -124,7 +128,7 @@ export async function POST(
                 link: `/florist/inventory`,
                 isRead: false,
               },
-            })
+            }),
           );
         }
       }
@@ -158,7 +162,7 @@ export async function POST(
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, message: "Validasi gagal", errors: error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -169,7 +173,7 @@ export async function POST(
     reportServerError("[Produce Error]", error);
     return NextResponse.json(
       { success: false, message: "Gagal memproduksi produk" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

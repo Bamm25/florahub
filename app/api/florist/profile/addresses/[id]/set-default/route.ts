@@ -8,8 +8,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID alamat dari URL
     const { id } = await params;
 
@@ -41,9 +41,14 @@ export async function PUT(
     }
 
     // Cari profil toko florist pengguna
-    const profile = await prisma.floristProfile.findUnique({ where: { userId } });
+    const profile = await prisma.floristProfile.findUnique({
+      where: { userId },
+    });
     if (!profile) {
-      return NextResponse.json({ success: false, message: "Profil florist belum tersedia" }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: "Profil florist belum tersedia" },
+        { status: 404 },
+      );
     }
 
     // Lewati pembaruan jika alamat tersebut sudah menjadi alamat default
@@ -57,9 +62,18 @@ export async function PUT(
 
     // Perbarui status default alamat dan profil florist dalam transaksi atomic
     const updatedAddress = await prisma.$transaction(async (tx) => {
-      await tx.address.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } });
-      const address = await tx.address.update({ where: { id, userId }, data: { isDefault: true } });
-      await tx.floristProfile.update({ where: { userId }, data: { defaultAddressId: id } });
+      await tx.address.updateMany({
+        where: { userId, isDefault: true },
+        data: { isDefault: false },
+      });
+      const address = await tx.address.update({
+        where: { id, userId },
+        data: { isDefault: true },
+      });
+      await tx.floristProfile.update({
+        where: { userId },
+        data: { defaultAddressId: id },
+      });
       return address;
     });
 

@@ -11,10 +11,7 @@ type RouteParams = {
 // Handler HTTP PATCH untuk menandai bunga pre-order telah diterima oleh florist
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id: preOrderId } = await params;
 
     const preOrder = await prisma.harvestPreOrder.findUnique({
@@ -38,7 +35,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
 
-    if (userRole === "FLORIST" && preOrder.floristId !== userId) {
+    if (preOrder.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -48,24 +45,31 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       );
     }
 
-    if (!["PAID", "SHIPPED"].includes(preOrder.status) || !preOrder.biteshipOrderId) {
+    if (preOrder.status !== "SHIPPED" || !preOrder.biteshipOrderId) {
       return NextResponse.json(
         {
           success: false,
-          message: `Konfirmasi penerimaan hanya dapat dilakukan setelah pengiriman dibuat. Status saat ini: ${preOrder.status}`,
+          message: `Konfirmasi penerimaan hanya dapat dilakukan setelah pesanan dikirim. Status saat ini: ${preOrder.status}`,
         },
         { status: 400 },
       );
     }
 
-    // The helper claims SHIPPED -> DELIVERED and credits inventory in one transaction.
+    // Aksi florist hanya menerima SHIPPED; helper mengubah status dan mengkredit inventaris dalam satu transaksi.
     const credited = await fulfillPreOrderToInventory(preOrderId);
     if (!credited) {
-      return NextResponse.json({ success: false, message: "Pesanan sudah diterima" }, { status: 409 });
+      return NextResponse.json(
+        { success: false, message: "Pesanan sudah diterima" },
+        { status: 409 },
+      );
     }
+
     const updatedPreOrder = await prisma.harvestPreOrder.findUnique({
       where: { id: preOrderId },
-      include: { announcement: true, florist: { select: { id: true, name: true, email: true } } },
+      include: {
+        announcement: true,
+        florist: { select: { id: true, name: true, email: true } },
+      },
     });
 
     // Kirim notifikasi ke supplier bahwa pesanan telah diterima dengan selamat

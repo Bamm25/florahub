@@ -11,7 +11,10 @@ const createRawMaterialSchema = z.object({
   variety: z.string().optional().nullable(),
   quantity: z.number().int().min(0, "Stok awal tidak boleh negatif"),
   unit: z.string().default("tangkai"),
-  pricePerUnit: z.number().int().min(0, "Harga modal per unit tidak boleh negatif"),
+  pricePerUnit: z
+    .number()
+    .int()
+    .min(0, "Harga modal per unit tidak boleh negatif"),
   minThreshold: z.number().int().min(0).default(10),
   location: z.string().optional().nullable(),
 });
@@ -19,7 +22,7 @@ const createRawMaterialSchema = z.object({
 // Handler HTTP GET untuk mengambil daftar bahan baku produk mentah florist
 export async function GET(request: Request) {
   try {
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search") || "";
@@ -112,9 +115,14 @@ export async function GET(request: Request) {
 
     // Hitung ringkasan metrik statistik bahan baku
     const totalItems = rawMaterials.length;
-    const totalStock = rawMaterials.reduce((sum, item) => sum + item.quantity, 0);
+    const totalStock = rawMaterials.reduce(
+      (sum, item) => sum + item.quantity,
+      0,
+    );
     const lowStockCount = rawMaterials.filter((item) => item.isLowStock).length;
-    const usedInBOMCount = rawMaterials.filter((item) => item.usedInBOMCount > 0).length;
+    const usedInBOMCount = rawMaterials.filter(
+      (item) => item.usedInBOMCount > 0,
+    ).length;
 
     return NextResponse.json({
       success: true,
@@ -145,7 +153,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = createRawMaterialSchema.parse(body);

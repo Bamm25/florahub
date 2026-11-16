@@ -62,11 +62,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Validasi otentikasi peran florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    // Validasi otentikasi peran florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id } = await params;
 
     // Periksa keberadaan produk sebelum diperbarui
@@ -82,7 +79,7 @@ export async function PUT(
     }
 
     // Validasi hak kepemilikan produk bagi peran florist
-    if (userRole === "FLORIST" && existingProduct.floristId !== userId) {
+    if (existingProduct.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -98,35 +95,35 @@ export async function PUT(
       const validatedData = updateProductSchema.parse(body);
       const { name, description, price, stock, image } = validatedData;
 
-    // Perbarui data produk pada database
-    const updatedProduct = await prisma.product.update({
-      where: { id },
-      data: {
-        name,
-        description,
-        price: Number(price),
-        stock: Number(stock),
-        image,
-      },
-      include: {
-        category: true,
-        florist: {
-          select: { id: true, name: true, email: true },
+      // Perbarui data produk pada database
+      const updatedProduct = await prisma.product.update({
+        where: { id },
+        data: {
+          name,
+          description,
+          price: Number(price),
+          stock: Number(stock),
+          image,
         },
-      },
-    });
+        include: {
+          category: true,
+          florist: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
 
-    // Kembalikan data produk yang berhasil diperbarui
-    return NextResponse.json({
-      success: true,
-      message: "Produk berhasil diperbarui",
-      data: updatedProduct,
-    });
+      // Kembalikan data produk yang berhasil diperbarui
+      return NextResponse.json({
+        success: true,
+        message: "Produk berhasil diperbarui",
+        data: updatedProduct,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { success: false, message: "Validation error", errors: error.issues },
-          { status: 400 }
+          { status: 400 },
         );
       }
       throw error;
@@ -148,11 +145,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Validasi otentikasi peran florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    // Validasi otentikasi peran florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { id } = await params;
 
     // Periksa keberadaan produk sebelum dihapus
@@ -171,7 +165,7 @@ export async function DELETE(
     }
 
     // Validasi hak kepemilikan produk bagi peran florist
-    if (userRole === "FLORIST" && existingProduct.floristId !== userId) {
+    if (existingProduct.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,

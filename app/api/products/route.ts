@@ -78,7 +78,8 @@ export async function GET(request: Request) {
         createdAt: product.createdAt.toISOString(),
         florist: {
           id: product.florist.id,
-          shopName: product.florist.floristProfile?.shopName || product.florist.name,
+          shopName:
+            product.florist.floristProfile?.shopName || product.florist.name,
           city: product.florist.floristProfile?.defaultAddress?.city || "",
         },
         category: {
@@ -174,8 +175,8 @@ export async function GET(request: Request) {
 // Handler HTTP POST untuk menambahkan produk baru
 export async function POST(request: Request) {
   try {
-    // Validasi otentikasi peran florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Validasi otentikasi peran florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
 
     try {
       // Parse dan validasi payload pembuatan produk

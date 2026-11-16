@@ -6,21 +6,15 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses supplier atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "SUPPLIER",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["SUPPLIER"]);
     // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
-    const whereClause: any = {};
-
-    // Filter stok milik supplier jika bukan admin
-    if (userRole === "SUPPLIER") {
-      whereClause.stock = { supplierId: userId };
-    }
+    const whereClause: any = {
+      stock: { supplierId: userId },
+    };
 
     // Ambil daftar transaksi penjualan beserta relasi stok dan florist
     const [sales, total] = await Promise.all([

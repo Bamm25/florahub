@@ -6,14 +6,21 @@ import { NextResponse } from "next/server";
 // Never allow a supplier/admin request to manufacture these transitions.
 export async function PUT(request: Request) {
   try {
-    await requireAuth(request, ["SUPPLIER", "ADMIN"]);
+    await requireAuth(request, ["SUPPLIER"]);
     return NextResponse.json(
-      { success: false, message: "Status pembayaran dan pengiriman hanya dapat diperbarui oleh Midtrans/Biteship atau konfirmasi penerimaan florist" },
+      {
+        success: false,
+        message:
+          "Status pembayaran dan pengiriman hanya dapat diperbarui oleh Midtrans/Biteship atau konfirmasi penerimaan florist",
+      },
       { status: 403 },
     );
   } catch (error) {
     if (error instanceof NextResponse) return error;
-    return NextResponse.json({ success: false, message: "Gagal update transaksi" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Gagal update transaksi" },
+      { status: 500 },
+    );
   }
 }
 
@@ -24,10 +31,7 @@ export async function GET(
 ) {
   try {
     // Autentikasi dan verifikasi hak akses supplier atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "SUPPLIER",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["SUPPLIER"]);
     // Ambil parameter ID transaksi dari URL
     const { id } = await params;
     // Cari data transaksi stok beserta informasi stok dan florist
@@ -67,7 +71,7 @@ export async function GET(
     }
 
     // Validasi hak kepemilikan transaksi oleh supplier
-    if (userRole === "SUPPLIER" && transaction.stock.supplierId !== userId) {
+    if (transaction.stock.supplierId !== userId) {
       return NextResponse.json(
         {
           success: false,

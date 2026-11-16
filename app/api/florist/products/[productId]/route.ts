@@ -6,11 +6,11 @@ import { NextResponse } from "next/server";
 // Handler HTTP GET untuk mengambil detail data produk florist berdasarkan ID
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ productId: string }> }
+  { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID produk dari URL
     const { productId } = await params;
 
@@ -51,18 +51,18 @@ export async function GET(
           success: false,
           message: "Produk tidak ditemukan",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Validasi hak kepemilikan produk oleh florist
-    if (userRole === "FLORIST" && product.floristId !== userId) {
+    if (product.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
           message: "Forbidden: Anda tidak memiliki akses ke produk ini",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -79,7 +79,7 @@ export async function GET(
     }
     return NextResponse.json(
       { success: false, message: "Gagal mengambil detail produk" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -87,11 +87,11 @@ export async function GET(
 // Handler HTTP PUT untuk memperbarui data produk florist berdasarkan ID
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ productId: string }> }
+  { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID produk dari URL
     const { productId } = await params;
 
@@ -104,18 +104,18 @@ export async function PUT(
     if (!existingProduct) {
       return NextResponse.json(
         { success: false, message: "Produk tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Validasi hak kepemilikan produk oleh florist
-    if (userRole === "FLORIST" && existingProduct.floristId !== userId) {
+    if (existingProduct.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
           message: "Forbidden: Anda tidak memiliki izin mengedit produk ini",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -125,8 +125,11 @@ export async function PUT(
       body = await request.json();
     } catch {
       return NextResponse.json(
-        { success: false, message: "Format request body tidak valid (harus JSON)" },
-        { status: 400 }
+        {
+          success: false,
+          message: "Format request body tidak valid (harus JSON)",
+        },
+        { status: 400 },
       );
     }
 
@@ -147,15 +150,36 @@ export async function PUT(
     const updateData: any = {};
 
     // Validasi kesesuaian tipe data nilai pembaruan
-    if ((price !== undefined && (typeof price !== "number" || !Number.isSafeInteger(price) || price < 0)) ||
-        (stock !== undefined && (typeof stock !== "number" || !Number.isSafeInteger(stock) || stock < 0)) ||
-        (weight !== undefined && weight !== null && (typeof weight !== "number" || !Number.isSafeInteger(weight) || weight < 0)) ||
-        (isActive !== undefined && typeof isActive !== "boolean") ||
-        (isFeatured !== undefined && typeof isFeatured !== "boolean") ||
-        (tags !== undefined && (!Array.isArray(tags) || !tags.every((tag: unknown) => typeof tag === "string"))) ||
-        (description !== undefined && description !== null && typeof description !== "string") ||
-        (images !== undefined && (!Array.isArray(images) || !images.every((url: unknown) => typeof url === "string")))) {
-      return NextResponse.json({ success: false, message: "Data produk tidak valid" }, { status: 400 });
+    if (
+      (price !== undefined &&
+        (typeof price !== "number" ||
+          !Number.isSafeInteger(price) ||
+          price < 0)) ||
+      (stock !== undefined &&
+        (typeof stock !== "number" ||
+          !Number.isSafeInteger(stock) ||
+          stock < 0)) ||
+      (weight !== undefined &&
+        weight !== null &&
+        (typeof weight !== "number" ||
+          !Number.isSafeInteger(weight) ||
+          weight < 0)) ||
+      (isActive !== undefined && typeof isActive !== "boolean") ||
+      (isFeatured !== undefined && typeof isFeatured !== "boolean") ||
+      (tags !== undefined &&
+        (!Array.isArray(tags) ||
+          !tags.every((tag: unknown) => typeof tag === "string"))) ||
+      (description !== undefined &&
+        description !== null &&
+        typeof description !== "string") ||
+      (images !== undefined &&
+        (!Array.isArray(images) ||
+          !images.every((url: unknown) => typeof url === "string")))
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Data produk tidak valid" },
+        { status: 400 },
+      );
     }
 
     // Validasi nama produk jika diperbarui
@@ -163,7 +187,7 @@ export async function PUT(
       if (typeof name !== "string" || !name.trim()) {
         return NextResponse.json(
           { success: false, message: "Nama produk tidak boleh kosong" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updateData.name = name.trim();
@@ -174,8 +198,12 @@ export async function PUT(
       const numPrice = Number(price);
       if (isNaN(numPrice) || numPrice < 0) {
         return NextResponse.json(
-          { success: false, message: "Harga produk harus berupa angka valid dan tidak boleh negatif" },
-          { status: 400 }
+          {
+            success: false,
+            message:
+              "Harga produk harus berupa angka valid dan tidak boleh negatif",
+          },
+          { status: 400 },
         );
       }
       updateData.price = price;
@@ -186,8 +214,12 @@ export async function PUT(
       const numStock = Number(stock);
       if (isNaN(numStock) || numStock < 0) {
         return NextResponse.json(
-          { success: false, message: "Stok produk harus berupa angka valid dan tidak boleh negatif" },
-          { status: 400 }
+          {
+            success: false,
+            message:
+              "Stok produk harus berupa angka valid dan tidak boleh negatif",
+          },
+          { status: 400 },
         );
       }
       updateData.stock = stock;
@@ -198,7 +230,7 @@ export async function PUT(
       if (typeof categoryId !== "string" || !categoryId.trim()) {
         return NextResponse.json(
           { success: false, message: "Kategori wajib dipilih" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       const category = await prisma.flowerCategory.findUnique({
@@ -207,7 +239,7 @@ export async function PUT(
       if (!category) {
         return NextResponse.json(
           { success: false, message: "Kategori tidak ditemukan" },
-          { status: 404 }
+          { status: 404 },
         );
       }
       updateData.categoryId = categoryId.trim();
@@ -218,7 +250,7 @@ export async function PUT(
       if (typeof image !== "string" || !image.trim()) {
         return NextResponse.json(
           { success: false, message: "Gambar produk wajib diunggah" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       const trimmedImage = image.trim();
@@ -229,7 +261,7 @@ export async function PUT(
       if (!isValidUrl) {
         return NextResponse.json(
           { success: false, message: "URL gambar tidak valid" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updateData.image = trimmedImage;
@@ -246,7 +278,9 @@ export async function PUT(
     // Format deskripsi produk jika ada
     if (description !== undefined) {
       updateData.description =
-        description && typeof description === "string" ? description.trim() : null;
+        description && typeof description === "string"
+          ? description.trim()
+          : null;
     }
 
     // Format berat produk jika ada
@@ -306,7 +340,7 @@ export async function PUT(
     reportServerError("Error updating florist product:", error);
     return NextResponse.json(
       { success: false, message: "Gagal memperbarui produk florist" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -314,11 +348,11 @@ export async function PUT(
 // Handler HTTP DELETE untuk menghapus produk florist berdasarkan ID
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ productId: string }> }
+  { params }: { params: Promise<{ productId: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID produk dari URL
     const { productId } = await params;
 
@@ -331,18 +365,18 @@ export async function DELETE(
     if (!existingProduct) {
       return NextResponse.json(
         { success: false, message: "Produk tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Validasi hak kepemilikan produk oleh florist
-    if (userRole === "FLORIST" && existingProduct.floristId !== userId) {
+    if (existingProduct.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
           message: "Forbidden: Anda tidak memiliki izin menghapus produk ini",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -365,7 +399,7 @@ export async function DELETE(
     reportServerError("Error deleting florist product:", error);
     return NextResponse.json(
       { success: false, message: "Gagal menghapus produk florist" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,8 +1,6 @@
 import { createAuditLog } from "@/lib/auditLog";
-import { authOptions } from "@/lib/auth";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { updateShipmentStatusSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -13,11 +11,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId: floristId } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId: floristId } = await requireAuth(request, ["FLORIST"]);
     // Ambil metadata IP address dan user-agent untuk audit log
     const ipAddress =
       request.headers.get("x-forwarded-for") ||
@@ -30,10 +25,14 @@ export async function PUT(
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = updateShipmentStatusSchema.parse(body);
-    const { status, courier, service, trackingNumber, estimatedDays, weight } = validated;
-    
+    const { status, courier, service, trackingNumber, estimatedDays, weight } =
+      validated;
+
     // Konversi bobot pengiriman dari kg ke gram
-    const weightInGrams = weight !== undefined && weight !== null ? Math.round(weight * 1000) : undefined;
+    const weightInGrams =
+      weight !== undefined && weight !== null
+        ? Math.round(weight * 1000)
+        : undefined;
 
     // Cari data pengiriman eksisting di database
     const existingShipment = await prisma.shipment.findUnique({
@@ -136,7 +135,8 @@ export async function PUT(
     if (status !== undefined) updateData.status = status;
     if (courier !== undefined) updateData.courier = courier.trim();
     if (service !== undefined) updateData.service = service?.trim() || null;
-    if (trackingNumber !== undefined) updateData.trackingNumber = trackingNumber?.trim() || null;
+    if (trackingNumber !== undefined)
+      updateData.trackingNumber = trackingNumber?.trim() || null;
     if (estimatedDays !== undefined) updateData.estimatedDays = estimatedDays;
     if (weightInGrams !== undefined) updateData.weight = weightInGrams;
 
@@ -165,7 +165,8 @@ export async function PUT(
     if (status !== undefined) oldValues.status = existingShipment.status;
     if (courier !== undefined) oldValues.courier = existingShipment.courier;
     if (service !== undefined) oldValues.service = existingShipment.service;
-    if (trackingNumber !== undefined) oldValues.trackingNumber = existingShipment.trackingNumber;
+    if (trackingNumber !== undefined)
+      oldValues.trackingNumber = existingShipment.trackingNumber;
 
     // Perbarui data pengiriman dan status pesanan dalam transaksi atomic
     const [updatedShipment] = await prisma.$transaction([
@@ -176,8 +177,13 @@ export async function PUT(
       prisma.order.update({
         where: { id: existingShipment.orderId },
         data: {
-          status: updateData.status === "PENDING" ? "PROCESSING" :
-            updateData.status || (existingShipment.status === "PENDING" ? "PROCESSING" : existingShipment.status),
+          status:
+            updateData.status === "PENDING"
+              ? "PROCESSING"
+              : updateData.status ||
+                (existingShipment.status === "PENDING"
+                  ? "PROCESSING"
+                  : existingShipment.status),
         },
       }),
     ]);
@@ -200,10 +206,10 @@ export async function PUT(
               status === "DELIVERED"
                 ? "Pesanan Telah Sampai!"
                 : status === "SHIPPED"
-                ? "Pesanan Sedang Dikirim!"
-                : status === "CANCELLED"
-                ? "Pengiriman Dibatalkan"
-                : "Update Status Pesanan",
+                  ? "Pesanan Sedang Dikirim!"
+                  : status === "CANCELLED"
+                    ? "Pengiriman Dibatalkan"
+                    : "Update Status Pesanan",
             message,
             type: "SHIPMENT_UPDATE",
             link: `/orders/${existingShipment.orderId}/tracking`,
@@ -259,11 +265,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId: floristId } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId: floristId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID pengiriman dari URL
     const { id } = await params;
 

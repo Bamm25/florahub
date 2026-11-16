@@ -27,7 +27,10 @@ export async function GET(request: Request) {
     if (activeOnly === "true") {
       whereClause.isActive = true;
       whereClause.harvestDate = {
-        gte: new Date(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) + "T00:00:00.000Z"),
+        gte: new Date(
+          new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) +
+            "T00:00:00.000Z",
+        ),
       };
     }
 
@@ -65,8 +68,19 @@ export async function GET(request: Request) {
       ? await prisma.harvestPreOrder.groupBy({
           by: ["announcementId"],
           where: {
-            announcementId: { in: announcements.map((announcement) => announcement.id) },
-            status: { in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"] },
+            announcementId: {
+              in: announcements.map((announcement) => announcement.id),
+            },
+            status: {
+              in: [
+                "PENDING",
+                "CONFIRMED",
+                "DEPOSIT_PAID",
+                "PAID",
+                "SHIPPED",
+                "DELIVERED",
+              ],
+            },
           },
           _sum: { quantity: true },
         })
@@ -83,7 +97,8 @@ export async function GET(request: Request) {
       data: {
         announcements: announcements.map((announcement) => ({
           ...announcement,
-          totalReservedQuantity: reservedByAnnouncement.get(announcement.id) ?? 0,
+          totalReservedQuantity:
+            reservedByAnnouncement.get(announcement.id) ?? 0,
         })),
         pagination: {
           page,
@@ -113,11 +128,8 @@ export async function GET(request: Request) {
 // Handler HTTP POST untuk membuat pengumuman panen baru oleh supplier
 export async function POST(request: Request) {
   try {
-    // Autentikasi dan verifikasi hak akses supplier atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "SUPPLIER",
-      "ADMIN",
-    ]);
+    // Autentikasi dan verifikasi hak akses supplier
+    const { userId, userRole } = await requireAuth(request, ["SUPPLIER"]);
 
     try {
       // Parsing dan validasi request body menggunakan skema Zod
@@ -147,9 +159,16 @@ export async function POST(request: Request) {
         );
       }
 
-      if (harvestDayEndWib(parsedHarvestDate).getTime() <= now.getTime() + 3 * 24 * 60 * 60 * 1000) {
+      if (
+        harvestDayEndWib(parsedHarvestDate).getTime() <=
+        now.getTime() + 3 * 24 * 60 * 60 * 1000
+      ) {
         return NextResponse.json(
-          { success: false, message: "Jadwal panen harus lebih dari 3 hari ke depan agar DP memiliki masa bayar 3 hari." },
+          {
+            success: false,
+            message:
+              "Jadwal panen harus lebih dari 3 hari ke depan agar DP memiliki masa bayar 3 hari.",
+          },
           { status: 400 },
         );
       }

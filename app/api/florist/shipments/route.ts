@@ -9,11 +9,8 @@ import { calculateEstimatedDays } from "@/lib/utils/estimateDelivery";
 // Handler HTTP POST untuk membuat pengiriman pesanan secara manual oleh florist
 export async function POST(request: Request) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId: floristId } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId: floristId } = await requireAuth(request, ["FLORIST"]);
     // Ambil metadata IP address dan user-agent untuk audit log
     const ipAddress =
       request.headers.get("x-forwarded-for") ||
@@ -24,8 +21,9 @@ export async function POST(request: Request) {
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = createShipmentSchema.parse(body);
-    const { orderId, courier, service, trackingNumber, estimatedDays, weight } = validated;
-    
+    const { orderId, courier, service, trackingNumber, estimatedDays, weight } =
+      validated;
+
     // Konversi bobot pengiriman dari kg ke gram
     const weightInGrams = weight ? Math.round(weight * 1000) : null;
 
@@ -36,7 +34,7 @@ export async function POST(request: Request) {
         items: {
           include: {
             product: {
-              select: { 
+              select: {
                 floristId: true,
                 florist: {
                   select: {
@@ -107,12 +105,12 @@ export async function POST(request: Request) {
 
     // Hitung estimasi hari pengiriman berdasarkan lokasi jika belum ditentukan
     let calculatedEstimatedDays = estimatedDays;
-    
+
     if (!calculatedEstimatedDays && order.address) {
       // Ambil lokasi florist dari data produk pertama
       const firstProduct = order.items[0]?.product;
       const floristAddress = firstProduct?.florist?.addresses?.[0];
-      
+
       if (floristAddress && order.address.city && order.address.province) {
         calculatedEstimatedDays = calculateEstimatedDays(
           {
@@ -122,7 +120,7 @@ export async function POST(request: Request) {
           {
             city: floristAddress.city,
             province: floristAddress.province,
-          }
+          },
         );
       } else {
         // Nilai default estimasi 2 hari jika data lokasi belum lengkap
@@ -212,11 +210,8 @@ export async function POST(request: Request) {
 // Handler HTTP GET untuk mengambil daftar pengiriman florist
 export async function GET(request: Request) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId: floristId } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId: floristId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter filter dan paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");

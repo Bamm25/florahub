@@ -11,7 +11,10 @@ const updateAddressSchema = z.object({
   fullAddress: z.string().min(10).optional(),
   city: z.string().min(1).max(100).optional(),
   province: z.string().min(1).max(100).optional(),
-  postalCode: z.string().regex(/^\d{5}$/, "Kode pos harus 5 digit").optional(),
+  postalCode: z
+    .string()
+    .regex(/^\d{5}$/, "Kode pos harus 5 digit")
+    .optional(),
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
 });
@@ -22,8 +25,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID alamat dari URL
     const { id } = await params;
 
@@ -98,8 +101,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID alamat dari URL
     const { id } = await params;
 
@@ -134,7 +137,10 @@ export async function DELETE(
     const linkedOrders = await prisma.order.count({ where: { addressId: id } });
     if (linkedOrders > 0) {
       return NextResponse.json(
-        { success: false, message: "Alamat sudah dipakai oleh pesanan dan tidak dapat dihapus." },
+        {
+          success: false,
+          message: "Alamat sudah dipakai oleh pesanan dan tidak dapat dihapus.",
+        },
         { status: 400 },
       );
     }
@@ -143,7 +149,11 @@ export async function DELETE(
     const totalAddresses = await prisma.address.count({ where: { userId } });
     if (totalAddresses <= 1) {
       return NextResponse.json(
-        { success: false, message: "Tidak dapat menghapus alamat terakhir. Tambahkan alamat baru terlebih dahulu." },
+        {
+          success: false,
+          message:
+            "Tidak dapat menghapus alamat terakhir. Tambahkan alamat baru terlebih dahulu.",
+        },
         { status: 400 },
       );
     }
@@ -152,7 +162,10 @@ export async function DELETE(
     await prisma.$transaction(async (tx) => {
       const profile = await tx.floristProfile.findUnique({ where: { userId } });
       if (profile?.defaultAddressId === id) {
-        await tx.floristProfile.update({ where: { userId }, data: { defaultAddressId: null } });
+        await tx.floristProfile.update({
+          where: { userId },
+          data: { defaultAddressId: null },
+        });
       }
       await tx.address.delete({ where: { id, userId } });
     });

@@ -94,7 +94,10 @@ export async function POST(request: Request) {
       body = await request.json();
     } catch {
       return NextResponse.json(
-        { success: false, message: "Format request body tidak valid (harus JSON)" },
+        {
+          success: false,
+          message: "Format request body tidak valid (harus JSON)",
+        },
         { status: 400 },
       );
     }
@@ -128,17 +131,31 @@ export async function POST(request: Request) {
     }
 
     // Validasi nominal harga produk
-    if (typeof price !== "number" || !Number.isSafeInteger(price) || price < 0) {
+    if (
+      typeof price !== "number" ||
+      !Number.isSafeInteger(price) ||
+      price < 0
+    ) {
       return NextResponse.json(
-        { success: false, message: "Harga produk harus berupa bilangan bulat tidak negatif" },
+        {
+          success: false,
+          message: "Harga produk harus berupa bilangan bulat tidak negatif",
+        },
         { status: 400 },
       );
     }
 
     // Validasi kuantitas stok produk
-    if (typeof stock !== "number" || !Number.isSafeInteger(stock) || stock < 0) {
+    if (
+      typeof stock !== "number" ||
+      !Number.isSafeInteger(stock) ||
+      stock < 0
+    ) {
       return NextResponse.json(
-        { success: false, message: "Stok produk harus berupa bilangan bulat tidak negatif" },
+        {
+          success: false,
+          message: "Stok produk harus berupa bilangan bulat tidak negatif",
+        },
         { status: 400 },
       );
     }
@@ -164,11 +181,22 @@ export async function POST(request: Request) {
     }
 
     // Validasi tipe dan rentang nilai opsional produk
-    const validWeight = weight == null || (typeof weight === "number" && Number.isSafeInteger(weight) && weight >= 0);
-    const validTags = tags === undefined || (Array.isArray(tags) && tags.every((tag: unknown) => typeof tag === "string"));
-    if (name.trim().length > 200 || !validWeight || !validTags ||
-        (isActive !== undefined && typeof isActive !== "boolean") ||
-        (isFeatured !== undefined && typeof isFeatured !== "boolean")) {
+    const validWeight =
+      weight == null ||
+      (typeof weight === "number" &&
+        Number.isSafeInteger(weight) &&
+        weight >= 0);
+    const validTags =
+      tags === undefined ||
+      (Array.isArray(tags) &&
+        tags.every((tag: unknown) => typeof tag === "string"));
+    if (
+      name.trim().length > 200 ||
+      !validWeight ||
+      !validTags ||
+      (isActive !== undefined && typeof isActive !== "boolean") ||
+      (isFeatured !== undefined && typeof isFeatured !== "boolean")
+    ) {
       return NextResponse.json(
         { success: false, message: "Data produk tidak valid" },
         { status: 400 },
@@ -178,7 +206,10 @@ export async function POST(request: Request) {
     // Validasi keberadaan URL gambar produk
     if (!image || typeof image !== "string" || !image.trim()) {
       return NextResponse.json(
-        { success: false, message: "Gambar produk wajib diunggah terlebih dahulu" },
+        {
+          success: false,
+          message: "Gambar produk wajib diunggah terlebih dahulu",
+        },
         { status: 400 },
       );
     }
@@ -188,7 +219,10 @@ export async function POST(request: Request) {
     const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
     if (!publicBase || !trimmedImage.startsWith(`${publicBase}/products/`)) {
       return NextResponse.json(
-        { success: false, message: "Gambar harus diunggah ke Cloudflare R2 terlebih dahulu" },
+        {
+          success: false,
+          message: "Gambar harus diunggah ke Cloudflare R2 terlebih dahulu",
+        },
         { status: 400 },
       );
     }
@@ -199,7 +233,10 @@ export async function POST(request: Request) {
         method: "HEAD",
         signal: AbortSignal.timeout(5000),
       });
-      if (!uploaded.ok || !uploaded.headers.get("content-type")?.startsWith("image/")) {
+      if (
+        !uploaded.ok ||
+        !uploaded.headers.get("content-type")?.startsWith("image/")
+      ) {
         return NextResponse.json(
           { success: false, message: "Gambar tidak tersedia di Cloudflare R2" },
           { status: 400 },
@@ -208,7 +245,10 @@ export async function POST(request: Request) {
     } catch (error) {
       reportServerError("R2 image verification failed:", error);
       return NextResponse.json(
-        { success: false, message: "Tidak dapat memverifikasi gambar di Cloudflare R2" },
+        {
+          success: false,
+          message: "Tidak dapat memverifikasi gambar di Cloudflare R2",
+        },
         { status: 503 },
       );
     }
@@ -230,16 +270,21 @@ export async function POST(request: Request) {
     const trimmedDesc =
       description === null || description === undefined
         ? null
-        : typeof description === "string" ? description.trim() : undefined;
+        : typeof description === "string"
+          ? description.trim()
+          : undefined;
     if (trimmedDesc === undefined) {
       return NextResponse.json(
         { success: false, message: "Deskripsi produk tidak valid" },
         { status: 400 },
       );
     }
-    const numWeight = weight == null ? null : weight as number;
+    const numWeight = weight == null ? null : (weight as number);
 
-    const tagsArray = (tags as string[] | undefined)?.map((tag) => tag.trim()).filter(Boolean) ?? [];
+    const tagsArray =
+      (tags as string[] | undefined)
+        ?.map((tag) => tag.trim())
+        .filter(Boolean) ?? [];
 
     const active = typeof isActive === "boolean" ? isActive : true;
     const featured = typeof isFeatured === "boolean" ? isFeatured : false;

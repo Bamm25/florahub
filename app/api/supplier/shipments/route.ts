@@ -6,22 +6,15 @@ import { NextResponse } from "next/server";
 // Handler HTTP GET untuk mengambil seluruh riwayat pengiriman supplier (Pre-Order Panen & Penjualan Stok)
 export async function GET(request: Request) {
   try {
-    const { userId, userRole } = await requireAuth(request, [
-      "SUPPLIER",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["SUPPLIER"]);
 
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get("status") || "ALL";
 
     // 1. Ambil pengiriman dari HarvestPreOrder
-    const preOrderWhere: any = {};
-    if (userRole === "SUPPLIER") {
-      preOrderWhere.announcement = { supplierId: userId };
-    }
-    // Hanya ambil yang sudah dalam alur pengiriman atau selesai
-    preOrderWhere.status = {
-      in: ["SHIPPED", "DELIVERED", "PAID"],
+    const preOrderWhere: any = {
+      announcement: { supplierId: userId },
+      status: { in: ["SHIPPED", "DELIVERED", "PAID"] },
     };
 
     const preOrders = await prisma.harvestPreOrder.findMany({
@@ -41,12 +34,9 @@ export async function GET(request: Request) {
     });
 
     // 2. Ambil pengiriman dari StockTransaction
-    const saleWhere: any = {};
-    if (userRole === "SUPPLIER") {
-      saleWhere.stock = { supplierId: userId };
-    }
-    saleWhere.status = {
-      in: ["SHIPPED", "DELIVERED", "PAID"],
+    const saleWhere: any = {
+      stock: { supplierId: userId },
+      status: { in: ["SHIPPED", "DELIVERED", "PAID"] },
     };
 
     const directSales = await prisma.stockTransaction.findMany({

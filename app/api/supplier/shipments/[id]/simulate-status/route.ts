@@ -14,17 +14,26 @@ type RouteParams = {
 // Handler HTTP POST untuk simulasi / pembaruan status kurir Biteship (Sandbox / Testing)
 export async function POST(request: Request, { params }: RouteParams) {
   try {
-    const { userId, userRole } = await requireAuth(request, [
-      "SUPPLIER",
-      "ADMIN",
-    ]);
+    if (
+      process.env.NODE_ENV !== "development" ||
+      process.env.ENABLE_BITESHIP_SIMULATOR !== "true"
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Simulator tidak tersedia" },
+        { status: 404 },
+      );
+    }
+    const { userId } = await requireAuth(request, ["SUPPLIER"]);
     const { id: shipmentId } = await params;
     const body = await request.json().catch(() => ({}));
     const targetStatus = body.status; // "SHIPPED" | "DELIVERED"
 
     if (!["SHIPPED", "DELIVERED"].includes(targetStatus)) {
       return NextResponse.json(
-        { success: false, message: "Status target harus SHIPPED atau DELIVERED" },
+        {
+          success: false,
+          message: "Status target harus SHIPPED atau DELIVERED",
+        },
         { status: 400 },
       );
     }
@@ -61,9 +70,13 @@ export async function POST(request: Request, { params }: RouteParams) {
       : directSale?.stock.supplierId;
     const floristId = record.floristId;
 
-    if (userRole !== "ADMIN" && supplierId !== userId) {
+    if (supplierId !== userId) {
       return NextResponse.json(
-        { success: false, message: "Forbidden: Hanya supplier pemilik barang yang dapat mengatur status pengiriman" },
+        {
+          success: false,
+          message:
+            "Forbidden: Hanya supplier pemilik barang yang dapat mengatur status pengiriman",
+        },
         { status: 403 },
       );
     }
@@ -75,20 +88,52 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    const flowerName = preOrder ? preOrder.announcement.flowerName : directSale?.stock.name;
+    if (targetStatus === "SHIPPED" && record.status !== "PAID") {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Hanya pesanan lunas yang dapat disimulasikan dijemput kurir",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (targetStatus === "DELIVERED" && record.status !== "SHIPPED") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Pesanan harus dalam pengiriman sebelum disimulasikan tiba",
+        },
+        { status: 409 },
+      );
+    }
+
+    const flowerName = preOrder
+      ? preOrder.announcement.flowerName
+      : directSale?.stock.name;
     const now = new Date();
 
     if (targetStatus === "SHIPPED") {
-      if (preOrder) {
-        await prisma.harvestPreOrder.updateMany({
-          where: { id: shipmentId, status: { in: ["PAID", "CONFIRMED"] } },
-          data: { status: "SHIPPED", shippedAt: record.shippedAt || now },
-        });
-      } else {
-        await prisma.stockTransaction.updateMany({
-          where: { id: shipmentId, status: { in: ["PAID", "PENDING"] } },
-          data: { status: "SHIPPED", shippedAt: record.shippedAt || now },
-        });
+      const transaction = preOrder
+        ? await prisma.harvestPreOrder.updateMany({
+            where: { id: shipmentId, status: "PAID" },
+            data: { status: "SHIPPED", shippedAt: record.shippedAt || now },
+          })
+        : await prisma.stockTransaction.updateMany({
+            where: { id: shipmentId, status: "PAID" },
+            data: { status: "SHIPPED", shippedAt: record.shippedAt || now },
+          });
+
+      if (transaction.count !== 1) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Status pesanan telah berubah. Muat ulang sebelum mencoba lagi.",
+          },
+          { status: 409 },
+        );
       }
 
       // Notifikasi florist bahwa kurir telah mengambil paket
@@ -98,7 +143,9 @@ export async function POST(request: Request, { params }: RouteParams) {
           title: "Paket Bunga Telah Dijemput Kurir!",
           message: `Kurir ${record.courier || "Biteship"} telah menjemput pesanan ${record.quantity} tangkai ${flowerName}. Paket dalam perjalanan ke toko Anda.`,
           type: "SHIPMENT_UPDATE",
-          link: preOrder ? "/florist/harvest-plans" : "/florist/supplier-stocks",
+          link: preOrder
+            ? "/florist/harvest-plans"
+            : "/florist/supplier-stocks",
           isRead: false,
         },
       });
@@ -111,10 +158,19 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     if (targetStatus === "DELIVERED") {
-      if (preOrder) {
-        await fulfillPreOrderToInventory(shipmentId);
-      } else {
-        await fulfillSaleToInventory(shipmentId);
+      const creditedInventory = preOrder
+        ? await fulfillPreOrderToInventory(shipmentId)
+        : await fulfillSaleToInventory(shipmentId);
+
+      if (!creditedInventory) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Status pesanan telah berubah atau sudah diterima. Muat ulang halaman.",
+          },
+          { status: 409 },
+        );
       }
 
       // Notifikasi ke supplier
@@ -145,19 +201,26 @@ export async function POST(request: Request, { params }: RouteParams) {
 
       return NextResponse.json({
         success: true,
-        message: "Status kurir berhasil diperbarui: Paket Sampai & Diterima (DELIVERED)",
+        message:
+          "Status kurir berhasil diperbarui: Paket Sampai & Diterima (DELIVERED)",
         data: { status: "DELIVERED" },
       });
     }
 
-    return NextResponse.json({ success: false, message: "Unhandled status" }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "Unhandled status" },
+      { status: 400 },
+    );
   } catch (error) {
     reportServerError("Error simulating shipment status:", error);
     if (error instanceof NextResponse) return error;
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Gagal memperbarui status pengiriman",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Gagal memperbarui status pengiriman",
       },
       { status: 500 },
     );

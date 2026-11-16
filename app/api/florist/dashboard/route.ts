@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Hitung total pendapatan dari pesanan berstatus DELIVERED
     const revenueData = await prisma.order.aggregate({
       where: {

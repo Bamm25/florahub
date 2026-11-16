@@ -20,8 +20,8 @@ const createAddressSchema = z.object({
 // Handler HTTP POST untuk menambahkan alamat penjemputan baru florist
 export async function POST(request: Request) {
   try {
-    // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses florist
+    const { userId } = await requireAuth(request, ["FLORIST"]);
 
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
@@ -34,7 +34,10 @@ export async function POST(request: Request) {
       const existingCount = await tx.address.count({ where: { userId } });
       const makeDefault = existingCount === 0 || validated.isDefault;
       if (makeDefault) {
-        await tx.address.updateMany({ where: { userId, isDefault: true }, data: { isDefault: false } });
+        await tx.address.updateMany({
+          where: { userId, isDefault: true },
+          data: { isDefault: false },
+        });
       }
       const address = await tx.address.create({
         data: {
@@ -52,7 +55,10 @@ export async function POST(request: Request) {
         },
       });
       if (makeDefault) {
-        await tx.floristProfile.update({ where: { userId }, data: { defaultAddressId: address.id } });
+        await tx.floristProfile.update({
+          where: { userId },
+          data: { defaultAddressId: address.id },
+        });
       }
       return address;
     });

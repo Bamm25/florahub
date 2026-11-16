@@ -8,10 +8,7 @@ import { z } from "zod";
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
 
     // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
@@ -20,10 +17,7 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
 
     // Filter inventaris berdasarkan ID florist
-    const whereClause: any = {};
-    if (userRole === "FLORIST") {
-      whereClause.floristId = userId;
-    }
+    const whereClause: any = { floristId: userId };
 
     // Ambil data inventaris beserta relasi stok supplier dan total data
     const [inventory, total] = await Promise.all([
@@ -97,118 +91,118 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
-    
+    const { userId } = await requireAuth(request, ["FLORIST"]);
+
     try {
       // Parsing dan validasi request body menggunakan skema Zod
       const body = await request.json();
       const validatedData = createInventorySchema.parse(body);
       const { stockId, quantity, location, notes } = validatedData;
 
-    // Cari data stok supplier di database
-    const stock = await prisma.stock.findUnique({
-      where: { id: stockId },
-    });
-    // Validasi keberadaan stok supplier
-    if (!stock) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Stock supplier tidak ditemukan",
-        },
-        { status: 404 },
-      );
-    }
+      // Cari data stok supplier di database
+      const stock = await prisma.stock.findUnique({
+        where: { id: stockId },
+      });
+      // Validasi keberadaan stok supplier
+      if (!stock) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Stock supplier tidak ditemukan",
+          },
+          { status: 404 },
+        );
+      }
 
-    // Validasi ketersediaan stok supplier
-    if (!stock.isAvailable) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Stock supplier ini sedang tidak tersedia",
-        },
-        { status: 400 },
-      );
-    }
+      // Validasi ketersediaan stok supplier
+      if (!stock.isAvailable) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Stock supplier ini sedang tidak tersedia",
+          },
+          { status: 400 },
+        );
+      }
 
-    // Periksa apakah stok sudah pernah ditambahkan ke inventaris florist
-    const existingInventory = await prisma.floristInventory.findUnique({
-      where: {
-        floristId_stockId: {
+      // Periksa apakah stok sudah pernah ditambahkan ke inventaris florist
+      const existingInventory = await prisma.floristInventory.findUnique({
+        where: {
+          floristId_stockId: {
+            floristId: userId,
+            stockId,
+          },
+        },
+      });
+
+      if (existingInventory) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Inventory untuk stock ini sudah ada. Gunakan PUT untuk update quantity.",
+          },
+          { status: 409 },
+        );
+      }
+
+      // Buat catatan inventaris baru di database
+      const inventory = await prisma.floristInventory.create({
+        data: {
           floristId: userId,
           stockId,
+          quantity,
+          minThreshold: 10,
+          maxCapacity: null,
+          location: location || null,
+          lastRestockDate: new Date(),
         },
-      },
-    });
-
-    if (existingInventory) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Inventory untuk stock ini sudah ada. Gunakan PUT untuk update quantity.",
-        },
-        { status: 409 },
-      );
-    }
-
-    // Buat catatan inventaris baru di database
-    const inventory = await prisma.floristInventory.create({
-      data: {
-        floristId: userId,
-        stockId,
-        quantity,
-        minThreshold: 10,
-        maxCapacity: null,
-        location: location || null,
-        lastRestockDate: new Date(),
-      },
-      include: {
-        stock: {
-          include: {
-            supplier: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
+        include: {
+          stock: {
+            include: {
+              supplier: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
               },
             },
           },
         },
-      },
-    });
-
-    // Kirim notifikasi peringatan stok rendah jika kuantitas awal di bawah ambang batas
-    if (inventory.quantity < inventory.minThreshold) {
-      await prisma.notification.create({
-        data: {
-          userId: inventory.floristId,
-          title: "Stok Rendah!",
-          message: `Stok ${inventory.stock.name} hanya tersisa ${inventory.quantity} ${inventory.stock.unit}. Segera lakukan restock (minimum: ${inventory.minThreshold} ${inventory.stock.unit}).`,
-          type: "LOW_STOCK_ALERT",
-          link: `/florist/inventory`,
-          isRead: false,
-        },
       });
-    }
 
-    // Kembalikan respon sukses pembuatan inventaris
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Inventory berhasil ditambahkan",
-        data: {
-          inventory,
+      // Kirim notifikasi peringatan stok rendah jika kuantitas awal di bawah ambang batas
+      if (inventory.quantity < inventory.minThreshold) {
+        await prisma.notification.create({
+          data: {
+            userId: inventory.floristId,
+            title: "Stok Rendah!",
+            message: `Stok ${inventory.stock.name} hanya tersisa ${inventory.quantity} ${inventory.stock.unit}. Segera lakukan restock (minimum: ${inventory.minThreshold} ${inventory.stock.unit}).`,
+            type: "LOW_STOCK_ALERT",
+            link: `/florist/inventory`,
+            isRead: false,
+          },
+        });
+      }
+
+      // Kembalikan respon sukses pembuatan inventaris
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Inventory berhasil ditambahkan",
+          data: {
+            inventory,
+          },
         },
-      },
-      { status: 201 },
-    );
+        { status: 201 },
+      );
     } catch (error) {
       // Tangani error validasi skema Zod
       if (error instanceof z.ZodError) {
         return NextResponse.json(
           { success: false, message: "Validation error", errors: error.issues },
-          { status: 400 }
+          { status: 400 },
         );
       }
       throw error;

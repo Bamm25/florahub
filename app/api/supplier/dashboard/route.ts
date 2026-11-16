@@ -5,8 +5,8 @@ import { NextResponse } from "next/server";
 // Handler HTTP GET untuk mengambil metrik dan statistik dashboard supplier
 export async function GET(request: Request) {
   try {
-    // Autentikasi dan verifikasi hak akses supplier atau admin
-    const { userId } = await requireAuth(request, ["SUPPLIER", "ADMIN"]);
+    // Autentikasi dan verifikasi hak akses supplier
+    const { userId } = await requireAuth(request, ["SUPPLIER"]);
     // Hitung total pendapatan dari transaksi yang berstatus PAID
     const revenueData = await prisma.stockTransaction.aggregate({
       where: {

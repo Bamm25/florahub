@@ -11,21 +11,15 @@ import { z } from "zod";
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
-    // Ambil parameter paginasi dan filter status dari query string
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
     const status = searchParams.get("status");
-    const whereClause: any = {};
-    if (userRole === "FLORIST") {
-      whereClause.floristId = userId;
-    }
-
+    const whereClause: any = {
+      floristId: userId,
+    };
     if (status) {
       whereClause.status = status;
     }
@@ -96,11 +90,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST", "ADMIN"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = createPreorderSchema.parse(body);
-    const { harvestAnnouncementId: announcementId, quantity, notes } = validated;
+    const {
+      harvestAnnouncementId: announcementId,
+      quantity,
+      notes,
+    } = validated;
 
     // Ambil data pengumuman panen beserta daftar pre-order aktif
     const announcement = await prisma.harvestAnnouncement.findUnique({
@@ -109,7 +107,14 @@ export async function POST(request: Request) {
         preOrders: {
           where: {
             status: {
-              in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"],
+              in: [
+                "PENDING",
+                "CONFIRMED",
+                "DEPOSIT_PAID",
+                "PAID",
+                "SHIPPED",
+                "DELIVERED",
+              ],
             },
           },
         },
@@ -193,38 +198,68 @@ export async function POST(request: Request) {
     }
 
     // Simpan pre-order dalam transaksi serializable dengan lock pengumuman
-    const preOrder = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "HarvestAnnouncement" WHERE id = ${announcementId} FOR UPDATE`;
-      const latest = await tx.harvestAnnouncement.findUnique({ where: { id: announcementId } });
-      const used = await tx.harvestPreOrder.aggregate({
-        where: {
-          announcementId,
-          status: { in: ["PENDING", "CONFIRMED", "DEPOSIT_PAID", "PAID", "SHIPPED", "DELIVERED"] },
-        },
-        _sum: { quantity: true },
-      });
-      if (!latest?.isActive || !latest || new Date() > harvestDayEndWib(latest.harvestDate) ||
-          (used._sum.quantity ?? 0) + requestedQuantity > latest.estimatedQuantity) {
-        return null;
-      }
-      return tx.harvestPreOrder.create({
-        data: {
-          announcementId,
-          floristId: userId,
-          quantity: requestedQuantity,
-          pricePerUnit: latest.pricePerUnit,
-          totalPrice: requestedQuantity * latest.pricePerUnit,
-          status: "PENDING",
-          notes: notes ? notes.trim() : null,
-        },
-        include: {
-          announcement: { include: { supplier: { select: { id: true, name: true, email: true } } } },
-          florist: { select: { id: true, name: true, email: true } },
-        },
-      });
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    const preOrder = await prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "HarvestAnnouncement" WHERE id = ${announcementId} FOR UPDATE`;
+        const latest = await tx.harvestAnnouncement.findUnique({
+          where: { id: announcementId },
+        });
+        const used = await tx.harvestPreOrder.aggregate({
+          where: {
+            announcementId,
+            status: {
+              in: [
+                "PENDING",
+                "CONFIRMED",
+                "DEPOSIT_PAID",
+                "PAID",
+                "SHIPPED",
+                "DELIVERED",
+              ],
+            },
+          },
+          _sum: { quantity: true },
+        });
+        if (
+          !latest?.isActive ||
+          !latest ||
+          new Date() > harvestDayEndWib(latest.harvestDate) ||
+          (used._sum.quantity ?? 0) + requestedQuantity >
+            latest.estimatedQuantity
+        ) {
+          return null;
+        }
+        return tx.harvestPreOrder.create({
+          data: {
+            announcementId,
+            floristId: userId,
+            quantity: requestedQuantity,
+            pricePerUnit: latest.pricePerUnit,
+            totalPrice: requestedQuantity * latest.pricePerUnit,
+            status: "PENDING",
+            notes: notes ? notes.trim() : null,
+          },
+          include: {
+            announcement: {
+              include: {
+                supplier: { select: { id: true, name: true, email: true } },
+              },
+            },
+            florist: { select: { id: true, name: true, email: true } },
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
     if (!preOrder) {
-      return NextResponse.json({ success: false, message: "Kapasitas panen berubah atau jadwal tidak aktif. Muat ulang dan coba kembali." }, { status: 409 });
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Kapasitas panen berubah atau jadwal tidak aktif. Muat ulang dan coba kembali.",
+        },
+        { status: 409 },
+      );
     }
 
     // Kirim notifikasi pesanan masuk ke supplier

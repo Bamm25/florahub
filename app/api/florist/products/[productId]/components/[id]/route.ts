@@ -11,10 +11,7 @@ export async function PUT(
 ) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID produk dan ID komponen dari URL
     const { productId, id: componentId } = await params;
 
@@ -39,7 +36,7 @@ export async function PUT(
     }
 
     // Validasi hak kepemilikan produk oleh florist
-    if (userRole === "FLORIST" && product.floristId !== userId) {
+    if (product.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
@@ -154,10 +151,7 @@ export async function DELETE(
 ) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, userRole } = await requireAuth(request, [
-      "FLORIST",
-      "ADMIN",
-    ]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID produk dan ID komponen dari URL
     const { productId, id: componentId } = await params;
 
@@ -182,7 +176,7 @@ export async function DELETE(
     }
 
     // Validasi hak kepemilikan produk oleh florist
-    if (userRole === "FLORIST" && product.floristId !== userId) {
+    if (product.floristId !== userId) {
       return NextResponse.json(
         {
           success: false,
