@@ -76,7 +76,7 @@ export default function FloristLayout({
       session?.user
     ) {
       const userRole = (session.user as { role?: string }).role;
-      if (userRole !== "FLORIST" && userRole !== "ADMIN") {
+      if (userRole !== "FLORIST" ) {
         router.push("/");
       }
     }
@@ -95,7 +95,7 @@ export default function FloristLayout({
 
   if (status === "authenticated" && session?.user) {
     const userRole = (session.user as { role?: string }).role;
-    if (userRole !== "FLORIST" && userRole !== "ADMIN") {
+    if (userRole !== "FLORIST" ) {
       return null;
     }
   }

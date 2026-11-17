@@ -22,13 +22,18 @@ import {
 export default function Navbar() {
   const { data: session, status } = useSession();
   const itemCount = useCartStore((state) => state.getItemCount());
-  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
   // Check if user is florist
   const role = (session?.user as { role?: string } | undefined)?.role;
-  const isBusiness = role === "FLORIST" || role === "SUPPLIER" || role === "ADMIN";
+  const isBusiness =
+    role === "FLORIST" || role === "SUPPLIER" || role === "ADMIN";
   const isCustomer = role === "CUSTOMER";
 
   return (
@@ -62,7 +67,6 @@ export default function Navbar() {
             >
               Toko
             </Link>
-
           </nav>
 
           {/* Cart & Profile */}
@@ -74,7 +78,11 @@ export default function Navbar() {
               aria-label={isMobileMenuOpen ? "Tutup menu" : "Buka menu"}
               aria-expanded={isMobileMenuOpen}
             >
-              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
             </button>
 
             {/* Cart Icon & Badge - Only for non-florist users */}
@@ -127,8 +135,8 @@ export default function Navbar() {
                           role === "FLORIST"
                             ? "/florist/dashboard"
                             : role === "SUPPLIER"
-                            ? "/supplier/dashboard"
-                            : "/admin"
+                              ? "/supplier/dashboard"
+                              : "/admin/dashboard"
                         }
                         onClick={() => setIsDropdownOpen(false)}
                         className="flex w-full items-center gap-2 px-4 py-2 text-sm text-foreground transition-colors hover:bg-surface-container"
@@ -137,8 +145,8 @@ export default function Navbar() {
                         {role === "FLORIST"
                           ? "Dashboard Florist"
                           : role === "SUPPLIER"
-                          ? "Dashboard Supplier"
-                          : "Dashboard Admin"}
+                            ? "Dashboard Supplier"
+                            : "Dashboard Admin"}
                       </Link>
                     ) : (
                       <>
@@ -248,7 +256,7 @@ export default function Navbar() {
                 )}
               </Link>
             )}
-            
+
             {session && (
               <>
                 <div className="h-px bg-border my-2" />
@@ -258,8 +266,8 @@ export default function Navbar() {
                       role === "FLORIST"
                         ? "/florist/dashboard"
                         : role === "SUPPLIER"
-                        ? "/supplier/dashboard"
-                        : "/admin"
+                          ? "/supplier/dashboard"
+                          : "/admin/dashboard"
                     }
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground hover:bg-surface-container rounded-lg transition-colors"
@@ -268,8 +276,8 @@ export default function Navbar() {
                     {role === "FLORIST"
                       ? "Dashboard Florist"
                       : role === "SUPPLIER"
-                      ? "Dashboard Supplier"
-                      : "Dashboard Admin"}
+                        ? "Dashboard Supplier"
+                        : "Dashboard Admin"}
                   </Link>
                 ) : (
                   <>

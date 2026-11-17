@@ -12,7 +12,7 @@ const errorTextClass = "mt-2 text-sm font-medium text-error";
 
 function BrandPanel() {
   return (
-    <aside className="hidden flex-col justify-between rounded-[32px] bg-black p-12 text-white lg:flex">
+    <aside className="hidden flex-col justify-between rounded-3xl bg-black p-12 text-white lg:flex">
       <Link href="/" className="inline-flex items-center gap-3 self-start">
         <Flower2 className="h-6 w-6" aria-hidden="true" />
         <span className="text-xl font-bold tracking-tight">FloraHub</span>
@@ -118,7 +118,7 @@ function LoginForm() {
       const roleHome: Record<string, string> = {
         FLORIST: "/florist/dashboard",
         SUPPLIER: "/supplier/dashboard",
-        ADMIN: "/",
+        ADMIN: "/admin/dashboard",
         CUSTOMER: "/",
       };
       const target = roleHome[role || ""] || "/";
@@ -127,7 +127,8 @@ function LoginForm() {
         (role === "CUSTOMER" &&
           !/^\/(admin|supplier|florist)(\/|$)/.test(callbackUrl)) ||
         (role === "FLORIST" && callbackUrl.startsWith("/florist/")) ||
-        (role === "SUPPLIER" && callbackUrl.startsWith("/supplier/"));
+        (role === "SUPPLIER" && callbackUrl.startsWith("/supplier/")) ||
+        (role === "ADMIN" && callbackUrl.startsWith("/admin/"));
       router.push(
         allowedCallback && callbackUrl !== "/" ? callbackUrl : target,
       );
@@ -145,7 +146,7 @@ function LoginForm() {
       <BrandPanel />
 
       <main className="flex min-h-screen flex-col justify-center px-5 py-12 sm:px-8 lg:min-h-0">
-        <div className="mx-auto w-full max-w-[420px]">
+        <div className="mx-auto w-full max-w-105">
           <Link
             href="/"
             className="mb-10 inline-flex items-center gap-2 text-foreground lg:hidden"

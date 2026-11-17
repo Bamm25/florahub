@@ -64,7 +64,7 @@ export default function SupplierLayout({
       router.push("/auth/login?callbackUrl=" + encodeURIComponent(pathname));
     } else if (status === "authenticated" && session?.user) {
       const userRole = (session.user as { role?: string }).role;
-      if (userRole !== "SUPPLIER" && userRole !== "ADMIN") {
+      if (userRole !== "SUPPLIER") {
         router.push("/");
       }
     }
@@ -86,7 +86,7 @@ export default function SupplierLayout({
   // protect route role
   if (status === "authenticated" && session?.user) {
     const userRole = (session.user as { role?: string }).role;
-    if (userRole !== "SUPPLIER" && userRole !== "ADMIN") {
+    if (userRole !== "SUPPLIER") {
       return null;
     }
   }
@@ -115,7 +115,9 @@ export default function SupplierLayout({
             className="flex items-center gap-2 leading-tight"
           >
             <Sprout className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold tracking-tight text-white">FloraHub</span>
+            <span className="text-xl font-bold tracking-tight text-white">
+              FloraHub
+            </span>
           </Link>
           <button
             type="button"
@@ -161,11 +163,12 @@ export default function SupplierLayout({
                       }`}
                     >
                       <span>{item.name}</span>
-                      {item.href === "/supplier/notifications" && unreadCount > 0 && (
-                        <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
-                          {unreadCount > 99 ? "99+" : unreadCount}
-                        </span>
-                      )}
+                      {item.href === "/supplier/notifications" &&
+                        unreadCount > 0 && (
+                          <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
                     </Link>
                   );
                 })}
