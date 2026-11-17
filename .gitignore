@@ -64,8 +64,10 @@ prisma/SEED-FLORIST-TEST-DATA.txt
 prisma/check-*.ts
 /scripts/
 scripts/
-/tests/
-tests/
+/tests/*
+!/tests/admin-users-validation.test.ts
+!/tests/admin-users-route.test.ts
+!/tests/admin-users-client.test.ts
 
 # IDE and tool states
 .agents/

@@ -1,55 +1,69 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { Role } from "@prisma/client";
+import { reportServerError } from "@/lib/server-error-report";
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
-// Handler HTTP GET untuk mengambil daftar pengguna sistem oleh admin
+const userQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  role: z.enum(["ADMIN", "SUPPLIER", "FLORIST", "CUSTOMER"]).optional(),
+  search: z.string().trim().max(100).optional(),
+});
+
+// Handler HTTP GET untuk mencari dan memfilter pengguna oleh admin
 export async function GET(request: Request) {
   try {
-    // Autentikasi dan verifikasi hak akses admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
-    // Ambil parameter filter peran dan paginasi dari query string
-    const { searchParams } = new URL(request.url);
-    const roleParams = searchParams.get("role");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const skip = (page - 1) * limit;
-    const whereClause: any = {};
+    await requireAuth(request, ["ADMIN"]);
 
-    // Filter berdasarkan peran pengguna jika valid
-    if (roleParams && Object.values(Role).includes(roleParams as Role)) {
-      whereClause.role = roleParams as Role;
+    const { searchParams } = new URL(request.url);
+    const parsed = userQuerySchema.safeParse({
+      page: searchParams.get("page") ?? undefined,
+      limit: searchParams.get("limit") ?? undefined,
+      role: searchParams.get("role") ?? undefined,
+      search: searchParams.get("search") ?? undefined,
+    });
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, message: "Filter pengguna tidak valid" },
+        { status: 400 },
+      );
     }
 
-    // Ambil daftar pengguna dan total data secara paralel
+    const { page, limit, role, search } = parsed.data;
+    const where: Prisma.UserWhereInput = {
+      ...(role ? { role } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
     const [users, total] = await Promise.all([
       prisma.user.findMany({
-        where: whereClause,
+        where,
         select: {
           id: true,
           name: true,
           email: true,
           role: true,
-          phone: true,
-          image: true,
+          isActive: true,
           createdAt: true,
-          updatedAt: true,
         },
-        skip,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * limit,
         take: limit,
-        orderBy: {
-          createdAt: "desc",
-        },
       }),
-      prisma.user.count({
-        where: whereClause,
-      }),
+      prisma.user.count({ where }),
     ]);
 
-    // Kembalikan respon sukses beserta data paginasi pengguna
     return NextResponse.json({
       success: true,
-      message: "Daftar pengguna berhasil diambil",
       data: {
         users,
         pagination: {
@@ -63,15 +77,11 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    // Tangani error otorisasi atau internal server error
-    if (error instanceof NextResponse) {
-      return error;
-    }
+    if (error instanceof NextResponse) return error;
+
+    reportServerError("Admin users list failed", error);
     return NextResponse.json(
-      {
-        success: false,
-        message: "Gagal mengambil data pengguna",
-      },
+      { success: false, message: "Gagal mengambil data pengguna" },
       { status: 500 },
     );
   }

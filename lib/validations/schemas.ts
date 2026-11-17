@@ -318,17 +318,18 @@ export const validateCouponSchema = z.object({
   shippingCost: z.number().min(0, "Ongkir tidak boleh negatif").optional(),
 });
 
-// Skema validasi pembaruan profil pengguna oleh admin
-export const updateUserSchema = z.object({
-  name: z.string().min(3, "Nama minimal 3 karakter").max(100).optional(),
-  email: z.email("Email tidak valid").optional(),
-  phone: z
-    .string()
-    .regex(/^\d{10,15}$/, "No HP harus 10-15 digit")
-    .optional(),
-  role: z.enum(["CUSTOMER", "FLORIST", "SUPPLIER", "ADMIN"]).optional(),
-  isActive: z.boolean().optional(),
-});
+// Form admin ini hanya mengubah status akun. Koreksi identitas memerlukan alur
+// tersendiri agar sesi dan alamat email login tetap sinkron.
+export const updateUserSchema = z
+  .object({
+    isActive: z.boolean(),
+    reasonCode: z.enum([
+      "POLICY_VIOLATION",
+      "USER_REQUEST",
+      "ACCOUNT_RECOVERY",
+    ]),
+  })
+  .strict();
 
 // Skema validasi pembuatan notifikasi sistem untuk pengguna
 export const createNotificationSchema = z.object({
