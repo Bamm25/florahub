@@ -3,11 +3,22 @@ import { NextAuthOptions } from "next-auth";
 import { Role } from "@prisma/client";
 import prisma from "./prisma";
 import bcrypt from "bcryptjs";
+import {
+  DEFAULT_MAX_AGE_SECONDS,
+  decodeRfc7519Jwt,
+  encodeRfc7519Jwt,
+} from "./jwt-rfc7519";
 
-// Konfigurasi opsi autentikasi NextAuth dengan strategi JWT dan validasi kredensial
+// Konfigurasi opsi autentikasi NextAuth dengan strategi JWT standar RFC 7519 (JWS HS256)
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
+    maxAge: DEFAULT_MAX_AGE_SECONDS,
+  },
+  jwt: {
+    maxAge: DEFAULT_MAX_AGE_SECONDS,
+    encode: encodeRfc7519Jwt,
+    decode: decodeRfc7519Jwt,
   },
   providers: [
     CredentialsProvider({
@@ -50,12 +61,16 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.sub = user.id;
         token.name = user.name;
         token.email = user.email;
         token.role = (user as typeof user & { role: Role }).role;
       }
       if (!token.id && token.sub) {
         token.id = token.sub;
+      }
+      if (token.id && !token.sub) {
+        token.sub = token.id as string;
       }
       // Sinkronisasi data ID dan peran pengguna dari basis data ke token JWT
       if (token.email) {
@@ -66,6 +81,7 @@ export const authOptions: NextAuthOptions = {
           });
           if (dbUser && dbUser.isActive) {
             token.id = dbUser.id;
+            token.sub = dbUser.id;
             token.role = dbUser.role;
             if (dbUser.name) {
               token.name = dbUser.name;
