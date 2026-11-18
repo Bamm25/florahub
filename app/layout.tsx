@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://florahub.com",
+  ),
   title: {
     default: "FloraHub - Platform E-Commerce & Supply Chain untuk Bisnis Florikultura",
     template: "%s | FloraHub",

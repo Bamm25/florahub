@@ -45,6 +45,14 @@ const reasons: Array<{ code: AdminUserStatusReason; label: string }> = [
   { code: "ACCOUNT_RECOVERY", label: "Pemulihan akun" },
 ];
 
+function maskEmail(email: string): string {
+  const parts = email.split("@");
+  if (parts.length !== 2) return "***";
+  const [local, domain] = parts;
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}***@${domain}`;
+}
+
 export default function AdminUsersPage() {
   const { data: session } = useSession();
   const [query, setQuery] = useState("");
@@ -212,7 +220,7 @@ export default function AdminUsersPage() {
                             {user.name}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {user.email}
+                            {maskEmail(user.email)}
                           </p>
                         </td>
                         <td className="py-4 pr-4 text-foreground">
@@ -220,11 +228,11 @@ export default function AdminUsersPage() {
                         </td>
                         <td className="py-4 pr-4">
                           <span
-                            className={
+                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
                               user.isActive
-                                ? "font-medium text-success-foreground"
-                                : "font-medium text-error"
-                            }
+                                ? "border-success/25 bg-success/10 text-success"
+                                : "border-error/25 bg-error/10 text-error"
+                            }`}
                           >
                             {user.isActive ? "Aktif" : "Nonaktif"}
                           </span>

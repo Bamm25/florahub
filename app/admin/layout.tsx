@@ -51,6 +51,17 @@ export default function AdminLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/login?callbackUrl=" + encodeURIComponent(pathname));
     } else if (status === "authenticated" && session?.user) {
@@ -135,6 +146,7 @@ export default function AdminLayout({
                         key={item.name}
                         href={item.href}
                         onClick={() => setMobileMenuOpen(false)}
+                        aria-current={isActive ? "page" : undefined}
                         className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                           isActive
                             ? "bg-primary text-primary-foreground shadow-xs"
@@ -164,7 +176,7 @@ export default function AdminLayout({
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/auth/login" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-error transition-colors hover:bg-error/10 focus-visible:outline-2 focus-visible:outline-primary"
           >
             <LogOut className="h-4 w-4" />
             <span>Keluar</span>
@@ -178,8 +190,10 @@ export default function AdminLayout({
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-surface-container hover:text-foreground"
+            className="rounded-lg p-2 text-muted-foreground hover:bg-surface-container hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary"
             aria-label="Buka menu navigasi"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="admin-navigation"
           >
             <Menu className="h-5 w-5" />
           </button>

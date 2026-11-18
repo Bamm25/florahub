@@ -220,7 +220,7 @@ export default function AdminDashboardPage() {
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Komitmen Panen B2B
                 </span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 text-warning">
                   <Sprout className="h-4 w-4" />
                 </div>
               </div>
@@ -247,7 +247,7 @@ export default function AdminDashboardPage() {
                   </h2>
                 </div>
                 <span className="rounded-md bg-surface-container px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                  Customer $\rightarrow$ Florist
+                  Customer → Florist
                 </span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4">
@@ -268,7 +268,7 @@ export default function AdminDashboardPage() {
                   </p>
                 </div>
                 <div className="rounded-xl border border-border/60 bg-surface-dim p-4">
-                  <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                  <div className="flex items-center gap-1.5 text-xs text-warning">
                     <Clock className="h-3.5 w-3.5" />
                     <span>Menunggu Pembayaran</span>
                   </div>
@@ -277,7 +277,7 @@ export default function AdminDashboardPage() {
                   </p>
                 </div>
                 <div className="rounded-xl border border-border/60 bg-surface-dim p-4">
-                  <div className="flex items-center gap-1.5 text-xs text-rose-600">
+                  <div className="flex items-center gap-1.5 text-xs text-error">
                     <AlertTriangle className="h-3.5 w-3.5" />
                     <span>Pesanan Dibatalkan</span>
                   </div>
@@ -306,7 +306,7 @@ export default function AdminDashboardPage() {
                   </h2>
                 </div>
                 <span className="rounded-md bg-surface-container px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                  Supplier $\rightarrow$ Florist
+                  Supplier → Florist
                 </span>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4">
@@ -343,7 +343,7 @@ export default function AdminDashboardPage() {
                         supplier
                       </p>
                     </div>
-                    <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-600">
+                    <span className="rounded-full bg-warning/10 px-2.5 py-1 text-xs font-bold text-warning">
                       {stats.b2bSupply.preOrders.pendingApprovalCount} pending
                     </span>
                   </div>

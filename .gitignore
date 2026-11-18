@@ -71,6 +71,7 @@ scripts/
 !/tests/admin-orders-monitoring.test.ts
 !/tests/admin-coupons-categories.test.ts
 !/tests/admin-audit-logs.test.ts
+!/tests/admin-portal-acceptance.test.ts
 
 # IDE and tool states
 .agents/
