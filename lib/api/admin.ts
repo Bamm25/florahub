@@ -323,25 +323,75 @@ export async function fetchAdminSupplyOrders(
   return result.data;
 }
 
-export async function fetchAdminAuditLogs<T = Record<string, unknown>>(
-  params: { page?: number; limit?: number; entity?: string; action?: string; userId?: string } = {},
+export type AdminAuditAction =
+  | "CREATE"
+  | "UPDATE"
+  | "DELETE"
+  | "LOGIN"
+  | "LOGOUT"
+  | "PAYMENT"
+  | "REFUND";
+
+export interface AdminAuditLogItem {
+  id: string;
+  userId: string | null;
+  action: AdminAuditAction;
+  entity: string;
+  entityId: string;
+  oldValue: Record<string, unknown> | null;
+  newValue: Record<string, unknown> | null;
+  maskedIpAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  actor: {
+    id: string;
+    name: string;
+    maskedEmail: string;
+    role: AdminUserRole;
+  } | null;
+}
+
+export interface AdminAuditLogsPage {
+  logs: AdminAuditLogItem[];
+  pagination: AdminPaginationMeta;
+}
+
+// Mengambil daftar audit log tersanitasi beserta filter aksi, entitas, rentang tanggal, dan pencarian
+export async function fetchAdminAuditLogs(
+  params: {
+    page?: number;
+    limit?: number;
+    entity?: string;
+    action?: AdminAuditAction;
+    userId?: string;
+    from?: string;
+    to?: string;
+    search?: string;
+  } = {},
   signal?: AbortSignal,
-): Promise<{ logs: T[]; pagination: AdminPaginationMeta }> {
+): Promise<AdminAuditLogsPage> {
   const query = new URLSearchParams();
-  if (params.page) query.set("page", String(params.page));
-  if (params.limit) query.set("limit", String(params.limit));
-  if (params.entity) query.set("entity", params.entity);
+  query.set("page", String(params.page ?? 1));
+  query.set("limit", String(params.limit ?? 20));
+  if (params.entity?.trim()) query.set("entity", params.entity.trim());
   if (params.action) query.set("action", params.action);
-  if (params.userId) query.set("userId", params.userId);
-  const qs = query.toString();
+  if (params.userId?.trim()) query.set("userId", params.userId.trim());
+  if (params.from?.trim()) query.set("from", params.from.trim());
+  if (params.to?.trim()) query.set("to", params.to.trim());
+  if (params.search?.trim()) query.set("search", params.search.trim());
+
   const result = await fetchJson<{
     success: boolean;
-    data: { logs: T[]; pagination: AdminPaginationMeta };
-  }>(qs ? `/api/admin/audit-logs?${qs}` : "/api/admin/audit-logs", {
+    data: AdminAuditLogsPage;
+  }>(`/api/admin/audit-logs?${query.toString()}`, {
     method: "GET",
     cache: "no-store",
     signal,
   });
+
+  if (!result?.success || !result.data) {
+    throw new Error("Respons daftar audit log tidak valid");
+  }
   return result.data;
 }
 

@@ -170,6 +170,7 @@ export interface AuthState {
 }
 
 export type {
+  AdminAuditLogQueryInput,
   AdminCategoryQueryInput,
   AdminCouponQueryInput,
   AdminOrderQueryInput,

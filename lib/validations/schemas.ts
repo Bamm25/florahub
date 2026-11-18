@@ -505,6 +505,39 @@ export const adminCategoryQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
 });
 
+// Skema validasi enum aksi audit log & query pembacaan oleh admin
+export const adminAuditActionEnum = z.enum([
+  "CREATE",
+  "UPDATE",
+  "DELETE",
+  "LOGIN",
+  "LOGOUT",
+  "PAYMENT",
+  "REFUND",
+]);
+
+export const adminAuditLogQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+    action: adminAuditActionEnum.optional(),
+    entity: z.string().trim().min(1).max(50).optional(),
+    userId: z.string().trim().min(1).max(50).optional(),
+    from: z.iso.datetime().optional(),
+    to: z.iso.datetime().optional(),
+    search: z.string().trim().max(100).optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.from && val.to && new Date(val.from) > new Date(val.to)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["from"],
+        message:
+          "Tanggal mulai (from) tidak boleh melebihi tanggal akhir (to)",
+      });
+    }
+  });
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type CreateAddressInput = z.infer<typeof createAddressSchema>;
 export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
@@ -528,4 +561,5 @@ export type AdminOrderQueryInput = z.infer<typeof adminOrderQuerySchema>;
 export type AdminSupplyQueryInput = z.infer<typeof adminSupplyQuerySchema>;
 export type AdminCouponQueryInput = z.infer<typeof adminCouponQuerySchema>;
 export type AdminCategoryQueryInput = z.infer<typeof adminCategoryQuerySchema>;
+export type AdminAuditLogQueryInput = z.infer<typeof adminAuditLogQuerySchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
