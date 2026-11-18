@@ -401,6 +401,81 @@ export const updateRawMaterialSchema = z.object({
   reason: z.string().optional(),
 });
 
+// Skema validasi query daftar pesanan B2C untuk monitoring admin
+export const adminOrderStatusEnum = z.enum([
+  "PENDING",
+  "PAID",
+  "PROCESSING",
+  "READY_TO_SHIP",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
+  "REFUNDED",
+]);
+
+export const adminOrderQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: adminOrderStatusEnum.optional(),
+  isPreorder: z
+    .enum(["true", "false"])
+    .transform((val) => val === "true")
+    .optional(),
+  search: z.string().trim().max(100).optional(),
+});
+
+// Skema validasi query rantai pasok B2B (Direct Sales & Harvest Pre-Order) untuk monitoring admin
+export const adminDirectSupplyStatusEnum = z.enum([
+  "PENDING",
+  "PAID",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
+]);
+
+export const adminPreOrderSupplyStatusEnum = z.enum([
+  "PENDING",
+  "CONFIRMED",
+  "DEPOSIT_PAID",
+  "PAID",
+  "SHIPPED",
+  "DELIVERED",
+  "CANCELLED",
+  "EXPIRED",
+]);
+
+export const adminSupplyQuerySchema = z
+  .object({
+    type: z.enum(["DIRECT", "PREORDER"]).default("DIRECT"),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+    status: z.string().trim().optional(),
+    search: z.string().trim().max(100).optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (!val.status) return;
+    if (
+      val.type === "DIRECT" &&
+      !adminDirectSupplyStatusEnum.safeParse(val.status).success
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["status"],
+        message: "Status transaksi stok langsung tidak valid",
+      });
+    }
+    if (
+      val.type === "PREORDER" &&
+      !adminPreOrderSupplyStatusEnum.safeParse(val.status).success
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["status"],
+        message: "Status pre-order panen tidak valid",
+      });
+    }
+  });
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type CreateAddressInput = z.infer<typeof createAddressSchema>;
 export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
@@ -416,4 +491,6 @@ export type UpdateFloristProfileInput = z.infer<
   typeof updateFloristProfileSchema
 >;
 export type AdminUserQueryInput = z.infer<typeof adminUserQuerySchema>;
+export type AdminOrderQueryInput = z.infer<typeof adminOrderQuerySchema>;
+export type AdminSupplyQueryInput = z.infer<typeof adminSupplyQuerySchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

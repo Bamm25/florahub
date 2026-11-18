@@ -68,6 +68,7 @@ scripts/
 !/tests/admin-users-validation.test.ts
 !/tests/admin-users-route.test.ts
 !/tests/admin-users-client.test.ts
+!/tests/admin-orders-monitoring.test.ts
 
 # IDE and tool states
 .agents/
