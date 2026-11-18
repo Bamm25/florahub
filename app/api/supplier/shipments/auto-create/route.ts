@@ -7,6 +7,7 @@ import {
   fulfillSaleToInventory,
 } from "@/lib/supply-chain/fulfill-inventory";
 import type { BiteshipOrderRequest } from "@/lib/biteship";
+import type { Address } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP POST untuk membuat pengiriman otomatis Biteship dan menerbitkan nomor resi resmi
@@ -34,8 +35,13 @@ export async function POST(request: Request) {
     }
 
     let supplierId = userId;
-    let floristUser: any = null;
-    let floristAddress: any = null;
+    let floristUser: {
+      id: string;
+      name: string;
+      email: string;
+      phone: string | null;
+    } | null = null;
+    let floristAddress: Address | null | undefined = null;
     let itemName = "";
     let itemValue = 0;
     let quantity = 1;
@@ -188,7 +194,7 @@ export async function POST(request: Request) {
     const destPostal = floristAddress.postalCode;
     const destAddress = floristAddress.fullAddress;
     const destCity = floristAddress.city;
-    const destPhone = floristAddress.phone || floristUser.phone;
+    const destPhone = floristAddress.phone || floristUser.phone || "";
 
     const weightInGrams = Math.max(1000, quantity * 100);
 
@@ -239,21 +245,25 @@ export async function POST(request: Request) {
     let biteshipOrder;
     try {
       biteshipOrder = await biteshipClient.createOrder(biteshipPayload);
-    } catch (biteshipError: any) {
+    } catch (biteshipError: unknown) {
       reportServerError("[SUPPLIER_BITESHIP_CREATE_ERROR]");
+      const axiosErr = biteshipError as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
       return NextResponse.json(
         {
           success: false,
-          message: `Biteship API error: ${biteshipError?.response?.data?.message || biteshipError?.message || "Gagal membuat shipment"}`,
+          message: `Biteship API error: ${axiosErr?.response?.data?.message || axiosErr?.message || "Gagal membuat shipment"}`,
         },
         { status: 502 },
       );
     }
 
-    const biteshipOrderId = biteshipOrder.id || (biteshipOrder as any).order_id;
+    const biteshipOrderId = biteshipOrder.id || biteshipOrder.order_id;
     const waybillId =
       biteshipOrder.courier?.waybill_id ||
-      (biteshipOrder as any).waybill_id ||
+      biteshipOrder.waybill_id ||
       null;
     if (!biteshipOrderId)
       return NextResponse.json(
@@ -265,7 +275,7 @@ export async function POST(request: Request) {
     ).toUpperCase();
     const serviceName =
       biteshipOrder.courier?.type ||
-      (biteshipOrder.courier as any)?.service_name ||
+      biteshipOrder.courier?.service_name ||
       courierType;
 
     let biteshipLabelUrl: string | null = null;

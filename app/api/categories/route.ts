@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Validasi otorisasi pengguna sebagai admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
+    await requireAuth(request, ["ADMIN"]);
 
     // Parse dan validasi payload penambahan kategori
     const body = await request.json();

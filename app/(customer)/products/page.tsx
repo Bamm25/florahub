@@ -1,18 +1,20 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import ProductGrid from "@/components/customer/ProductGrid";
-import SearchInput from "@/components/ui/SearchInput";
+import {
+  SearchInput,
+  LoadingSpinner,
+  ErrorState,
+  EmptyState,
+  Pagination,
+} from "@/components/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { getCustomerProducts } from "@/lib/api/customer";
+import { getCategories, type CategoryItem } from "@/lib/api/products";
+import { X } from "lucide-react";
 import type { Product } from "@/types";
-
-// Interface untuk data kategori produk di filter
-interface Category {
-  id: string;
-  name: string;
-}
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Terbaru" },
@@ -29,9 +31,10 @@ function ProductsPageContent() {
 
   // State data produk dan status pemuatan
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // State filter pencarian, kategori, dan pengurutan
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
@@ -46,55 +49,71 @@ function ProductsPageContent() {
 
   // Fetch daftar kategori untuk dropdown filter
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchCategories() {
       try {
-        const response = await fetch("/api/categories");
-        const data = await response.json();
-        if (data.success) {
-          setCategories(data.data.items || []);
+        const items = await getCategories(controller.signal);
+        if (!controller.signal.aborted) {
+          setCategories(items);
         }
-      } catch (err) {
-
+      } catch {
+        // Abaikan kegagalan memuat kategori opsional
       }
     }
-    fetchCategories();
+    void fetchCategories();
+    return () => controller.abort();
   }, []);
 
   // Fetch produk dengan filter search, kategori, dan sorting
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchProducts() {
       try {
         setIsLoading(true);
         setError(null);
 
-        const params = new URLSearchParams();
-        params.set("page", currentPage.toString());
-        params.set("limit", PRODUCTS_PER_PAGE.toString());
+        const data = await getCustomerProducts<Product>(
+          {
+            page: currentPage,
+            limit: PRODUCTS_PER_PAGE,
+            search: searchQuery || undefined,
+            categoryId:
+              selectedCategory && selectedCategory !== "all"
+                ? selectedCategory
+                : undefined,
+            sortBy: sortBy || undefined,
+          },
+          controller.signal,
+        );
 
-        if (searchQuery) params.set("search", searchQuery);
-        if (selectedCategory && selectedCategory !== "all") params.set("categoryId", selectedCategory);
-        if (sortBy) params.set("sortBy", sortBy);
-
-        const response = await fetch(`/api/customer/products?${params.toString()}`);
-        const data = await response.json();
-
-        if (data.success) {
-          setProducts(data.data.items || []);
-          setTotalProducts(data.data.pagination.total);
-          setTotalPages(data.data.pagination.totalPages);
-        } else {
-          throw new Error(data.message || "Gagal memuat produk");
+        if (!controller.signal.aborted) {
+          setProducts(data.items || []);
+          setTotalProducts(data.pagination.total);
+          setTotalPages(data.pagination.totalPages);
         }
       } catch (err) {
+        if (
+          controller.signal.aborted ||
+          (err instanceof Error && err.name === "AbortError")
+        ) {
+          return;
+        }
         setError(err instanceof Error ? err.message : "Terjadi kesalahan saat memuat produk");
         setProducts([]);
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     }
 
-    fetchProducts();
-  }, [searchQuery, selectedCategory, sortBy, currentPage]);
+    void fetchProducts();
+    return () => controller.abort();
+  }, [searchQuery, selectedCategory, sortBy, currentPage, refreshKey]);
+
+  const handleRetry = useCallback(() => {
+    setRefreshKey((prev) => prev + 1);
+  }, []);
 
   // Update URL query params saat filter berubah untuk shareable links
   useEffect(() => {
@@ -261,51 +280,29 @@ function ProductsPageContent() {
         </div>
 
         {/* Loading State */}
-        {isLoading && (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="aspect-square bg-surface-container rounded-xl mb-4" />
-                <div className="h-4 bg-surface-container rounded w-3/4 mb-2" />
-                <div className="h-4 bg-surface-container rounded w-1/2" />
-              </div>
-            ))}
-          </div>
-        )}
+        {isLoading && <LoadingSpinner message="Memuat katalog produk..." />}
 
         {/* Error State */}
         {error && !isLoading && (
-          <div className="text-center py-12">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-error/10 mb-4">
-              <X className="h-8 w-8 text-error" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground mb-2">Gagal Memuat Produk</h3>
-            <p className="text-sm text-muted-foreground mb-6">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="btn-primary"
-            >
-              Coba Lagi
-            </button>
-          </div>
+          <ErrorState
+            title="Gagal Memuat Produk"
+            error={error}
+            onRetry={handleRetry}
+          />
         )}
 
         {/* Products Grid or Empty State */}
         {!isLoading && !error && (
           <>
             {totalProducts === 0 ? (
-              <div className="text-center py-12">
-                <h3 className="text-xl font-bold text-foreground mb-2">Belum ada produk yang cocok</h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Coba ubah atau hapus beberapa filter untuk melihat lebih banyak produk
-                </p>
-                <button
-                  onClick={clearAllFilters}
-                  className="btn-secondary"
-                >
-                  Hapus Semua Filter
-                </button>
-              </div>
+              <EmptyState
+                title="Belum ada produk yang cocok"
+                description="Coba ubah atau hapus beberapa filter untuk melihat lebih banyak produk."
+                action={{
+                  label: "Hapus Semua Filter",
+                  onClick: clearAllFilters,
+                }}
+              />
             ) : (
               <ProductGrid products={products} />
             )}
@@ -313,59 +310,14 @@ function ProductsPageContent() {
         )}
 
         {/* Pagination */}
-        {!isLoading && !error && totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-8">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              aria-label="Halaman sebelumnya"
-              className="inline-flex items-center justify-center h-11 w-11 rounded-lg border border-border bg-surface hover:bg-surface-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-
-            <div className="flex items-center gap-1">
-              {[...Array(totalPages)].map((_, i) => {
-                const page = i + 1;
-                // Tampilkan nomor halaman awal, akhir, dan di sekitar halaman aktif
-                if (
-                  page === 1 ||
-                  page === totalPages ||
-                  (page >= currentPage - 1 && page <= currentPage + 1)
-                ) {
-                  return (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`inline-flex items-center justify-center h-10 w-10 rounded-lg border transition-colors ${
-                        currentPage === page
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "border-border bg-surface hover:bg-surface-container"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  );
-                } else if (page === currentPage - 2 || page === currentPage + 2) {
-                  return (
-                    <span key={page} className="px-2 text-muted-foreground">
-                      ...
-                    </span>
-                  );
-                }
-                return null;
-              })}
-            </div>
-
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              aria-label="Halaman berikutnya"
-              className="inline-flex items-center justify-center h-11 w-11 rounded-lg border border-border bg-surface hover:bg-surface-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+        {!isLoading && !error && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            ariaLabel="Navigasi halaman produk"
+            className="mt-8"
+          />
         )}
       </div>
     </main>

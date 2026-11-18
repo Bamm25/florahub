@@ -2,6 +2,7 @@ import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { updateStockSchema } from "@/lib/validations/schemas";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -149,8 +150,8 @@ export async function PUT(
       const updatedStock = await prisma.stock.findUniqueOrThrow({ where: { id } });
 
       // Siapkan rekaman perubahan nilai lama dan baru untuk audit log
-      const oldValues: any = {};
-      const newValues: any = {};
+      const oldValues: Record<string, Prisma.InputJsonValue> = {};
+      const newValues: Record<string, Prisma.InputJsonValue> = {};
 
       if (validatedData.name !== undefined && stockBeforeUpdate) {
         oldValues.name = stockBeforeUpdate.name;

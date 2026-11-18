@@ -9,7 +9,7 @@ import { z } from "zod";
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
+    await requireAuth(request, ["ADMIN"]);
     // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");

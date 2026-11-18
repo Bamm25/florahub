@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { X, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
+import { addProductComponent, deleteProductComponent } from "@/lib/api/florist";
 
 // Interface data bahan baku inventaris untuk opsi dropdown
 interface FloristInventory {
@@ -137,19 +138,10 @@ export default function BOMModal({
     setError("");
 
     try {
-      const res = await fetch(`/api/florist/products/${productId}/components`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          inventoryId: newComponent.inventoryId,
-          quantity: qty,
-        }),
+      await addProductComponent(productId, {
+        inventoryId: newComponent.inventoryId,
+        quantity: qty,
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || "Gagal menambah komponen");
-      }
 
       setNewComponent({ inventoryId: "", quantity: "" });
       await fetchComponents();
@@ -164,16 +156,7 @@ export default function BOMModal({
     if (!confirm("Hapus komponen ini dari BOM?")) return;
 
     try {
-      const res = await fetch(
-        `/api/florist/products/${productId}/components/${componentId}`,
-        { method: "DELETE" }
-      );
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || "Gagal menghapus komponen");
-      }
-
+      await deleteProductComponent(productId, componentId);
       await fetchComponents();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal menghapus komponen");
@@ -184,20 +167,27 @@ export default function BOMModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-      <div className="rounded-2xl border border-border bg-card w-full max-w-3xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden">
-        <div className="sticky top-0 z-50 bg-[#181720] text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Komponen Produk ${productName}`}
+        className="rounded-2xl border border-border bg-card w-full max-w-3xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden"
+      >
+        <div className="sticky top-0 z-50 bg-surface-dark text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Bill of Materials</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">Bill of Materials</p>
             <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
               Komponen Produk (BOM)
             </h2>
-            <p className="text-xs text-zinc-300 mt-0.5">
+            <p className="text-xs text-white/70 mt-0.5">
               {productName} — formula kebutuhan bahan baku per buket
             </p>
           </div>
           <button
+            type="button"
+            aria-label="Tutup dialog BOM"
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+            className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -279,9 +269,10 @@ export default function BOMModal({
             </div>
 
             <button
+              type="button"
               onClick={handleAddComponent}
               disabled={isAdding || !newComponent.inventoryId || !newComponent.quantity}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 w-full sm:w-auto"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 w-full sm:w-auto"
             >
               {isAdding ? (
                 <>

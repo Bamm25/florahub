@@ -1,6 +1,7 @@
 import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { OrderStatus, Prisma, ShipmentStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { updateShipmentStatusSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -130,24 +131,50 @@ export async function PUT(
     }
 
     // Siapkan objek pembaruan data pengiriman
-    const updateData: any = {};
+    const updateData: Prisma.ShipmentUncheckedUpdateInput = {};
+    const newValues: Record<string, Prisma.InputJsonValue | null> = {};
 
-    if (status !== undefined) updateData.status = status;
-    if (courier !== undefined) updateData.courier = courier.trim();
-    if (service !== undefined) updateData.service = service?.trim() || null;
-    if (trackingNumber !== undefined)
-      updateData.trackingNumber = trackingNumber?.trim() || null;
-    if (estimatedDays !== undefined) updateData.estimatedDays = estimatedDays;
-    if (weightInGrams !== undefined) updateData.weight = weightInGrams;
+    if (status !== undefined) {
+      updateData.status = status as ShipmentStatus;
+      newValues.status = status;
+    }
+    if (courier !== undefined) {
+      const trimmedCourier = courier.trim();
+      updateData.courier = trimmedCourier;
+      newValues.courier = trimmedCourier;
+    }
+    if (service !== undefined) {
+      const trimmedService = service?.trim() || null;
+      updateData.service = trimmedService;
+      newValues.service = trimmedService;
+    }
+    if (trackingNumber !== undefined) {
+      const trimmedTracking = trackingNumber?.trim() || null;
+      updateData.trackingNumber = trimmedTracking;
+      newValues.trackingNumber = trimmedTracking;
+    }
+    if (estimatedDays !== undefined) {
+      updateData.estimatedDays = estimatedDays;
+      newValues.estimatedDays = estimatedDays;
+    }
+    if (weightInGrams !== undefined) {
+      updateData.weight = weightInGrams;
+      newValues.weight = weightInGrams;
+    }
 
     if (status === "SHIPPED") {
-      updateData.shippedAt = existingShipment.shippedAt || new Date();
+      const shippedDate = existingShipment.shippedAt || new Date();
+      updateData.shippedAt = shippedDate;
+      newValues.shippedAt = shippedDate.toISOString();
     }
 
     if (status === "DELIVERED") {
-      updateData.deliveredAt = new Date();
+      const deliveredDate = new Date();
+      updateData.deliveredAt = deliveredDate;
+      newValues.deliveredAt = deliveredDate.toISOString();
       if (!existingShipment.shippedAt) {
-        updateData.shippedAt = new Date();
+        updateData.shippedAt = deliveredDate;
+        newValues.shippedAt = deliveredDate.toISOString();
       }
     }
 
@@ -161,12 +188,16 @@ export async function PUT(
       );
     }
 
-    const oldValues: any = {};
+    const oldValues: Record<string, Prisma.InputJsonValue | null> = {};
     if (status !== undefined) oldValues.status = existingShipment.status;
     if (courier !== undefined) oldValues.courier = existingShipment.courier;
     if (service !== undefined) oldValues.service = existingShipment.service;
     if (trackingNumber !== undefined)
       oldValues.trackingNumber = existingShipment.trackingNumber;
+
+    const resolvedStatus = status ?? existingShipment.status;
+    const nextOrderStatus: OrderStatus =
+      resolvedStatus === "PENDING" ? "PROCESSING" : (resolvedStatus as OrderStatus);
 
     // Perbarui data pengiriman dan status pesanan dalam transaksi atomic
     const [updatedShipment] = await prisma.$transaction([
@@ -177,13 +208,7 @@ export async function PUT(
       prisma.order.update({
         where: { id: existingShipment.orderId },
         data: {
-          status:
-            updateData.status === "PENDING"
-              ? "PROCESSING"
-              : updateData.status ||
-                (existingShipment.status === "PENDING"
-                  ? "PROCESSING"
-                  : existingShipment.status),
+          status: nextOrderStatus,
         },
       }),
     ]);
@@ -226,7 +251,7 @@ export async function PUT(
       entity: "Shipment",
       entityId: updatedShipment.id,
       oldValue: oldValues,
-      newValue: updateData,
+      newValue: newValues,
       ipAddress,
       userAgent,
     });

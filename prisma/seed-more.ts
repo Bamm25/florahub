@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 
@@ -23,7 +23,7 @@ async function main() {
   // 1. Create additional users
   console.log('👥 Creating users...');
   
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@florahub.com' },
     update: {},
     create: {
@@ -36,7 +36,7 @@ async function main() {
     },
   });
 
-  const supplier = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'supplier@farm.com' },
     update: {},
     create: {
@@ -200,7 +200,7 @@ async function main() {
   // 6. Create coupons
   console.log('🎟️ Creating coupons...');
 
-  const coupons = [
+  const coupons: Prisma.CouponCreateInput[] = [
     { code: 'WELCOME50', name: 'Welcome Discount 50%', type: 'PERCENTAGE', value: 50, minPurchase: 200000, maxDiscount: 100000, usageLimit: 100, usageCount: 5, validFrom: new Date('2026-11-01'), validUntil: new Date('2026-12-31'), isActive: true },
     { code: 'WEEKEND20', name: 'Weekend Sale 20%', type: 'PERCENTAGE', value: 20, minPurchase: 150000, maxDiscount: 50000, usageLimit: 200, usageCount: 12, validFrom: new Date('2026-11-01'), validUntil: new Date('2026-11-30'), isActive: true },
     { code: 'FREESHIP', name: 'Free Shipping', type: 'FIXED', value: 15000, minPurchase: 300000, usageLimit: 50, usageCount: 3, validFrom: new Date('2026-11-01'), validUntil: new Date('2026-11-30'), isActive: true },
@@ -210,7 +210,7 @@ async function main() {
     await prisma.coupon.upsert({
       where: { code: c.code },
       update: {},
-      create: c as any,
+      create: c,
     });
   }
 

@@ -1,9 +1,34 @@
+import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import { getPublicStore } from "@/lib/public-store";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Flower2, MapPin, Store } from "lucide-react";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const store = await getPublicStore(prisma, id);
+  if (!store) {
+    return {
+      title: "Toko Tidak Ditemukan",
+      description: "Halaman toko florist tidak ditemukan di FloraHub.",
+    };
+  }
+  const shopName = store.floristProfile?.shopName || store.name;
+  const description =
+    store.floristProfile?.shopDescription ||
+    `Jelajahi rangkaian bunga segar siap kirim dari ${shopName} di FloraHub.`;
+
+  return {
+    title: shopName,
+    description,
+  };
+}
 
 // Tampilkan profil florist dan katalog aktif yang dimiliki toko ini.
 export default async function PublicStorePage({ params }: { params: Promise<{ id: string }> }) {

@@ -1,23 +1,9 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { createRawMaterialSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-// Skema validasi pembuatan bahan baku mandiri oleh florist
-const createRawMaterialSchema = z.object({
-  name: z.string().min(2, "Nama bahan baku minimal 2 karakter"),
-  category: z.string().default("Bunga Segar"),
-  variety: z.string().optional().nullable(),
-  quantity: z.number().int().min(0, "Stok awal tidak boleh negatif"),
-  unit: z.string().default("tangkai"),
-  pricePerUnit: z
-    .number()
-    .int()
-    .min(0, "Harga modal per unit tidak boleh negatif"),
-  minThreshold: z.number().int().min(0).default(10),
-  location: z.string().optional().nullable(),
-});
 
 // Handler HTTP GET untuk mengambil daftar bahan baku produk mentah florist
 export async function GET(request: Request) {
@@ -137,12 +123,15 @@ export async function GET(request: Request) {
         },
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     reportServerError("[GET_RAW_MATERIALS_ERROR]", error);
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Gagal mengambil daftar bahan baku",
+        message: error instanceof Error ? error.message : "Gagal mengambil daftar bahan baku",
       },
       { status: 500 },
     );
@@ -218,7 +207,10 @@ export async function POST(request: Request) {
       },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     reportServerError("[POST_RAW_MATERIALS_ERROR]", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -234,7 +226,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Gagal menambahkan bahan baku",
+        message: error instanceof Error ? error.message : "Gagal menambahkan bahan baku",
       },
       { status: 500 },
     );

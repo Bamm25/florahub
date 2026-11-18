@@ -2,6 +2,7 @@ import { reportServerError } from "@/lib/server-error-report";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { updateCustomerProfileSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
 // Handler HTTP GET untuk mengambil profil pelanggan beserta data statistik pesanan
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
   } catch (error) {
     // Teruskan respons jika error merupakan objek NextResponse dari middleware
     if (error instanceof NextResponse) {
-      throw error;
+      return error;
     }
 
     reportServerError("Error fetching profile:", error);
@@ -99,13 +100,7 @@ export async function PATCH(request: Request) {
 
     const body = await request.json();
 
-    // Skema validasi data pembaruan profil pengguna
-    const updateProfileSchema = z.object({
-      name: z.string().min(3, "Nama minimal 3 karakter").max(100),
-      phone: z.string().regex(/^\d{10,13}$/, "No HP harus 10-13 digit"),
-    });
-
-    const validatedData = updateProfileSchema.parse(body);
+    const validatedData = updateCustomerProfileSchema.parse(body);
 
     // Pastikan nomor telepon belum digunakan oleh pengguna lain
     if (validatedData.phone) {
@@ -159,7 +154,7 @@ export async function PATCH(request: Request) {
   } catch (error) {
     // Teruskan respons jika error merupakan objek NextResponse dari middleware
     if (error instanceof NextResponse) {
-      throw error;
+      return error;
     }
 
     // Tangani galat validasi skema masukan

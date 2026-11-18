@@ -1,3 +1,5 @@
+import { fetchJson } from "./client";
+
 // Interface representasi data alamat pelanggan
 interface Address {
   id: string;
@@ -38,19 +40,12 @@ interface AddressResponse {
 }
 
 // Fungsi untuk mengambil daftar alamat pelanggan dari API
-export async function getAddresses(): Promise<AddressesResponse> {
-  const response = await fetch("/api/customer/addresses", {
+export async function getAddresses(signal?: AbortSignal): Promise<AddressesResponse> {
+  return fetchJson<AddressesResponse>("/api/customer/addresses", {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
+    signal,
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal memuat daftar alamat");
-  }
-
-  return response.json();
 }
 
 // Fungsi untuk membuat alamat baru pelanggan melalui API
@@ -64,19 +59,11 @@ export async function createAddress(data: {
   postalCode: string;
   isDefault?: boolean;
 }): Promise<AddressResponse> {
-  const response = await fetch("/api/customer/addresses", {
+  return fetchJson<AddressResponse>("/api/customer/addresses", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify(data),
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal menambahkan alamat");
-  }
-
-  return response.json();
 }
 
 // Fungsi untuk memperbarui data alamat pelanggan berdasarkan ID
@@ -93,35 +80,25 @@ export async function updateAddress(
     isDefault?: boolean;
   },
 ): Promise<AddressResponse> {
-  const response = await fetch(`/api/customer/addresses/${addressId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal mengubah alamat");
-  }
-
-  return response.json();
+  return fetchJson<AddressResponse>(
+    `/api/customer/addresses/${encodeURIComponent(addressId)}`,
+    {
+      method: "PUT",
+      credentials: "include",
+      body: JSON.stringify(data),
+    },
+  );
 }
 
 // Fungsi untuk menghapus alamat pelanggan berdasarkan ID
 export async function deleteAddress(
   addressId: string,
 ): Promise<{ success: boolean; message: string }> {
-  const response = await fetch(`/api/customer/addresses/${addressId}`, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal menghapus alamat");
-  }
-
-  return response.json();
+  return fetchJson<{ success: boolean; message: string }>(
+    `/api/customer/addresses/${encodeURIComponent(addressId)}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    },
+  );
 }

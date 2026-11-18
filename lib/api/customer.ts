@@ -1,10 +1,12 @@
+import { fetchJson } from "./client";
+
 // Interface representasi data alamat pengiriman pelanggan
-interface Address {
+export interface Address {
   id: string;
   label: string;
   recipientName: string;
   phone: string;
-  street: string;
+  fullAddress: string;
   city: string;
   province: string;
   postalCode: string;
@@ -57,9 +59,9 @@ interface CheckoutOrderResponse {
       address: Address | null;
       couponApplied: {
         code: string;
+        name: string;
         type: string;
-        value: number;
-        discount: number;
+        discountAmount: number;
       } | null;
     };
     payment: {
@@ -106,19 +108,14 @@ export interface ValidateCouponResponse {
 }
 
 // Fungsi untuk mengambil daftar alamat pelanggan dari API
-export async function getCustomerAddresses(): Promise<AddressesResponse> {
-  const response = await fetch("/api/customer/addresses", {
+export async function getCustomerAddresses(
+  signal?: AbortSignal,
+): Promise<AddressesResponse> {
+  return fetchJson<AddressesResponse>("/api/customer/addresses", {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
+    signal,
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal memuat daftar alamat");
-  }
-
-  return response.json();
 }
 
 // Fungsi untuk membuat pesanan checkout baru melalui API
@@ -133,38 +130,22 @@ export async function createCheckoutOrder(data: {
     price: number;
   }>;
 }): Promise<CheckoutOrderResponse> {
-  const response = await fetch("/api/customer/checkout", {
+  return fetchJson<CheckoutOrderResponse>("/api/customer/checkout", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify(data),
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal membuat pesanan");
-  }
-
-  return response.json();
 }
 
 // Fungsi untuk meminta token pembayaran Midtrans berdasarkan ID pesanan
 export async function createPaymentToken(
   orderId: string,
 ): Promise<PaymentTokenResponse> {
-  const response = await fetch("/api/customer/payment", {
+  return fetchJson<PaymentTokenResponse>("/api/customer/payment", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify({ orderId }),
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal membuat link pembayaran");
-  }
-
-  return response.json();
 }
 
 // Fungsi untuk memvalidasi kode kupon dan menghitung nilai diskon
@@ -173,19 +154,126 @@ export async function validateCoupon(data: {
   subtotal: number;
   shippingCost?: number;
 }): Promise<ValidateCouponResponse> {
-  const response = await fetch("/api/customer/coupons/validate", {
+  return fetchJson<ValidateCouponResponse>("/api/customer/coupons/validate", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     credentials: "include",
     body: JSON.stringify(data),
   });
+}
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.message || "Kupon tidak valid");
+export interface CustomerProfileData {
+  name: string;
+  email: string;
+  phone: string;
+  createdAt: string;
+  emailVerified: boolean;
+  totalOrders?: number;
+  totalSpent?: number;
+}
+
+export interface ShippingRateOption {
+  courier: string;
+  service: string;
+  price: number;
+  estimatedDays: string;
+}
+
+export interface ShippingCalculateResponse {
+  success: boolean;
+  message: string;
+  data: {
+    rates: ShippingRateOption[];
+    cheapest: ShippingRateOption;
+  };
+}
+
+export async function getCustomerProfile(
+  signal?: AbortSignal,
+): Promise<CustomerProfileData> {
+  const result = await fetchJson<{
+    success: boolean;
+    data: { profile: CustomerProfileData };
+  }>("/api/customer/profile", {
+    method: "GET",
+    credentials: "include",
+    signal,
+  });
+  return result.data.profile;
+}
+
+export async function updateCustomerProfile(payload: {
+  name: string;
+  phone: string;
+}): Promise<void> {
+  await fetchJson("/api/customer/profile", {
+    method: "PATCH",
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function calculateCustomerShipping(
+  payload: {
+    addressId: string;
+    items: Array<{ productId: string; quantity: number }>;
+  },
+  signal?: AbortSignal,
+): Promise<ShippingCalculateResponse> {
+  return fetchJson<ShippingCalculateResponse>(
+    "/api/customer/shipping/calculate",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      signal,
+    },
+  );
+}
+
+export async function registerUser(payload: {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  role: "CUSTOMER" | "FLORIST" | "SUPPLIER";
+}): Promise<{ success: boolean; message?: string }> {
+  return fetchJson<{ success: boolean; message?: string }>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getCustomerProducts<T>(
+  params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    categoryId?: string;
+    sortBy?: string;
+  },
+  signal?: AbortSignal,
+): Promise<{
+  items: T[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}> {
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set("page", params.page.toString());
+  if (params.limit) searchParams.set("limit", params.limit.toString());
+  if (params.search) searchParams.set("search", params.search);
+  if (params.categoryId && params.categoryId !== "all") {
+    searchParams.set("categoryId", params.categoryId);
   }
+  if (params.sortBy) searchParams.set("sortBy", params.sortBy);
 
-  return response.json();
+  const result = await fetchJson<{
+    success: boolean;
+    message?: string;
+    data: {
+      items: T[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    };
+  }>(`/api/customer/products?${searchParams.toString()}`, {
+    method: "GET",
+    signal,
+  });
+  return result.data;
 }

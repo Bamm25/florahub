@@ -14,7 +14,6 @@ export async function GET(request: Request, { params }: RouteParams) {
     const { userId, userRole } = await requireAuth(request, [
       "SUPPLIER",
       "FLORIST",
-      "ADMIN",
     ]);
     const { id: shipmentId } = await params;
 

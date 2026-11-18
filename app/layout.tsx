@@ -18,7 +18,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FloraHub - Platform E-Commerce & Supply Chain untuk Bisnis Florikultura",
+  title: {
+    default: "FloraHub - Platform E-Commerce & Supply Chain untuk Bisnis Florikultura",
+    template: "%s | FloraHub",
+  },
   description:
     "Platform digital yang menghubungkan supplier, florist, dan customer dalam satu ekosistem. Kelola pre-order, inventory real-time, pembayaran online, dan tracking pengiriman untuk bisnis bunga yang lebih efisien.",
   keywords: [

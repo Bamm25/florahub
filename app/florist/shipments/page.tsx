@@ -9,6 +9,15 @@ import { OutgoingShipmentTable } from "@/components/florist/OutgoingShipmentTabl
 import ShipmentStats from "@/components/florist/ShipmentStats";
 import ShipmentFilters from "@/components/florist/ShipmentFilters";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
+import { ApiClientError } from "@/lib/api/client";
+import {
+  trackFloristShipment,
+  getFloristShipmentRates,
+  autoCreateFloristShipment,
+  createManualFloristShipment,
+  updateFloristShipment,
+  type FloristShipmentRate,
+} from "@/lib/api/florist";
 
 interface Shipment {
   id: string;
@@ -89,12 +98,7 @@ export default function FloristShipmentsPage() {
 
   // State untuk mode pengiriman otomatis Biteship dan pilihan tarif kurir
   const [shipmentMode, setShipmentMode] = useState<"auto" | "manual">("auto");
-  const [availableRates, setAvailableRates] = useState<Array<{
-    courier: { code: string; name: string; service_name: string; service_code: string };
-    price: number;
-    rate_id: string;
-    rate_name: string;
-  }>>([]);
+  const [availableRates, setAvailableRates] = useState<FloristShipmentRate[]>([]);
   const [selectedRate, setSelectedRate] = useState<string>("");
   const [isFetchingRates, setIsFetchingRates] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -104,14 +108,10 @@ export default function FloristShipmentsPage() {
     if (!shipment.biteshipOrderId) return;
     setSyncingId(shipment.id);
     try {
-      const res = await fetch(`/api/florist/shipments/${shipment.id}/track`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || "Gagal sinkron status");
-      }
+      await trackFloristShipment(shipment.id);
       await fetchData();
-    } catch (err) {
-
+    } catch {
+      // Abaikan error sinkron sementara
     } finally {
       setSyncingId(null);
     }
@@ -129,7 +129,7 @@ export default function FloristShipmentsPage() {
       const data = await fetchPaginatedCollection<Shipment>("/api/florist/shipments", "shipments");
       setShipments(data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = err instanceof Error ? err.message : "Unknown error";
       setError(message);
     } finally {
       setIsLoading(false);
@@ -181,21 +181,8 @@ export default function FloristShipmentsPage() {
   const fetchRates = async (orderId: string) => {
     setIsFetchingRates(true);
     try {
-      const res = await fetch("/api/florist/shipments/rates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId }),
-      });
-
-      const data = await res.json();
-
-
-      if (!res.ok) {
-        throw new Error(data.message || "Gagal fetch ongkir");
-      }
-
-
-      setAvailableRates(data.rates || []);
+      const rates = await getFloristShipmentRates(orderId);
+      setAvailableRates(rates);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error fetching rates";
 
@@ -279,20 +266,11 @@ export default function FloristShipmentsPage() {
         const selectedRateData = availableRates.find(r => r.rate_id === selectedRate);
         if (!selectedRateData) throw new Error("Rate tidak ditemukan");
 
-        const res = await fetch("/api/florist/shipments/auto-create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId: selectedOrderId,
-            courierCompany: selectedRateData.courier.code,
-            courierType: selectedRateData.courier.service_code,
-          }),
+        await autoCreateFloristShipment({
+          orderId: selectedOrderId,
+          courierCompany: selectedRateData.courier.code,
+          courierType: selectedRateData.courier.service_code,
         });
-
-        const json = await res.json();
-        if (!res.ok) {
-          throw new Error(json.message || "Gagal membuat shipment otomatis");
-        }
 
         await fetchData();
         await fetchPaidOrders();
@@ -313,17 +291,7 @@ export default function FloristShipmentsPage() {
     setIsSubmitting(true);
 
     try {
-      interface ShipmentPayload {
-        courier: string;
-        service: string | null;
-        trackingNumber: string | null;
-        estimatedDays: number | null;
-        weight: number | null;
-        orderId?: string;
-        status?: string;
-      }
-
-      const payload: ShipmentPayload = {
+      const payload: Record<string, unknown> = {
         courier: formData.courier.trim(),
         service: formData.service.trim() || null,
         trackingNumber: formData.trackingNumber.trim() || null,
@@ -332,53 +300,40 @@ export default function FloristShipmentsPage() {
       };
 
       // Validasi akhir nilai numerik sebelum dikirim ke server
-      if ((payload.estimatedDays !== null && isNaN(payload.estimatedDays)) ||
-          (payload.weight !== null && isNaN(payload.weight))) {
+      if (
+        (payload.estimatedDays !== null && isNaN(Number(payload.estimatedDays))) ||
+        (payload.weight !== null && isNaN(Number(payload.weight)))
+      ) {
         throw new Error("Invalid numeric values");
       }
 
       if (modalMode === "create") {
         payload.orderId = selectedOrderId;
         payload.status = "PENDING";
-        const res = await fetch("/api/florist/shipments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const json = await res.json();
-        if (!res.ok) {
-          // Tangani pesan error spesifik per field dari server
-          if (json.errors && Array.isArray(json.errors)) {
-            const fieldErrors: Record<string, string> = {};
-            json.errors.forEach((err: { path?: (string | number)[]; message: string }) => {
-              const field = err.path?.[0] || 'submit';
-              fieldErrors[String(field)] = err.message;
-            });
-            setFormErrors(fieldErrors);
-            setIsSubmitting(false);
-            return;
-          }
-          throw new Error(json.message || "Gagal membuat shipment");
-        }
+        await createManualFloristShipment(payload);
         await fetchPaidOrders();
       } else {
+        if (!selectedShipment?.id) {
+          throw new Error("Shipment tidak ditemukan");
+        }
         payload.status = formData.status;
-        const res = await fetch(`/api/florist/shipments/${selectedShipment?.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message || "Gagal memperbarui shipment");
+        await updateFloristShipment(selectedShipment.id, payload);
       }
 
       await fetchData();
       closeModal();
       setActiveTab("shipments");
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      if (err instanceof ApiClientError && Array.isArray(err.errors)) {
+        const fieldErrors: Record<string, string> = {};
+        err.errors.forEach((fieldErr: { path?: (string | number)[]; message: string }) => {
+          const field = fieldErr.path?.[0] || "submit";
+          fieldErrors[String(field)] = fieldErr.message;
+        });
+        setFormErrors(fieldErrors);
+        return;
+      }
+      const message = err instanceof Error ? err.message : "Unknown error";
       setFormErrors({ submit: message });
     } finally {
       setIsSubmitting(false);
@@ -419,9 +374,9 @@ export default function FloristShipmentsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Restrained Dark Header for Rhythm */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Logistik & Pengiriman
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
@@ -507,20 +462,30 @@ export default function FloristShipmentsPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-          <div className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="sticky top-0 z-50 bg-[#181720] text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={modalMode === "create" ? "Buat Shipment Logistik" : "Update Status Pengiriman"}
+            className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+          >
+            <div className="sticky top-0 z-50 bg-surface-dark text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
                   {modalMode === "create" ? "Penerbitan Resi" : "Pembaruan Status"}
                 </p>
                 <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
                   {modalMode === "create" ? "Buat Shipment Logistik" : "Update Status Pengiriman"}
                 </h2>
-                <p className="text-xs text-zinc-300 mt-0.5">
+                <p className="text-xs text-white/70 mt-0.5">
                   {modalMode === "create" ? "Pilih kurir Biteship otomatis atau masukkan nomor resi manual" : "Perbarui status atau detail pengiriman pesanan"}
                 </p>
               </div>
-              <button onClick={closeModal} className="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors">
+              <button
+                type="button"
+                aria-label="Tutup dialog shipment"
+                onClick={closeModal}
+                className="text-white/60 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -546,7 +511,7 @@ export default function FloristShipmentsPage() {
                     onClick={() => setShipmentMode("auto")}
                     className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
                       shipmentMode === "auto"
-                        ? "bg-violet-600 text-white shadow-xs"
+                        ? "bg-primary text-primary-foreground shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -557,7 +522,7 @@ export default function FloristShipmentsPage() {
                     onClick={() => setShipmentMode("manual")}
                     className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
                       shipmentMode === "manual"
-                        ? "bg-violet-600 text-white shadow-xs"
+                        ? "bg-primary text-primary-foreground shadow-xs"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -740,7 +705,7 @@ export default function FloristShipmentsPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:opacity-50"
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>

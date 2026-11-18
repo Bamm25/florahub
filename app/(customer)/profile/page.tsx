@@ -1,32 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
-
-// Interface untuk data profil user dengan statistik orders
-interface UserProfile {
-  name: string;
-  email: string;
-  phone: string;
-  createdAt: string;
-  emailVerified: boolean;
-  totalOrders?: number;
-  totalSpent?: number;
-}
+import { LoadingSpinner, ErrorState } from "@/components/ui";
+import {
+  getCustomerProfile,
+  updateCustomerProfile,
+  type CustomerProfileData,
+} from "@/lib/api/customer";
+import { formatDate, formatRupiah } from "@/lib/utils/formatters";
 
 // Halaman profil user dengan info personal dan statistik orders
 export default function ProfilePage() {
   const router = useRouter();
   const { status, update } = useSession();
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<CustomerProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // Fetch profile data dari API
+  const loadProfile = useCallback(async (signal?: AbortSignal): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+      const data = await getCustomerProfile(signal);
+      if (!signal?.aborted) {
+        setProfile(data);
+      }
+    } catch (error) {
+      if (
+        signal?.aborted ||
+        (error instanceof Error && error.name === "AbortError")
+      ) {
+        return;
+      }
+      setErrorMessage(
+        error instanceof Error ? error.message : "Gagal memuat profil",
+      );
+    } finally {
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
 
   // Redirect ke login jika belum auth, load profile data saat authenticated
   useEffect(() => {
@@ -35,66 +57,37 @@ export default function ProfilePage() {
       return;
     }
 
-    if (status === "authenticated") {
-      loadProfile();
+    if (status !== "authenticated") {
+      return;
     }
-  }, [status, router]);
 
-  // Fetch profile data dari API
-  async function loadProfile(): Promise<void> {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/customer/profile", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void loadProfile(controller.signal);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [status, router, loadProfile]);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Gagal memuat profil");
-      }
-
-      const data = await response.json();
-      setProfile(data.data.profile);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Gagal memuat profil",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  // Format tanggal ke format Indonesia readable
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("id-ID", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  // Format currency ke Rupiah dengan separator
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  // Render loading skeleton untuk profile page
+  // Render loading spinner untuk profile page
   if (status === "loading" || isLoading) {
     return (
       <main className="container-custom section-spacing">
-        <div className="h-8 w-48 animate-pulse rounded bg-surface-container mb-6" />
-        <div className="h-48 animate-pulse rounded-2xl bg-surface-container-low mb-6" />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="h-28 animate-pulse rounded-2xl bg-surface-container-low" />
-          <div className="h-28 animate-pulse rounded-2xl bg-surface-container-low" />
-        </div>
+        <LoadingSpinner message="Memuat profil akun..." />
+      </main>
+    );
+  }
+
+  if (errorMessage && !profile) {
+    return (
+      <main className="container-custom section-spacing">
+        <ErrorState
+          title="Gagal Memuat Profil"
+          error={errorMessage}
+          onRetry={() => void loadProfile()}
+        />
       </main>
     );
   }
@@ -144,7 +137,7 @@ export default function ProfilePage() {
           {/* Hero Banner: Inisial, Nama, Status */}
           <section
             aria-labelledby="profile-summary-heading"
-            className="rounded-2xl bg-[#10121b] p-6 text-white sm:p-8 border border-white/10"
+            className="rounded-2xl bg-surface-dark p-6 text-white sm:p-8 border border-white/10"
           >
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
               <div
@@ -237,7 +230,7 @@ export default function ProfilePage() {
                 <div className="rounded-2xl border border-border bg-card p-5">
                   <p className="text-xs text-muted-foreground">Total Belanja</p>
                   <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
-                    {formatCurrency(profile.totalSpent)}
+                    {formatRupiah(profile.totalSpent)}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     Dalam 12 bulan terakhir
@@ -269,7 +262,7 @@ export default function ProfilePage() {
 
 // Props interface untuk modal edit profil user
 interface EditProfileModalProps {
-  profile: UserProfile;
+  profile: CustomerProfileData;
   onSuccess: (updatedName?: string) => void;
   onCancel: () => void;
 }
@@ -326,20 +319,10 @@ function EditProfileModal({
       setIsSubmitting(true);
       setError(null);
 
-      const response = await fetch("/api/customer/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          phone: formData.phone.trim(),
-        }),
+      await updateCustomerProfile({
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
       });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || "Gagal memperbarui profil");
-      }
 
       onSuccess(formData.name.trim());
     } catch (err) {

@@ -1,6 +1,7 @@
 import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { Prisma, ShipmentStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { createShipmentSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -221,7 +222,7 @@ export async function GET(request: Request) {
     const trackingNumber = searchParams.get("trackingNumber");
 
     // Susun filter query pengiriman florist
-    const whereClause: any = {
+    const whereClause: Prisma.ShipmentWhereInput = {
       order: {
         items: {
           some: {
@@ -233,7 +234,7 @@ export async function GET(request: Request) {
       },
     };
 
-    if (status) whereClause.status = status;
+    if (status) whereClause.status = status as ShipmentStatus;
     if (orderId) whereClause.orderId = orderId;
     if (trackingNumber)
       whereClause.trackingNumber = {

@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { formatRupiah } from "@/lib/utils/formatters";
+import type { Prisma, TransactionStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { createPurchaseSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -133,11 +134,11 @@ export async function GET(request: Request) {
     const status = searchParams.get("status");
     const stockId = searchParams.get("stockId");
     // Susun filter query riwayat pembelian
-    const whereClause: any = {
+    const whereClause: Prisma.StockTransactionWhereInput = {
       floristId: userId,
     };
 
-    if (status) whereClause.status = status;
+    if (status) whereClause.status = status as TransactionStatus;
     if (stockId) whereClause.stockId = stockId;
 
     // Ambil data riwayat transaksi stok beserta relasi stok dan supplier

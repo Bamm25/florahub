@@ -38,6 +38,7 @@ export default function FormField({
   step,
   disabled = false,
 }: FormFieldProps) {
+  const errorId = `${name}-error`;
   const inputClasses = `input-field ${error ? "border-error" : ""}`;
 
   // Render elemen input sesuai tipe yang ditentukan
@@ -54,6 +55,9 @@ export default function FormField({
           placeholder={placeholder}
           className={`${inputClasses} resize-none`}
           disabled={disabled}
+          aria-required={required || undefined}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
         />
       );
     }
@@ -68,6 +72,9 @@ export default function FormField({
           onChange={(e) => onChange(e.target.value)}
           className={inputClasses}
           disabled={disabled}
+          aria-required={required || undefined}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
         >
           <option value="">Pilih {label}</option>
           {options.map((option) => (
@@ -93,6 +100,9 @@ export default function FormField({
         max={max}
         step={step}
         disabled={disabled}
+        aria-required={required || undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
       />
     );
   };
@@ -105,7 +115,11 @@ export default function FormField({
         {required && <span className="text-error ml-1">*</span>}
       </label>
       {renderInput()}
-      {error && <p className="mt-1 text-sm text-error">{error}</p>}
+      {error && (
+        <p id={errorId} role="alert" className="mt-1 text-sm text-error">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Daftar Toko Florist - FloraHub",
+  title: "Daftar Toko Florist",
   description: "Jelajahi toko florist terpercaya di FloraHub dengan karangan bunga segar berkualitas.",
 };
 
@@ -16,9 +16,9 @@ export default async function StoresPage() {
     <div className="pb-16 sm:pb-24">
       {/* Banner utama direktori toko florist */}
       <section className="container-custom pt-6 sm:pt-8">
-        <div className="relative overflow-hidden rounded-3xl bg-[#10121b] p-8 text-white sm:p-12 lg:p-16 border border-white/10">
+        <div className="relative overflow-hidden rounded-3xl bg-surface-dark p-8 text-white sm:p-12 lg:p-16 border border-white/10">
           <div className="relative z-10 max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b4aeff]">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
               Direktori Florist Mitra
             </p>
             <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
@@ -32,7 +32,7 @@ export default async function StoresPage() {
               <span className="rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold text-white/80 border border-white/10">
                 {stores.length} Toko Bunga Aktif
               </span>
-              <span className="rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold text-[#09e354] border border-white/10">
+              <span className="rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold text-success border border-white/10">
                 Pengiriman Terjadwal
               </span>
             </div>

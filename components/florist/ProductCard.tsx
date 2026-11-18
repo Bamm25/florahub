@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import { Eye, Edit, Trash2, ImageIcon, Package } from "lucide-react";
 import { formatRupiah } from "@/lib/utils/formatters";
 
@@ -47,10 +48,12 @@ export default function ProductCard({
         {/* Product Image */}
         <div className="relative h-44 bg-surface-container-low overflow-hidden">
           {product.image ? (
-            <img
+            <Image
               src={product.image}
               alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+              fill
+              unoptimized
+              className="object-cover transition-transform duration-300 hover:scale-105"
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground/60">
@@ -108,8 +111,9 @@ export default function ProductCard({
       <div className="p-4 pt-0">
         <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border">
           <button
+            type="button"
             onClick={() => onProduce(product)}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors shadow-xs"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors shadow-xs"
             title="Produksi Produk Jadi"
           >
             <Package className="w-3.5 h-3.5" />

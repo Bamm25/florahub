@@ -2,34 +2,21 @@
 
 import CartTable from "@/components/customer/CartTable";
 import { useCartStore } from "@/lib/stores/cartStore";
+import { LoadingSpinner } from "@/components/ui";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, ShieldCheck, Truck, Sparkles } from "lucide-react";
 
 // Halaman keranjang belanja dengan list items dan ringkasan
 export default function CartPage() {
   const items = useCartStore((state) => state.items);
+  const hasHydrated = useCartStore((state) => state._hasHydrated);
   const total = useCartStore((state) => state.getTotal());
-  const [mounted, setMounted] = useState(false);
 
-  // Handle hydration mismatch dengan delay mounting untuk sync client/server
-  useEffect(() => {
-    // Sinkronisasi status mounted setelah render pertama sisi klien
-    const timer = setTimeout(() => setMounted(true), 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Render skeleton saat belum mounted untuk prevent hydration error
-  if (!mounted) {
+  // Render loading saat belum terhidrasi untuk mencegah hydration mismatch
+  if (!hasHydrated) {
     return (
-      <div className="container-custom py-12" role="status">
-        <span className="sr-only">Memuat keranjang...</span>
-        <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-        <div className="mt-4 h-10 w-72 animate-pulse rounded-xl bg-muted" />
-        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="h-96 animate-pulse rounded-2xl bg-muted" />
-          <div className="h-80 animate-pulse rounded-2xl bg-muted" />
-        </div>
+      <div className="container-custom py-12">
+        <LoadingSpinner message="Memuat keranjang belanja..." />
       </div>
     );
   }
@@ -100,8 +87,8 @@ export default function CartPage() {
 
             {/* Sticky Summary Column */}
             <div className="lg:sticky lg:top-24">
-              <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#10121b] p-6 text-white sm:p-7">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b4aeff]">
+              <div className="overflow-hidden rounded-2xl border border-white/10 bg-surface-dark p-6 text-white sm:p-7">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
                   Ringkasan Pesanan
                 </p>
                 <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">
@@ -123,7 +110,7 @@ export default function CartPage() {
                   </div>
                   <div className="flex items-center justify-between text-white/70">
                     <dt>Biaya Layanan</dt>
-                    <dd className="inline-flex items-center gap-1 font-semibold text-[#09e354]">
+                    <dd className="inline-flex items-center gap-1 font-semibold text-success">
                       Gratis
                     </dd>
                   </div>

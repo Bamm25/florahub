@@ -58,7 +58,7 @@ export async function PUT(
 ) {
   try {
     // Validasi otentikasi peran admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
+    await requireAuth(request, ["ADMIN"]);
     const { id } = await params;
 
     // Pastikan kategori bunga yang akan diperbarui ada di database
@@ -151,7 +151,7 @@ export async function DELETE(
 ) {
   try {
     // Validasi otentikasi peran admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
+    await requireAuth(request, ["ADMIN"]);
     const { id } = await params;
 
     // Periksa keberadaan kategori dan relasi produk terkait

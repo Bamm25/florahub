@@ -74,7 +74,7 @@ export default function FloristHarvestPlansPage() {
               alert(
                 "Pembayaran DP 50% berhasil! DP terverifikasi. Status pesanan telah diperbarui.",
               );
-            } catch (err) {
+            } catch {
 
               await fetchData();
               alert("Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.");
@@ -125,7 +125,7 @@ export default function FloristHarvestPlansPage() {
               alert(
                 "Pelunasan berhasil! Pelunasan terverifikasi. Supplier akan menyiapkan pengiriman Biteship.",
               );
-            } catch (err) {
+            } catch {
 
               await fetchData();
               alert("Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.");
@@ -261,9 +261,9 @@ export default function FloristHarvestPlansPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Restrained Dark Header for Rhythm */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Rantai Pasok & Pengadaan
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">

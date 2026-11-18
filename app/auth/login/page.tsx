@@ -19,7 +19,7 @@ function BrandPanel() {
       </Link>
 
       <div className="max-w-md">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b4aeff]">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
           Florist lokal, langsung ke Anda
         </p>
         <p className="mt-4 text-5xl font-extrabold leading-[1.1] tracking-[-0.024em]">

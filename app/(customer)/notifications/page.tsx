@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -16,113 +16,37 @@ import {
   TrendingUp,
   ArrowRight,
 } from "lucide-react";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import ErrorState from "@/components/ui/ErrorState";
+import { LoadingSpinner, ErrorState, EmptyState } from "@/components/ui";
+import { useNotifications } from "@/hooks";
 import { formatRelativeTime, formatDateTime } from "@/lib/utils/formatters";
-
-interface Notification {
-  id: string;
-  userId: string;
-  title: string;
-  message: string;
-  type: string;
-  link: string | null;
-  isRead: boolean;
-  readAt: string | null;
-  createdAt: string;
-}
 
 export default function CustomerNotificationsPage() {
   const router = useRouter();
   const { status } = useSession();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [filter, setFilter] = useState<"ALL" | "UNREAD">("ALL");
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchNotifications = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const url =
-        filter === "UNREAD"
-          ? "/api/notifications?unreadOnly=true&limit=100"
-          : "/api/notifications?limit=100";
-      const res = await fetch(url);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Gagal memuat notifikasi");
-      setNotifications(json.data?.notifications ?? []);
-      setUnreadCount(json.data?.unreadCount ?? 0);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Terjadi kesalahan";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filter]);
+  const {
+    notifications,
+    unreadCount,
+    filter,
+    setFilter,
+    isLoading,
+    error,
+    actionError,
+    clearActionError,
+    refetch,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+  } = useNotifications({ enabled: status === "authenticated" });
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/login?callbackUrl=/notifications");
-      return;
     }
+  }, [status, router]);
 
-    if (status === "authenticated") {
-      const timer = window.setTimeout(() => void fetchNotifications(), 0);
-      return () => window.clearTimeout(timer);
-    }
-  }, [status, fetchNotifications, router]);
-
-  // Tandai satu notifikasi sebagai sudah dibaca
-  const markAsRead = async (notificationId: string) => {
-    try {
-      const res = await fetch(`/api/notifications/${notificationId}`, {
-        method: "PATCH",
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Gagal menandai notifikasi");
-      await fetchNotifications();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Terjadi kesalahan";
-
-      alert("Gagal menandai notifikasi: " + message);
-    }
-  };
-
-  // Tandai seluruh notifikasi sebagai sudah dibaca
-  const markAllAsRead = async () => {
-    try {
-      const res = await fetch("/api/notifications", {
-        method: "PATCH",
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Gagal menandai semua notifikasi");
-      await fetchNotifications();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Terjadi kesalahan";
-
-      alert("Gagal menandai semua notifikasi: " + message);
-    }
-  };
-
-  // Hapus notifikasi
-  const deleteNotification = async (notificationId: string) => {
-    if (!confirm("Hapus notifikasi ini?")) return;
-
-    try {
-      const res = await fetch(`/api/notifications/${notificationId}`, {
-        method: "DELETE",
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Gagal menghapus notifikasi");
-      await fetchNotifications();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Terjadi kesalahan";
-
-      alert("Gagal menghapus notifikasi: " + message);
-    }
+  const handleDeleteNotification = async (notificationId: string) => {
+    if (!window.confirm("Hapus notifikasi ini?")) return;
+    await deleteNotification(notificationId);
   };
 
   const getNotificationIcon = (type: string) => {
@@ -154,7 +78,7 @@ export default function CustomerNotificationsPage() {
         <ErrorState
           title="Gagal Memuat Notifikasi"
           error={error}
-          onRetry={fetchNotifications}
+          onRetry={refetch}
         />
       </main>
     );
@@ -163,9 +87,9 @@ export default function CustomerNotificationsPage() {
   return (
     <main className="container-custom section-spacing space-y-6 sm:space-y-8">
       {/* Header Banner Area Customer */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between shadow-xs">
+      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between shadow-xs">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Pusat Aktivitas Akun
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
@@ -245,23 +169,37 @@ export default function CustomerNotificationsPage() {
         </div>
       </div>
 
+      {actionError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error"
+        >
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={clearActionError}
+            className="text-xs font-semibold underline"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
+
       {/* Daftar Notifikasi */}
       {notifications.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container-low text-muted-foreground">
-            <Bell className="h-6 w-6" />
-          </div>
-          <p className="mt-4 text-base font-semibold text-foreground">
-            {filter === "UNREAD"
+        <EmptyState
+          icon={<Bell className="h-6 w-6" />}
+          title={
+            filter === "UNREAD"
               ? "Tidak ada notifikasi yang belum dibaca"
-              : "Belum ada notifikasi"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-            {filter === "UNREAD"
+              : "Belum ada notifikasi"
+          }
+          description={
+            filter === "UNREAD"
               ? "Semua notifikasi telah selesai Anda tinjau."
-              : "Notifikasi akan muncul otomatis saat Anda memesan bunga atau status pengiriman diperbarui."}
-          </p>
-        </div>
+              : "Notifikasi akan muncul otomatis saat Anda memesan bunga atau status pengiriman diperbarui."
+          }
+        />
       ) : (
         <div className="space-y-3">
           {notifications.map((notification) => (
@@ -349,20 +287,22 @@ export default function CustomerNotificationsPage() {
                       {!notification.isRead && (
                         <button
                           type="button"
-                          onClick={() => markAsRead(notification.id)}
+                          onClick={() => void markAsRead(notification.id)}
                           className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-colors"
                           title="Tandai sudah dibaca"
+                          aria-label="Tandai sudah dibaca"
                         >
-                          <Check className="w-4 h-4" />
+                          <Check className="w-4 h-4" aria-hidden="true" />
                         </button>
                       )}
                       <button
                         type="button"
-                        onClick={() => deleteNotification(notification.id)}
+                        onClick={() => void handleDeleteNotification(notification.id)}
                         className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors"
                         title="Hapus notifikasi"
+                        aria-label="Hapus notifikasi"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </button>
                     </div>
                   </div>

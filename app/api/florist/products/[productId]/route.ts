@@ -1,6 +1,7 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP GET untuk mengambil detail data produk florist berdasarkan ID
@@ -120,9 +121,16 @@ export async function PUT(
     }
 
     // Parsing dan validasi format JSON request body
-    let body: any;
+    let body: Record<string, unknown>;
     try {
-      body = await request.json();
+      const parsedBody: unknown = await request.json();
+      if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+        return NextResponse.json(
+          { success: false, message: "Format request body tidak valid (harus objek JSON)" },
+          { status: 400 },
+        );
+      }
+      body = parsedBody as Record<string, unknown>;
     } catch {
       return NextResponse.json(
         {
@@ -145,9 +153,9 @@ export async function PUT(
       tags,
       isActive,
       isFeatured,
-    } = body || {};
+    } = body;
 
-    const updateData: any = {};
+    const updateData: Prisma.ProductUncheckedUpdateInput = {};
 
     // Validasi kesesuaian tipe data nilai pembaruan
     if (
@@ -291,7 +299,7 @@ export async function PUT(
     // Format tag produk jika ada
     if (tags !== undefined) {
       updateData.tags = Array.isArray(tags)
-        ? tags.map((t: any) => String(t).trim()).filter(Boolean)
+        ? tags.map((t: unknown) => String(t).trim()).filter(Boolean)
         : [];
     }
 

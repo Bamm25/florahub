@@ -107,7 +107,7 @@ export interface BiteshipOrderRequest {
   courier_type: string; // "express", "reg", "oke"
   courier_insurance?: number; // Nilai asuransi (IDR)
   order_note?: string;
-  metadata?: Record<string, any>; // Data custom (order_id internal, dll)
+  metadata?: Record<string, unknown>; // Data custom (order_id internal, dll)
   reference_id?: string; // Order ID internal FloraHub (unique per order)
   items: Array<{
     id?: string;
@@ -130,6 +130,7 @@ export interface BiteshipOrderResponse {
   code?: number;
   id: string;
   order_id?: string;
+  waybill_id?: string | null;
   reference_id?: string | null;
   price: number;
   status: string;
@@ -140,6 +141,7 @@ export interface BiteshipOrderResponse {
     name?: string | null;
     phone?: string | null;
     type?: string;
+    service_name?: string | null;
     link?: string | null;
     history?: Array<{
       note: string;
@@ -148,9 +150,9 @@ export interface BiteshipOrderResponse {
       service_type?: string;
     }>;
   };
-  origin: any;
-  destination: any;
-  items: any[];
+  origin: Record<string, unknown>;
+  destination: Record<string, unknown>;
+  items: Array<Record<string, unknown>>;
 }
 
 // Interface data pelacakan pengiriman kurir dari API Biteship
@@ -165,8 +167,8 @@ export interface BiteshipTrackingResponse {
     waybill_id: string;
     link: string; // Link tracking public
   };
-  origin: any;
-  destination: any;
+  origin: Record<string, unknown>;
+  destination: Record<string, unknown>;
   history: Array<{
     note: string;
     updated_at: string; // ISO timestamp
@@ -193,7 +195,7 @@ class BiteshipClient {
 
   // Metode pencarian wilayah berdasarkan kode pos atau nama lokasi
   async searchAreas(query: string, types?: string[]): Promise<BiteshipArea[]> {
-    const params: Record<string, any> = {
+    const params: Record<string, string> = {
       countries: "ID",
       input: query,
     };
@@ -220,7 +222,12 @@ class BiteshipClient {
     items: BiteshipRateItem[],
     couriers?: string[] // ["jne", "jnt", "sicepat"]
   ): Promise<BiteshipRatesResponse> {
-    const payload: Record<string, any> = {
+    const payload: {
+      origin_postal_code: number;
+      destination_postal_code: number;
+      items: BiteshipRateItem[];
+      couriers?: string;
+    } = {
       origin_postal_code: originPostalCode,
       destination_postal_code: destinationPostalCode,
       items,
@@ -315,7 +322,7 @@ class BiteshipClient {
 
   // Metode untuk membatalkan pesanan penjemputan kurir Biteship
   async cancelOrder(orderId: string, reason?: string): Promise<boolean> {
-    const payload: Record<string, any> = {};
+    const payload: { cancellation_reason?: string } = {};
     if (reason) {
       payload.cancellation_reason = reason;
     }

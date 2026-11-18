@@ -11,32 +11,23 @@ import OrderItems from "@/components/customer/OrderItems";
 import CouponInput from "@/components/customer/CouponInput";
 import AddressForm from "@/components/customer/AddressForm";
 import {
+  type Address,
   getCustomerAddresses,
   createCheckoutOrder,
   createPaymentToken,
   validateCoupon,
+  calculateCustomerShipping,
 } from "@/lib/api/customer";
 import { createAddress } from "@/lib/api/addresses";
+import { LoadingSpinner } from "@/components/ui";
 import { Truck, AlertCircle, MapPin, Plus, Loader2 } from "lucide-react";
-
-// Interface untuk data alamat pengiriman customer
-interface Address {
-  id: string;
-  label: string;
-  recipientName: string;
-  phone: string;
-  street: string;
-  city: string;
-  province: string;
-  postalCode: string;
-  isDefault: boolean;
-}
 
 // Halaman checkout dengan address selector, ringkasan, dan Midtrans payment
 export default function CheckoutPage() {
   const router = useRouter();
   const { status } = useSession();
   const items = useCartStore((state) => state.items);
+  const hasHydrated = useCartStore((state) => state._hasHydrated);
   const total = useCartStore((state) => state.getTotal());
   const clearCart = useCartStore((state) => state.clearCart);
 
@@ -133,20 +124,15 @@ export default function CheckoutPage() {
 
     try {
       setIsCalculatingShipping(true);
-      const response = await fetch("/api/customer/shipping/calculate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          addressId,
-          items: items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-          })),
-        }),
+      const result = await calculateCustomerShipping({
+        addressId,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
       });
 
-      const result = await response.json();
-      if (response.ok && result.success && result.data.rates.length > 0) {
+      if (result.success && result.data.rates.length > 0) {
         setShippingRates(result.data.rates);
         const cheapest = result.data.cheapest;
         setShippingCost(cheapest.price);
@@ -159,8 +145,7 @@ export default function CheckoutPage() {
         setShippingRates([]);
         setSelectedShipping(null);
       }
-    } catch (error) {
-
+    } catch {
       setShippingCost(15000);
       setShippingRates([]);
       setSelectedShipping(null);
@@ -205,6 +190,8 @@ export default function CheckoutPage() {
 
   // Redirect ke login jika belum auth atau cart jika kosong, load addresses
   useEffect(() => {
+    if (!hasHydrated) return;
+
     if (status === "unauthenticated") {
       router.push("/auth/login?callbackUrl=/checkout");
       return;
@@ -215,9 +202,12 @@ export default function CheckoutPage() {
       return;
     }
 
+    const controller = new AbortController();
+
     async function loadAddresses(): Promise<void> {
       try {
-        const response = await getCustomerAddresses();
+        const response = await getCustomerAddresses(controller.signal);
+        if (controller.signal.aborted) return;
         const addressList = response.data.items;
         setAddresses(addressList);
 
@@ -230,6 +220,12 @@ export default function CheckoutPage() {
           void calculateShipping(addressList[0].id);
         }
       } catch (error) {
+        if (
+          controller.signal.aborted ||
+          (error instanceof Error && error.name === "AbortError")
+        ) {
+          return;
+        }
         setErrorMessage(
           error instanceof Error ? error.message : "Gagal memuat alamat",
         );
@@ -237,9 +233,13 @@ export default function CheckoutPage() {
     }
 
     if (status === "authenticated") {
-      loadAddresses();
+      void loadAddresses();
     }
-  }, [status, items, router, calculateShipping]);
+
+    return () => {
+      controller.abort();
+    };
+  }, [hasHydrated, status, items, router, calculateShipping]);
 
   // Handle checkout: create order, get Midtrans token, open payment popup
   const handleCheckout = async (): Promise<void> => {
@@ -307,20 +307,11 @@ export default function CheckoutPage() {
     }
   };
 
-  // Render loading skeleton saat checking auth status
-  if (status === "loading") {
+  // Render loading spinner saat checking auth atau rehidrasi cart
+  if (status === "loading" || !hasHydrated) {
     return (
-      <div className="container-custom py-12" role="status">
-        <span className="sr-only">Memuat halaman checkout...</span>
-        <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-        <div className="mt-3 h-10 w-72 animate-pulse rounded-xl bg-muted" />
-        <div className="mt-10 grid gap-8 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
-            <div className="h-48 animate-pulse rounded-2xl bg-muted" />
-            <div className="h-40 animate-pulse rounded-2xl bg-muted" />
-          </div>
-          <div className="h-80 animate-pulse rounded-2xl bg-muted" />
-        </div>
+      <div className="container-custom py-12">
+        <LoadingSpinner message="Memuat halaman checkout..." />
       </div>
     );
   }

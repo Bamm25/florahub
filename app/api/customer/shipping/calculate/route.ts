@@ -165,7 +165,7 @@ export async function POST(request: Request) {
     });
 
     if (!biteshipResponse.ok) {
-      const errorText = await biteshipResponse.text();
+      await biteshipResponse.text();
       reportServerError("[BITESHIP_RATES_ERROR]");
       // Gunakan tarif flat cadangan jika terjadi kesalahan pada API Biteship
       return NextResponse.json({

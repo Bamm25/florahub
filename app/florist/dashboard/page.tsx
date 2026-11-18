@@ -1,87 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-
-// Interface data ringkasan metrik dasbor toko florist
-interface DashboardData {
-  summary: {
-    totalRevenue: number;
-    totalOrders: number;
-    productsSold: number;
-    activeProducts: number;
-    lowStockProducts: number;
-    averageRating: number;
-    pendingOrders: number;
-  };
-  recentOrders: Array<{
-    id: string;
-    orderNumber: string;
-    totalAmount: number;
-    status: string;
-    createdAt: string;
-    user: {
-      name: string;
-      email: string;
-    };
-  }>;
-  floristInfo?: {
-    shopName: string;
-    shopDescription: string;
-    logo: string | null;
-    banner: string | null;
-    name: string;
-    email: string;
-    phone: string;
-    address: {
-      recipientName: string;
-      phone: string;
-      fullAddress: string;
-      city: string;
-      province: string;
-      postalCode: string;
-    } | null;
-  };
-}
+import { LoadingSpinner, ErrorState } from "@/components/ui";
+import { useDataFetching } from "@/hooks";
+import { getFloristDashboard } from "@/lib/api/florist";
+import { formatDate, formatRupiah } from "@/lib/utils/formatters";
 
 // Halaman dasbor utama operasional toko florist
 export default function FloristDashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Ambil data ringkasan metrik toko dari endpoint API
-  useEffect(() => {
-    async function fetchDashboard() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const res = await fetch("/api/florist/dashboard");
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          throw new Error(json.message || "Gagal memuat data dashboard");
-        }
-        setData(json.data);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Terjadi kesalahan saat memuat data",
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchDashboard();
-  }, []);
-
-  const formatRupiah = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  const { data, isLoading, error, refetch } = useDataFetching(
+    (signal) => getFloristDashboard(signal),
+    [],
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -94,7 +24,7 @@ export default function FloristDashboardPage() {
       case "SHIPPED":
         return { label: "Dalam pengiriman", color: "bg-blue-50 text-blue-800 border-blue-200" };
       case "DELIVERED":
-        return { label: "Selesai", color: "bg-green-50 text-green-800 border-green-200" };
+        return { label: "Selesai", color: "bg-success/10 text-success border-success/20" };
       case "PENDING":
         return { label: "Menunggu pembayaran", color: "bg-amber-50 text-amber-800 border-amber-200" };
       case "CANCELLED":
@@ -105,29 +35,16 @@ export default function FloristDashboardPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-100 items-center justify-center" role="status">
-        <div className="text-center">
-          <div className="inline-flex h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <p className="mt-4 text-sm text-muted-foreground">Memuat ringkasan toko...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Memuat ringkasan toko..." />;
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-xl rounded-2xl border border-border bg-surface p-8">
-        <h1 className="text-xl font-semibold text-foreground">Ringkasan belum dapat dimuat</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error}</p>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="mt-6 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
-          Coba lagi
-        </button>
-      </div>
+      <ErrorState
+        title="Ringkasan belum dapat dimuat"
+        error={error}
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -146,9 +63,9 @@ export default function FloristDashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 lg:space-y-10">
-      <div className="flex flex-col gap-8 rounded-[24px] bg-[#10121b] px-6 py-9 text-white sm:px-9 sm:py-10 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-8 rounded-[24px] bg-surface-dark px-6 py-9 text-white sm:px-9 sm:py-10 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             {floristInfo?.shopName || "Toko florist"}
           </p>
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-white lg:text-4xl">
@@ -160,7 +77,7 @@ export default function FloristDashboardPage() {
         </div>
         <Link
           href="/florist/orders"
-          className="inline-flex min-h-12 w-fit items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b4aeff]"
+          className="inline-flex min-h-12 w-fit items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           Kelola pesanan
         </Link>
@@ -250,9 +167,7 @@ export default function FloristDashboardPage() {
                         <p className="font-medium text-foreground">{order.user.name}</p>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-muted-foreground sm:px-6">
-                        {new Date(order.createdAt).toLocaleDateString("id-ID", {
-                          day: "numeric", month: "short", year: "numeric",
-                        })}
+                        {formatDate(order.createdAt)}
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 font-medium text-foreground sm:px-6">{formatRupiah(order.totalAmount)}</td>
                       <td className="px-5 py-4 sm:px-6">

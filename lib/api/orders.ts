@@ -1,3 +1,5 @@
+import { fetchJson } from "./client";
+
 // Interface rincian lengkap data pesanan beserta relasinya
 interface OrderDetail {
   id: string;
@@ -119,42 +121,39 @@ interface ShipmentResponse {
 // Fungsi untuk mengambil rincian pesanan berdasarkan ID
 export async function getOrderDetail(
   orderId: string,
+  signal?: AbortSignal,
 ): Promise<OrderDetailResponse> {
-  const response = await fetch(`/api/customer/orders/${orderId}`, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal memuat detail pesanan");
-  }
-  return response.json();
+  return fetchJson<OrderDetailResponse>(
+    `/api/customer/orders/${encodeURIComponent(orderId)}`,
+    {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+      signal,
+    },
+  );
 }
 
 // Fungsi untuk mengambil riwayat pesanan dengan filter status dan paginasi
-export async function getOrderHistory(params?: {
-  status?: string;
-  page?: number;
-  limit?: number;
-}): Promise<OrderHistoryResponse> {
+export async function getOrderHistory(
+  params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  },
+  signal?: AbortSignal,
+): Promise<OrderHistoryResponse> {
   const searchParams = new URLSearchParams();
 
   if (params?.status) searchParams.append("status", params.status);
   if (params?.page) searchParams.append("page", params.page.toString());
   if (params?.limit) searchParams.append("limit", params.limit.toString());
   const url = `/api/customer/orders${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
-  const response = await fetch(url, {
+  return fetchJson<OrderHistoryResponse>(url, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
+    signal,
   });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal memuat riwayat pesanan");
-  }
-  return response.json();
 }
 
 // Fungsi untuk membatalkan pesanan yang berstatus pending
@@ -163,33 +162,27 @@ export async function cancelOrder(orderId: string): Promise<{
   message: string;
   data?: { orderId: string };
 }> {
-  const response = await fetch(`/api/customer/orders/${orderId}/cancel`, {
+  return fetchJson<{
+    success: boolean;
+    message: string;
+    data?: { orderId: string };
+  }>(`/api/customer/orders/${encodeURIComponent(orderId)}/cancel`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
   });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.message || "Gagal membatalkan pesanan");
-  }
-  return data;
 }
 
 // Fungsi untuk mengambil informasi status pengiriman berdasarkan ID pesanan
 export async function getOrderShipment(
   orderId: string,
+  signal?: AbortSignal,
 ): Promise<ShipmentResponse> {
-  const response = await fetch(`/api/customer/shipments/order/${orderId}`, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => null);
-    throw new Error(error?.message || "Shipment tidak ditemukan");
-  }
-
-  return response.json();
+  return fetchJson<ShipmentResponse>(
+    `/api/customer/shipments/order/${encodeURIComponent(orderId)}`,
+    {
+      method: "GET",
+      credentials: "include",
+      signal,
+    },
+  );
 }

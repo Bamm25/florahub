@@ -2,7 +2,7 @@ import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
-import { HarvestPreOrderStatus } from "@prisma/client";
+import { HarvestPreOrderStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { updatePreorderSchema } from "@/lib/validations/schemas";
 import { formatRupiah, formatDate } from "@/lib/utils/formatters";
@@ -106,7 +106,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     // Hitung rincian DP 50% dan tenggat waktu 3 hari saat konfirmasi
-    let updateData: any = {
+    let updateData: Prisma.HarvestPreOrderUpdateInput = {
       status: status as HarvestPreOrderStatus,
       confirmedAt: isConfirming ? now : null,
       cancelledAt: status === "CANCELLED" ? now : null,

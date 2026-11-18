@@ -352,7 +352,7 @@ export default function SupplierStocksPage() {
                             <span>Menipis</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
                             <CheckCircle2 className="h-3 w-3" />
                             <span>Tersedia</span>
                           </span>

@@ -185,11 +185,16 @@ export default function ShipmentTrackingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-      <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Pelacakan Pengiriman ${orderNumber}`}
+        className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+      >
         {/* Header Modal */}
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600 border border-indigo-100">
+            <div className="rounded-xl bg-primary/10 p-2.5 text-primary border border-primary/20">
               <Navigation className="h-5 w-5" />
             </div>
             <div>
@@ -203,6 +208,7 @@ export default function ShipmentTrackingModal({
           </div>
           <button
             type="button"
+            aria-label="Tutup dialog pelacakan"
             onClick={onClose}
             className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-container transition-colors"
           >
@@ -228,8 +234,8 @@ export default function ShipmentTrackingModal({
             >
               {copiedResi ? (
                 <>
-                  <Check className="h-3.5 w-3.5 text-emerald-600" />
-                  <span className="text-emerald-600">Tersalin</span>
+                  <Check className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-primary">Tersalin</span>
                 </>
               ) : (
                 <>
@@ -248,7 +254,7 @@ export default function ShipmentTrackingModal({
           </div>
         )}
         {successMsg && (
-          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+          <div className="mt-3 rounded-xl border border-success/20 bg-success/10 p-3 text-xs text-success">
             {successMsg}
           </div>
         )}
@@ -269,9 +275,9 @@ export default function ShipmentTrackingModal({
                   key={idx}
                   className={`rounded-xl border p-3 flex flex-col justify-between transition-all ${
                     isCurrent
-                      ? "border-indigo-500 bg-indigo-50/40 shadow-xs"
+                      ? "border-primary bg-primary/5 shadow-xs"
                       : isPastOrCurrent
-                      ? "border-emerald-300 bg-emerald-50/30"
+                      ? "border-success/30 bg-success/10"
                       : "border-border bg-surface opacity-60"
                   }`}
                 >
@@ -279,9 +285,9 @@ export default function ShipmentTrackingModal({
                     <div
                       className={`h-7 w-7 rounded-lg flex items-center justify-center ${
                         isCurrent
-                          ? "bg-indigo-600 text-white"
+                          ? "bg-primary text-primary-foreground"
                           : isPastOrCurrent
-                          ? "bg-emerald-600 text-white"
+                          ? "bg-success text-white"
                           : "bg-surface-container text-muted-foreground"
                       }`}
                     >
@@ -321,7 +327,7 @@ export default function ShipmentTrackingModal({
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <MapPin className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+              <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-foreground">Tujuan (Toko Bunga Florist)</p>
                 <p className="text-muted-foreground text-[11px] mt-0.5">
@@ -343,7 +349,7 @@ export default function ShipmentTrackingModal({
               type="button"
               disabled={loading}
               onClick={loadTracking}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 disabled:opacity-50"
             >
               <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
               <span>Perbarui Status</span>
@@ -352,7 +358,7 @@ export default function ShipmentTrackingModal({
 
           {loading ? (
             <div className="py-8 flex justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : !tracking || !tracking.history || tracking.history.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">
@@ -367,7 +373,7 @@ export default function ShipmentTrackingModal({
                     <span
                       className={`absolute -left-6 top-1 h-3 w-3 rounded-full border-2 ${
                         isLatest
-                          ? "border-emerald-600 bg-emerald-600 ring-4 ring-emerald-100"
+                          ? "border-primary bg-primary ring-4 ring-primary/15"
                           : "border-zinc-300 bg-surface"
                       }`}
                     />
@@ -382,7 +388,7 @@ export default function ShipmentTrackingModal({
                         {entry.note || entry.status || "Status Pengiriman"}
                       </p>
                       {isLatest && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary">
                           Status Terkini
                         </span>
                       )}
@@ -410,7 +416,7 @@ export default function ShipmentTrackingModal({
               href={tracking.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 underline"
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 underline"
             >
               <span>Buka halaman pelacakan kurir Biteship</span>
               <ExternalLink className="h-3 w-3" />
@@ -474,14 +480,14 @@ export default function ShipmentTrackingModal({
                     type="button"
                     disabled={actionLoading}
                     onClick={() => handleSimulate("DELIVERED")}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:opacity-50 transition-colors shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-white px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors shadow-2xs"
                   >
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                     <span>Simulasikan tiba</span>
                   </button>
                 )}
                 {isDelivered && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-success bg-success/10 px-3 py-1.5 rounded-lg">
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Pengiriman selesai</span>
                   </span>

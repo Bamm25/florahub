@@ -15,6 +15,8 @@ interface AddToCartProduct {
 // Interface state dan aksi untuk store keranjang belanja
 interface CartStore {
   items: CartItem[];
+  _hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
   addItem: (product: AddToCartProduct, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -23,11 +25,20 @@ interface CartStore {
   getItemCount: () => number;
 }
 
+function clampQuantity(qty: number, stock: number): number {
+  const normalized = Math.max(1, Math.floor(qty));
+  return stock > 0 ? Math.min(normalized, stock) : normalized;
+}
+
 // Hook Zustand untuk mengelola state keranjang belanja dengan persistensi data
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      _hasHydrated: false,
+      setHasHydrated: (hydrated: boolean) => {
+        set({ _hasHydrated: hydrated });
+      },
       // Tambah item ke keranjang atau perbarui kuantitas jika sudah ada
       addItem: (product: AddToCartProduct, quantity: number = 1) => {
         set((state) => {
@@ -38,7 +49,15 @@ export const useCartStore = create<CartStore>()(
             return {
               items: state.items.map((item) =>
                 item.productId === product.id
-                  ? { ...item, quantity: item.quantity + quantity }
+                  ? {
+                      ...item,
+                      stock: product.stock,
+                      price: product.price,
+                      quantity: clampQuantity(
+                        item.quantity + quantity,
+                        product.stock,
+                      ),
+                    }
                   : item,
               ),
             };
@@ -49,7 +68,7 @@ export const useCartStore = create<CartStore>()(
             name: product.name,
             price: product.price,
             image: product.image,
-            quantity,
+            quantity: clampQuantity(quantity, product.stock),
             stock: product.stock,
             floristId: product.floristId,
           };
@@ -67,7 +86,9 @@ export const useCartStore = create<CartStore>()(
       updateQuantity: (productId: string, quantity: number) => {
         set((state) => ({
           items: state.items.map((item) =>
-            item.productId === productId ? { ...item, quantity } : item,
+            item.productId === productId
+              ? { ...item, quantity: clampQuantity(quantity, item.stock) }
+              : item,
           ),
         }));
       },
@@ -86,6 +107,9 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: "florahub-cart",
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

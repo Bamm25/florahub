@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import { Calendar, MapPin, Plus, Flower2 } from "lucide-react";
 import { formatDate, formatRupiah } from "@/lib/utils/formatters";
 
@@ -47,10 +48,12 @@ export default function AnnouncementCard({
       <div>
         <div className="relative h-44 bg-surface-container-low overflow-hidden">
           {announcement.image ? (
-            <img
+            <Image
               src={announcement.image}
               alt={announcement.flowerName}
-              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+              fill
+              unoptimized
+              className="object-cover transition-transform duration-300 hover:scale-105"
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground/50">
@@ -58,7 +61,7 @@ export default function AnnouncementCard({
             </div>
           )}
           <div className="absolute top-2.5 right-2.5">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-600/95 text-white backdrop-blur-xs">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-primary/90 text-primary-foreground backdrop-blur-xs">
               Aktif
             </span>
           </div>
@@ -81,7 +84,7 @@ export default function AnnouncementCard({
 
           <div className="space-y-1.5 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-violet-500" />
+              <Calendar className="w-3.5 h-3.5 text-primary" />
               <span>Panen: {formatDate(announcement.harvestDate)}</span>
             </div>
             {announcement.location && (
@@ -113,7 +116,7 @@ export default function AnnouncementCard({
                       ? "bg-rose-500"
                       : percentBooked >= 50
                         ? "bg-amber-400"
-                        : "bg-emerald-500"
+                        : "bg-primary"
                   }`}
                   style={{ width: `${percentBooked}%` }}
                 />
@@ -125,9 +128,10 @@ export default function AnnouncementCard({
 
       <div className="p-4 pt-0">
         <button
+          type="button"
           onClick={() => onCreatePreOrder(announcement)}
           disabled={available <= 0}
-          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />
           {available > 0 ? "Ajukan Pre-Order" : "Kuota Habis"}

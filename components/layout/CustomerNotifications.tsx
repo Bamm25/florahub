@@ -173,7 +173,7 @@ export default function CustomerNotifications() {
                 return (
                   <Link
                     key={notification.id}
-                    href={target}
+                    href={notificationHref(notification.link)}
                     onClick={(event) => {
                       event.preventDefault();
                       setOpen(false);

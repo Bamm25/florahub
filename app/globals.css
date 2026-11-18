@@ -26,6 +26,9 @@
   /* Surface Stack */
   --color-surface: var(--surface);
   --color-surface-dim: var(--surface-dim);
+  --color-surface-dark: var(--surface-dark);
+  --color-surface-darker: var(--surface-darker);
+  --color-kicker: var(--kicker);
   --color-surface-container-lowest: var(--surface-container-lowest);
   --color-surface-container-low: var(--surface-container-low);
   --color-surface-container: var(--surface-container);
@@ -115,6 +118,9 @@
   /* Surface Stack - Violet Tint (FundedNext Style) */
   --surface: oklch(100% 0 0);                      /* #ffffff - base surface */
   --surface-dim: oklch(97.25% 0.004 260.91);       /* #f6f7f9 - dimmed surface */
+  --surface-dark: oklch(18.5% 0.018 272);          /* #10121b - dark masthead & sidebar */
+  --surface-darker: oklch(14.5% 0.015 272);        /* #090a10 - dark footer & flow section */
+  --kicker: oklch(78% 0.115 282);                  /* #b4aeff - light indigo kicker on dark surfaces */
   --surface-container-lowest: oklch(100% 0 0);     /* #ffffff - lowest elevation */
   --surface-container-low: oklch(97.25% 0.004 260.91); /* #f6f7f9 - low elevation */
   --surface-container: oklch(96.08% 0.028 283.75); /* #f3f2ff - violet tint container */
@@ -199,6 +205,9 @@
   /* Surface Stack - Dark Elevation */
   --surface: oklch(12% 0 0);                       /* #10121b */
   --surface-dim: oklch(8% 0 0);                    /* darker */
+  --surface-dark: oklch(18.5% 0.018 272);          /* #10121b - dark masthead & sidebar */
+  --surface-darker: oklch(14.5% 0.015 272);        /* #090a10 - dark footer & flow section */
+  --kicker: oklch(78% 0.115 282);                  /* #b4aeff - light indigo kicker on dark surfaces */
   --surface-container-lowest: oklch(10% 0 0);      /* lowest */
   --surface-container-low: oklch(15% 0 0);         /* low */
   --surface-container: oklch(18% 0 0);             /* mid */
@@ -363,13 +372,13 @@
 
   /* Reusable screen framing: dark introduction, light working area. */
   .page-intro {
-    @apply rounded-[24px] bg-[#10121b] px-6 py-9 text-white sm:px-9 sm:py-12;
+    @apply rounded-[24px] bg-surface-dark px-6 py-9 text-white sm:px-9 sm:py-12;
   }
   .page-intro h1, .page-intro h2, .page-intro h3 {
     color: #fff;
   }
   .page-intro-kicker {
-    @apply text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff];
+    @apply text-xs font-semibold uppercase tracking-[0.16em] text-kicker;
   }
   .page-intro-copy {
     @apply mt-3 max-w-2xl text-sm leading-6 text-white/70 sm:text-base;

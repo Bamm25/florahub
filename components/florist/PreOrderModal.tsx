@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { X, Loader2, Calendar, CheckCircle2 } from "lucide-react";
 import { formatDate, formatRupiah } from "@/lib/utils/formatters";
+import { createFloristPreOrder } from "@/lib/api/florist";
+import { ApiClientError } from "@/lib/api/client";
 
 // Interface data jadwal pengumuman panen dari supplier
 interface HarvestAnnouncement {
@@ -42,6 +44,15 @@ export default function PreOrderModal({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const successTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current !== null) {
+        window.clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -83,41 +94,30 @@ export default function PreOrderModal({
         notes: formData.notes || null,
       };
 
-      const res = await fetch("/api/florist/preorders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        // Tangani pesan error spesifik per field dari server
-        if (json.errors && Array.isArray(json.errors)) {
-          const fieldErrors: Record<string, string> = {};
-          json.errors.forEach((err: { path?: string[]; message?: string }) => {
-            const field = err.path?.[0] || 'submit';
-            fieldErrors[field] = err.message || 'Terjadi kesalahan';
-          });
-          setFormErrors(fieldErrors);
-          return;
-        }
-        throw new Error(json.message || "Gagal membuat pre-order");
-      }
+      await createFloristPreOrder(payload);
 
       // Tampilkan notifikasi berhasil
       setShowSuccess(true);
-      
+
       // Reset form dan tutup modal setelah jeda singkat
       setFormData({ quantity: "", notes: "" });
       setFormErrors({});
-      
-      setTimeout(() => {
+
+      successTimerRef.current = window.setTimeout(() => {
         setShowSuccess(false);
         onSuccess();
       }, 1500);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      if (err instanceof ApiClientError && Array.isArray(err.errors)) {
+        const fieldErrors: Record<string, string> = {};
+        err.errors.forEach((fieldErr: { path?: (string | number)[]; message?: string }) => {
+          const field = String(fieldErr.path?.[0] || "submit");
+          fieldErrors[field] = fieldErr.message || "Terjadi kesalahan";
+        });
+        setFormErrors(fieldErrors);
+        return;
+      }
+      const message = err instanceof Error ? err.message : "Unknown error";
       setFormErrors({ submit: message });
     } finally {
       setIsSubmitting(false);
@@ -131,20 +131,27 @@ export default function PreOrderModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-      <div className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden">
-        <div className="sticky top-0 z-50 bg-[#181720] text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Buat Pre-Order Panen"
+        className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden"
+      >
+        <div className="sticky top-0 z-50 bg-surface-dark text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Pengajuan Kuota</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">Pengajuan Kuota</p>
             <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
               Buat Pre-Order Panen
             </h2>
-            <p className="text-xs text-zinc-300 mt-0.5">
+            <p className="text-xs text-white/70 mt-0.5">
               Ajukan alokasi bunga potong sebelum tanggal panen tiba
             </p>
           </div>
           <button
+            type="button"
+            aria-label="Tutup dialog pre-order"
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+            className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -202,16 +209,17 @@ export default function PreOrderModal({
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Sisa Tersedia</p>
-              <p className="text-sm font-semibold text-emerald-500 tabular-nums">{available}</p>
+              <p className="text-sm font-semibold text-primary tabular-nums">{available}</p>
             </div>
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
+          <label htmlFor="preorder-quantity" className="block text-sm font-medium text-foreground mb-2">
             Quantity <span className="text-error">*</span>
           </label>
           <input
+            id="preorder-quantity"
             type="number"
             value={formData.quantity}
             onChange={(e) =>
@@ -220,9 +228,10 @@ export default function PreOrderModal({
             className={`input-field ${formErrors.quantity ? "border-error" : ""}`}
             placeholder="Jumlah yang ingin di-preorder"
             min="1"
+            aria-invalid={Boolean(formErrors.quantity) || undefined}
           />
           {formErrors.quantity && (
-            <p className="mt-1 text-sm text-error">{formErrors.quantity}</p>
+            <p role="alert" className="mt-1 text-sm text-error">{formErrors.quantity}</p>
           )}
         </div>
 
@@ -238,10 +247,11 @@ export default function PreOrderModal({
         )}
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-2">
+          <label htmlFor="preorder-notes" className="block text-sm font-medium text-foreground mb-2">
             Catatan (Opsional)
           </label>
           <textarea
+            id="preorder-notes"
             value={formData.notes}
             onChange={(e) =>
               setFormData({ ...formData, notes: e.target.value })
@@ -264,7 +274,7 @@ export default function PreOrderModal({
           <button
             type="submit"
             disabled={isSubmitting || showSuccess}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:opacity-50 min-h-11 flex-1"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:opacity-50 min-h-11 flex-1"
           >
             {isSubmitting ? (
               <>

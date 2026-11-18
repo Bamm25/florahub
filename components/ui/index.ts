@@ -9,3 +9,4 @@ export { default as SearchInput } from "./SearchInput";
 export { default as ActionButtons } from "./ActionButtons";
 export { default as TabNavigation } from "./TabNavigation";
 export { default as FilterBar } from "./FilterBar";
+export { default as Pagination } from "./Pagination";

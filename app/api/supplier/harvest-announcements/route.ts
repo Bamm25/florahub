@@ -129,7 +129,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses supplier
-    const { userId, userRole } = await requireAuth(request, ["SUPPLIER"]);
+    const { userId } = await requireAuth(request, ["SUPPLIER"]);
 
     try {
       // Parsing dan validasi request body menggunakan skema Zod

@@ -1,12 +1,13 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { AuditAction, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP GET untuk mengambil daftar audit log sistem
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
+    await requireAuth(request, ["ADMIN"]);
     // Ambil parameter filter dan paginasi dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     const filterUserId = searchParams.get("userId") || undefined;
 
     // Susun filter query audit log
-    const whereClause: any = {};
+    const whereClause: Prisma.AuditLogWhereInput = {};
     if (filterUserId) {
       whereClause.userId = filterUserId;
     }
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
       whereClause.entity = entity;
     }
     if (action) {
-      whereClause.action = action;
+      whereClause.action = action as AuditAction;
     }
 
     const skip = (page - 1) * limit;

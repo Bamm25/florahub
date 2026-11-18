@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { createInventorySchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
 
     // Filter inventaris berdasarkan ID florist
-    const whereClause: any = { floristId: userId };
+    const whereClause: Prisma.FloristInventoryWhereInput = { floristId: userId };
 
     // Ambil data inventaris beserta relasi stok supplier dan total data
     const [inventory, total] = await Promise.all([
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
       // Parsing dan validasi request body menggunakan skema Zod
       const body = await request.json();
       const validatedData = createInventorySchema.parse(body);
-      const { stockId, quantity, location, notes } = validatedData;
+      const { stockId, quantity, location } = validatedData;
 
       // Cari data stok supplier di database
       const stock = await prisma.stock.findUnique({

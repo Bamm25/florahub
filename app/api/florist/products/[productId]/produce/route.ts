@@ -1,13 +1,9 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { produceProductSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-// Skema validasi kuantitas produksi produk
-const produceSchema = z.object({
-  quantity: z.number().int().positive("Jumlah harus lebih dari 0"),
-});
 
 // Handler HTTP POST untuk memproduksi stok produk jadi dari bahan baku inventaris
 export async function POST(
@@ -22,7 +18,7 @@ export async function POST(
 
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
-    const { quantity } = produceSchema.parse(body);
+    const { quantity } = produceProductSchema.parse(body);
 
     // Cari data produk beserta komponen bahan baku penyusunnya
     const product = await prisma.product.findUnique({

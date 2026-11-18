@@ -73,7 +73,7 @@ export async function GET(
 
     // Verifikasi bahwa pesanan memuat setidaknya satu produk milik florist ini
     const hasFloristProduct = order.items.some(
-      (item: any) => item.product.floristId === userId
+      (item) => item.product.floristId === userId
     );
 
     if (!hasFloristProduct) {

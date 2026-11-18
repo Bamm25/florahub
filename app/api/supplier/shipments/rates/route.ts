@@ -146,7 +146,7 @@ export async function POST(request: Request) {
       ["jne", "jnt", "sicepat", "anteraja"],
     );
 
-    const formattedRates = (ratesData.pricing || []).map((r: any) => ({
+    const formattedRates = (ratesData.pricing || []).map((r) => ({
       courier: {
         code: r.courier_code || r.company,
         name: r.courier_name,

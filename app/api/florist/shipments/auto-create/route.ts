@@ -21,8 +21,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userId = (session.user as any).id;
-    const userRole = (session.user as any).role;
+    const sessionUser = session.user as { id?: string; role?: string };
+    const userId = sessionUser.id;
+    const userRole = sessionUser.role;
 
     // Verifikasi peran pengguna harus florist
     if (userRole !== "FLORIST") {
@@ -127,7 +128,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Siapkan data barang pesanan untuk Biteship
-    const biteshipItems = order.items.map((item: any) => ({
+    const biteshipItems = order.items.map((item) => ({
       name: item.product?.name || "Produk Florist",
       description: item.product?.description || "",
       value: Math.round(item.price),
@@ -169,18 +170,21 @@ export async function POST(req: NextRequest) {
     let biteshipOrder;
     try {
       biteshipOrder = await biteshipClient.createOrder(biteshipRequest);
-    } catch (biteshipError: any) {
+    } catch (biteshipError: unknown) {
       reportServerError("[BITESHIP_CREATE_ERROR]", biteshipError);
       await prisma.order.update({ where: { id: order.id }, data: { status: "PAID" } });
       return NextResponse.json(
-        { success: false, message: `Biteship API error: ${biteshipError.message || "Gagal membuat shipment"}` },
+        {
+          success: false,
+          message: `Biteship API error: ${biteshipError instanceof Error ? biteshipError.message : "Gagal membuat shipment"}`,
+        },
         { status: 502 },
       );
     }
 
     // Ambil order id dan nomor resi dari struktur response Biteship
-    const biteshipOrderId = biteshipOrder.id || (biteshipOrder as any).order_id;
-    const waybillId = biteshipOrder.courier?.waybill_id || (biteshipOrder as any).waybill_id || null;
+    const biteshipOrderId = biteshipOrder.id;
+    const waybillId = biteshipOrder.courier?.waybill_id || biteshipOrder.waybill_id || null;
 
     // Tolak penyimpanan shipment jika Biteship tidak mengembalikan order id
     if (!biteshipOrderId) {
@@ -210,7 +214,7 @@ export async function POST(req: NextRequest) {
         service: courierType.toUpperCase(),
         estimatedDays: 3,
         shippingCost: Math.round(biteshipOrder.price),
-        weight: biteshipItems.reduce((sum: number, item: any) => sum + item.weight * item.quantity, 0),
+        weight: biteshipItems.reduce((sum, item) => sum + item.weight * item.quantity, 0),
         status: mapBiteshipStatus(biteshipOrder.status),
         biteshipOrderId: biteshipOrderId,
         biteshipLabelUrl,
@@ -245,16 +249,17 @@ export async function POST(req: NextRequest) {
         labelUrl: biteshipLabelUrl,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Tangani error internal server
     reportServerError("[AUTO_CREATE_SHIPMENT_ERROR]", error);
     reportServerError("[AUTO_CREATE_SHIPMENT_ERROR] Stack:");
     reportServerError("[AUTO_CREATE_SHIPMENT_ERROR] Response:");
+    const errMsg = error instanceof Error ? error.message : "Gagal membuat pengiriman otomatis";
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Gagal membuat pengiriman otomatis",
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        message: errMsg,
+        error: process.env.NODE_ENV === "development" ? errMsg : undefined,
       },
       { status: 500 }
     );

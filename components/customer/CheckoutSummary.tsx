@@ -34,11 +34,11 @@ export function CheckoutSummary({
 
   return (
     <section
-      className="sticky top-24 overflow-hidden rounded-2xl border border-white/10 bg-[#10121b] p-6 text-white sm:p-7"
+      className="sticky top-24 overflow-hidden rounded-2xl border border-white/10 bg-surface-dark p-6 text-white sm:p-7"
       aria-labelledby="checkout-summary-heading"
     >
       <div className="border-b border-white/10 pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b4aeff]">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
           Pembayaran
         </p>
         <h2 id="checkout-summary-heading" className="mt-1 text-2xl font-bold tracking-tight text-white">
@@ -60,7 +60,7 @@ export function CheckoutSummary({
           </dd>
         </div>
         {discount > 0 && appliedCoupon && (
-          <div className="flex items-center justify-between text-[#09e354]">
+          <div className="flex items-center justify-between text-success">
             <dt className="text-xs uppercase tracking-wider">
               Diskon ({appliedCoupon.code})
             </dt>

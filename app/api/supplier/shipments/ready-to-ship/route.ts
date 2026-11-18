@@ -1,6 +1,7 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP GET untuk mengambil pesanan yang sudah LUNAS (PAID) dan siap dibuatkan resi pengiriman
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
     const { userId } = await requireAuth(request, ["SUPPLIER"]);
 
     // 1. Pre-Order Panen yang sudah LUNAS (PAID) dan belum berstatus SHIPPED / DELIVERED
-    const preOrderWhere: any = {
+    const preOrderWhere: Prisma.HarvestPreOrderWhereInput = {
       status: "PAID",
       shippedAt: null,
       biteshipOrderId: null,
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
     });
 
     // 2. Penjualan Stok yang sudah LUNAS (PAID) dan belum berstatus SHIPPED / DELIVERED
-    const saleWhere: any = {
+    const saleWhere: Prisma.StockTransactionWhereInput = {
       status: "PAID",
       shippedAt: null,
       biteshipOrderId: null,

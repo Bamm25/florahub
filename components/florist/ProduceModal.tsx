@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { X, Package, AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { produceFloristProduct } from "@/lib/api/florist";
+import { ApiClientError } from "@/lib/api/client";
 
 // Interface komponen bahan baku BOM untuk perakitan produk
 interface ProductComponent {
@@ -52,10 +54,14 @@ export default function ProduceModal({
   useEffect(() => {
     if (!isOpen || !product?.id) return;
 
-    fetch(`/api/florist/products/${product.id}/components`)
+    const controller = new AbortController();
+
+    fetch(`/api/florist/products/${product.id}/components`, {
+      signal: controller.signal,
+    })
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && Array.isArray(json.data?.items)) {
+        if (!controller.signal.aborted && json.success && Array.isArray(json.data?.items)) {
           setLoadedComponents(
             json.data.items.map((item: { id: string; quantity: number; inventory: { id: string; currentStock?: number; quantity?: number; stock: { name: string; variety: string | null; unit: string } } }) => ({
               id: item.id,
@@ -69,9 +75,11 @@ export default function ProduceModal({
           );
         }
       })
-      .catch((err) => {
-
+      .catch(() => {
+        // Abaikan error memuat komponen opsional saat modal ditutup
       });
+
+    return () => controller.abort();
   }, [isOpen, product?.id]);
 
   const handleProduce = async () => {
@@ -87,32 +95,22 @@ export default function ProduceModal({
     setError("");
 
     try {
-      const res = await fetch(`/api/florist/products/${product.id}/produce`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: qty }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        if (json.data?.insufficientMaterials) {
-          setError(
-            `Bahan baku tidak mencukupi:\n${json.data.insufficientMaterials.join("\n")}`
-          );
-        } else {
-          setError(json.message || "Gagal memproduksi produk");
-        }
-        return;
-      }
+      const data = await produceFloristProduct(product.id, qty);
 
       alert(
-        `✅ Berhasil memproduksi ${qty} ${product.name}!\n\nBahan baku telah dikurangi dan stok produk jadi bertambah.${json.data?.lowStockTriggered ? "\n\n⚠️ Perhatian: Beberapa bahan baku telah mencapai threshold rendah." : ""}`
+        `✅ Berhasil memproduksi ${qty} ${product.name}!\n\nBahan baku telah dikurangi dan stok produk jadi bertambah.${data.lowStockTriggered ? "\n\n⚠️ Perhatian: Beberapa bahan baku telah mencapai threshold rendah." : ""}`
       );
       onSuccess();
       onClose();
       setQuantity("1");
     } catch (err) {
+      if (err instanceof ApiClientError) {
+        const insufficient = (err.errors as unknown as { insufficientMaterials?: string[] })?.insufficientMaterials;
+        if (Array.isArray(insufficient)) {
+          setError(`Bahan baku tidak mencukupi:\n${insufficient.join("\n")}`);
+          return;
+        }
+      }
       setError(err instanceof Error ? err.message : "Gagal memproduksi produk");
     } finally {
       setIsProducing(false);
@@ -126,20 +124,27 @@ export default function ProduceModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-      <div className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden">
-        <div className="sticky top-0 z-50 bg-[#181720] text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Produksi Buket ${product.name}`}
+        className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden"
+      >
+        <div className="sticky top-0 z-50 bg-surface-dark text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Produksi Buket</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">Produksi Buket</p>
             <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
               {product.name}
             </h2>
-            <p className="text-xs text-zinc-300 mt-0.5">
+            <p className="text-xs text-white/70 mt-0.5">
               Stok saat ini: {product.stock} unit
             </p>
           </div>
           <button
+            type="button"
+            aria-label="Tutup dialog produksi"
             onClick={onClose}
-            className="rounded-lg p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+            className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -247,9 +252,10 @@ export default function ProduceModal({
             Batal
           </button>
           <button
+            type="button"
             onClick={handleProduce}
             disabled={isProducing || !hasBOM || qty <= 0}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 w-full sm:w-auto"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 w-full sm:w-auto"
           >
             {isProducing ? (
               <>

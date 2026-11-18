@@ -1,5 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type React from "react";
+
+interface UseDataFetchingOptions {
+  enabled?: boolean;
+}
 
 // Interface nilai kembalian untuk hook useDataFetching
 interface UseDataFetchingReturn<T> {
@@ -9,36 +13,66 @@ interface UseDataFetchingReturn<T> {
   refetch: () => Promise<void>;
 }
 
-// Hook kustom untuk pengambilan data asinkron beserta status pemuatan dan galat
+// Hook kustom untuk pengambilan data asinkron beserta status pemuatan, galat, dan AbortController
 export function useDataFetching<T>(
-  fetchFn: () => Promise<T>,
-  deps: React.DependencyList = []
+  fetchFn: (signal?: AbortSignal) => Promise<T>,
+  deps: React.DependencyList = [],
+  options: UseDataFetchingOptions = {},
 ): UseDataFetchingReturn<T> {
+  const { enabled = true } = options;
   const [data, setData] = useState<T | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(enabled);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const result = await fetchFn();
-      setData(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal memuat data");
-    } finally {
-      setIsLoading(false);
-    }
+  const fetchFnRef = useRef(fetchFn);
+  useEffect(() => {
+    fetchFnRef.current = fetchFn;
   }, [fetchFn]);
 
+  const executeFetch = useCallback(async (signal?: AbortSignal) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await fetchFnRef.current(signal);
+      if (!signal?.aborted) {
+        setData(result);
+      }
+    } catch (err) {
+      if (
+        signal?.aborted ||
+        (err instanceof Error && err.name === "AbortError")
+      ) {
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Gagal memuat data");
+    } finally {
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    fetchData();
+    if (!enabled) {
+      const timer = window.setTimeout(() => setIsLoading(false), 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void executeFetch(controller.signal);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [enabled, executeFetch, ...deps]);
 
   const refetch = useCallback(async () => {
-    await fetchData();
-  }, [fetchData]);
+    await executeFetch();
+  }, [executeFetch]);
 
   return {
     data,

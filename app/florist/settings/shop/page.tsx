@@ -12,39 +12,20 @@ import {
   Upload,
   Loader2,
 } from "lucide-react";
+import { LoadingSpinner, ErrorState } from "@/components/ui";
+import {
+  uploadMediaFile,
+  getFloristProfile,
+  updateFloristProfile,
+  saveFloristAddress,
+  setDefaultFloristAddress,
+  deleteFloristAddress,
+  type FloristProfilePayload,
+  type FloristShopAddress,
+} from "@/lib/api/florist";
 
-interface Address {
-  id: string;
-  label: string;
-  recipientName: string;
-  phone: string;
-  fullAddress: string;
-  city: string;
-  province: string;
-  postalCode: string;
-  isDefault: boolean;
-  latitude?: number;
-  longitude?: number;
-}
-
-interface FloristProfile {
-  id: string;
-  shopName: string;
-  shopDescription: string | null;
-  logo: string | null;
-  banner: string | null;
-  defaultAddressId: string | null;
-}
-
-interface ProfileData {
-  profile: FloristProfile;
-  user: {
-    name: string;
-    email: string;
-    phone: string | null;
-  };
-  addresses: Address[];
-}
+type Address = FloristShopAddress;
+type ProfileData = FloristProfilePayload;
 
 export default function FloristSettingsShopPage() {
   const router = useRouter();
@@ -100,18 +81,9 @@ export default function FloristSettingsShopPage() {
     setIsUploadingMedia(true);
     setMediaMessage(`Mengunggah ${field}...`);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const upload = await fetch("/api/upload", { method: "POST", body: formData });
-      const uploaded = await upload.json();
-      if (!upload.ok || !uploaded.url) throw new Error(uploaded.error || "Upload gagal");
-      const response = await fetch("/api/florist/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: uploaded.url }),
-      });
-      const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(result.message || "Gagal menyimpan gambar");
+      const uploaded = await uploadMediaFile(file);
+      if (!uploaded.url) throw new Error(uploaded.error || "Upload gagal");
+      await updateFloristProfile({ [field]: uploaded.url });
       await fetchProfile();
       setPendingMedia((current) => ({ ...current, [field]: undefined }));
       setMediaPreview((current) => {
@@ -128,48 +100,44 @@ export default function FloristSettingsShopPage() {
   }
 
   useEffect(() => {
-    fetchProfile();
+    const controller = new AbortController();
+    void fetchProfile(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  async function fetchProfile() {
+  async function fetchProfile(signal?: AbortSignal) {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await fetch("/api/florist/profile");
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || "Gagal memuat profile");
+      const profileData = await getFloristProfile(signal);
+      if (!signal?.aborted) {
+        setData(profileData);
+        setShopForm({
+          shopName: profileData.profile.shopName,
+          shopDescription: profileData.profile.shopDescription || "",
+        });
       }
-
-      setData(json.data);
-      setShopForm({
-        shopName: json.data.profile.shopName,
-        shopDescription: json.data.profile.shopDescription || "",
-      });
     } catch (err) {
+      if (
+        signal?.aborted ||
+        (err instanceof Error && err.name === "AbortError")
+      ) {
+        return;
+      }
       setError(
         err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data",
       );
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
     }
   }
 
   async function handleSaveShopInfo() {
     try {
       setIsSavingShop(true);
-      const res = await fetch("/api/florist/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(shopForm),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || "Gagal menyimpan shop info");
-      }
-
+      await updateFloristProfile(shopForm);
       await fetchProfile();
       setIsEditingShop(false);
     } catch (err) {
@@ -214,24 +182,7 @@ export default function FloristSettingsShopPage() {
   async function handleSaveAddress() {
     try {
       setIsSavingAddress(true);
-
-      const endpoint = editingAddress
-        ? `/api/florist/profile/addresses/${editingAddress.id}`
-        : "/api/florist/profile/addresses";
-
-      const method = editingAddress ? "PUT" : "POST";
-
-      const res = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(addressForm),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || "Gagal menyimpan alamat");
-      }
-
+      await saveFloristAddress(addressForm, editingAddress?.id);
       await fetchProfile();
       closeAddressModal();
     } catch (err) {
@@ -244,18 +195,7 @@ export default function FloristSettingsShopPage() {
   async function handleSetDefault(addressId: string) {
     setIsChangingDefault(true);
     try {
-      const res = await fetch(
-        `/api/florist/profile/addresses/${addressId}/set-default`,
-        {
-          method: "PUT",
-        },
-      );
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || "Gagal set alamat default");
-      }
-
+      await setDefaultFloristAddress(addressId);
       await fetchProfile();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal set alamat default");
@@ -268,15 +208,7 @@ export default function FloristSettingsShopPage() {
     if (!confirm("Yakin ingin menghapus alamat ini?")) return;
 
     try {
-      const res = await fetch(`/api/florist/profile/addresses/${addressId}`, {
-        method: "DELETE",
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || "Gagal menghapus alamat");
-      }
-
+      await deleteFloristAddress(addressId);
       await fetchProfile();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal menghapus alamat");
@@ -284,26 +216,16 @@ export default function FloristSettingsShopPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-100 items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-sm font-medium text-muted-foreground">
-            Memuat pengaturan toko...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Memuat pengaturan toko..." />;
   }
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-error/20 bg-error/5 p-8 text-center max-w-xl mx-auto">
-        <p className="text-sm text-error">{error}</p>
-        <button onClick={fetchProfile} className="btn-primary mt-4">
-          Coba Lagi
-        </button>
-      </div>
+      <ErrorState
+        title="Pengaturan Toko Belum Dapat Dimuat"
+        error={error}
+        onRetry={() => void fetchProfile()}
+      />
     );
   }
 
@@ -314,9 +236,9 @@ export default function FloristSettingsShopPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Restrained Dark Header for Rhythm */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Konfigurasi & Profil
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
@@ -529,7 +451,7 @@ export default function FloristSettingsShopPage() {
                   key={address.id}
                   className={`rounded-xl border p-4 transition-colors ${
                     address.isDefault
-                      ? "border-violet-500/40 bg-violet-950/5"
+                      ? "border-primary/40 bg-primary/5"
                       : "border-border bg-surface-container-low/40"
                   }`}
                 >
@@ -597,17 +519,18 @@ export default function FloristSettingsShopPage() {
       {showAddressModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">
           <div className="rounded-2xl border border-border bg-surface max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between bg-[#10121b] text-white p-5 sm:p-6 flex-shrink-0">
+            <div className="flex items-center justify-between bg-surface-dark text-white p-5 sm:p-6 flex-shrink-0">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">Titik Penjemputan</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">Titik Penjemputan</p>
                 <h3 className="text-lg font-bold text-white mt-1">
                   {editingAddress ? "Edit Alamat Toko" : "Tambah Alamat Baru"}
                 </h3>
               </div>
               <button
                 type="button"
+                aria-label="Tutup dialog alamat"
                 onClick={closeAddressModal}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-white/60 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>

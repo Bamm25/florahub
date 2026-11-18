@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { HarvestPreOrderStatus, Prisma } from "@prisma/client";
 import { autoExpireOverduePreOrders } from "@/lib/supply-chain/expire-preorders";
 import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
 import { NextResponse } from "next/server";
@@ -17,11 +17,11 @@ export async function GET(request: Request) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
     const status = searchParams.get("status");
-    const whereClause: any = {
+    const whereClause: Prisma.HarvestPreOrderWhereInput = {
       floristId: userId,
     };
     if (status) {
-      whereClause.status = status;
+      whereClause.status = status as HarvestPreOrderStatus;
     }
 
     // Periksa dan batalkan otomatis pre-order yang melebihi batas pembayaran DP 3 hari

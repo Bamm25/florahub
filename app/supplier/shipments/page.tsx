@@ -177,9 +177,9 @@ export default function SupplierShipmentsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Header Halaman */}
-      <div className="flex flex-col gap-6 rounded-2xl bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-2xl bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Logistik & Pengiriman Pasokan
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
@@ -222,7 +222,7 @@ export default function SupplierShipmentsPage() {
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Menunggu Penjemputan
           </p>
-          <p className="mt-2 text-3xl font-bold text-indigo-600">
+          <p className="mt-2 text-3xl font-bold text-primary">
             {bookedCount}
           </p>
         </div>
@@ -230,7 +230,7 @@ export default function SupplierShipmentsPage() {
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Dijemput Kurir / Dikirim
           </p>
-          <p className="mt-2 text-3xl font-bold text-indigo-600">
+          <p className="mt-2 text-3xl font-bold text-primary">
             {shippedCount}
           </p>
         </div>
@@ -346,7 +346,7 @@ export default function SupplierShipmentsPage() {
                               {s.courier}
                             </span>
                             {s.biteshipOrderId && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                                 Biteship
                               </span>
                             )}
@@ -367,7 +367,7 @@ export default function SupplierShipmentsPage() {
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-surface-container text-foreground"
                               title="Lacak Perjalanan Paket"
                             >
-                              <Navigation className="h-3.5 w-3.5 text-indigo-600" />
+                              <Navigation className="h-3.5 w-3.5 text-primary" />
                               <span>Lacak</span>
                             </button>}
 
@@ -422,7 +422,7 @@ export default function SupplierShipmentsPage() {
                         Florist: <strong>{order.buyer.name}</strong>
                       </p>
                     </div>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-success/10 text-success border border-success/20">
                       LUNAS 100%
                     </span>
                   </div>

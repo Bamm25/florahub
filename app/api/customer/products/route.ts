@@ -109,7 +109,8 @@ export async function GET(request: Request) {
         ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
         : 0;
 
-      const { reviews: _, ...productData } = product;
+      const { reviews: productReviews, ...productData } = product;
+      void productReviews;
       return {
         ...productData,
         averageRating: averageRating > 0 ? averageRating : undefined,

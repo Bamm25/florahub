@@ -2,11 +2,10 @@
 import {
   getSupplierDashboard,
   StockTransactionItem,
-  SupplierDashboardData,
 } from "@/lib/api/supplier";
 import { formatDate, formatRupiah } from "@/lib/utils/formatters";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import ErrorState from "@/components/ui/ErrorState";
+import { LoadingSpinner, ErrorState } from "@/components/ui";
+import { useDataFetching } from "@/hooks";
 import {
   AlertTriangle,
   ArrowRight,
@@ -18,41 +17,19 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export default function SupplierDashboardPage() {
-  const [data, setData] = useState<SupplierDashboardData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // ambil data supplier
-  useEffect(() => {
-    async function fetchDashboard() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const dashboardData = await getSupplierDashboard();
-        setData(dashboardData);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Terjadi kesalahan saat memuat ringkasan kebun",
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchDashboard();
-  }, []);
+  const { data, isLoading, error, refetch } = useDataFetching(
+    (signal) => getSupplierDashboard(signal),
+    [],
+  );
 
   const getStatusBadge = (status: StockTransactionItem["status"]) => {
     switch (status) {
       case "PAID":
         return {
           label: "Lunas",
-          color: "bg-emerald-50 text-emerald-800 border-emerald-200",
+          color: "bg-success/10 text-success border-success/20",
           icon: CheckCircle2,
         };
       case "PENDING":
@@ -86,7 +63,7 @@ export default function SupplierDashboardPage() {
       <ErrorState
         title="Ringkasan belum dapat dimuat"
         error={error || "Data ringkasan tidak ditemukan"}
-        onRetry={() => window.location.reload()}
+        onRetry={() => void refetch()}
       />
     );
   }
@@ -111,9 +88,9 @@ export default function SupplierDashboardPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-8 lg:space-y-10">
       {/* Header Banner Dasbor Supplier */}
-      <div className="flex flex-col gap-6 rounded-2xl bg-[#10121b] px-6 py-9 text-white sm:px-9 sm:py-10 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-2xl bg-surface-dark px-6 py-9 text-white sm:px-9 sm:py-10 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Portal Operasional Mitra Kebun
           </p>
           <h1 className="mt-4 text-3xl font-bold tracking-tight text-white lg:text-4xl">
@@ -126,7 +103,7 @@ export default function SupplierDashboardPage() {
         <div className="flex flex-wrap gap-3">
           <Link
             href="/supplier/stocks"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b4aeff]"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Kelola Stok Bunga
           </Link>

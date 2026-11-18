@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Star, Send, AlertCircle, CheckCircle2, ShoppingBag } from "lucide-react";
-import { createProductReview } from "@/lib/api/products";
+import { createProductReview, checkProductPurchase, type CheckPurchaseStatus } from "@/lib/api/products";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 
@@ -12,20 +12,13 @@ interface ReviewFormProps {
   onReviewSubmitted: () => void;
 }
 
-// Interface untuk status pembelian produk user
-interface PurchaseStatus {
-  canReview: boolean;
-  status: "DELIVERED" | "PENDING" | "NOT_PURCHASED";
-  message: string | null;
-}
-
 // Form untuk tulis review produk dengan rating dan comment validation
 export default function ReviewForm({
   productId,
   onReviewSubmitted,
 }: ReviewFormProps) {
   const { status } = useSession();
-  const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatus | null>(null);
+  const [purchaseStatus, setPurchaseStatus] = useState<CheckPurchaseStatus | null>(null);
   const [isCheckingPurchase, setIsCheckingPurchase] = useState(false);
   const [rating, setRating] = useState(5);
   const [hoveredRating, setHoveredRating] = useState(0);
@@ -37,29 +30,23 @@ export default function ReviewForm({
 
   // Check apakah user sudah beli produk ini setelah login
   useEffect(() => {
-    let cancelled = false;
-
     if (status !== "authenticated") {
       return;
     }
 
+    const controller = new AbortController();
+
     async function check() {
       try {
         setIsCheckingPurchase(true);
-        const response = await fetch(`/api/products/${productId}/check-purchase`, {
-          credentials: "include",
-        });
-
-        if (response.ok && !cancelled) {
-          const result = await response.json();
-          setPurchaseStatus(result.data);
+        const data = await checkProductPurchase(productId, controller.signal);
+        if (!controller.signal.aborted) {
+          setPurchaseStatus(data);
         }
-      } catch (error) {
-        if (!cancelled) {
-
-        }
+      } catch {
+        // Abaikan error pengecekan ulasan latar belakang
       } finally {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setIsCheckingPurchase(false);
         }
       }
@@ -68,7 +55,7 @@ export default function ReviewForm({
     void check();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [status, productId]);
 

@@ -37,11 +37,15 @@ export interface Product {
   description: string | null;
   price: number;
   image: string | null;
+  images?: string[];
   categoryId: string | null;
   floristId: string;
   stock: number;
-  minOrder: number;
+  minOrder?: number;
   isActive: boolean;
+  isFeatured?: boolean;
+  tags?: string[];
+  weight?: number | null;
   createdAt: string;
   updatedAt: string;
   averageRating?: number;
@@ -65,8 +69,11 @@ export interface ProductFormData {
   image: string;
   categoryId: string | null;
   stock: number;
-  minOrder: number;
+  minOrder?: number;
   isActive: boolean;
+  isFeatured?: boolean;
+  tags?: string[];
+  weight?: number | null;
 }
 
 // Interface item produk di dalam keranjang belanja
@@ -96,9 +103,11 @@ export type OrderStatus =
   | "PENDING"
   | "PAID"
   | "PROCESSING"
+  | "READY_TO_SHIP"
   | "SHIPPED"
   | "DELIVERED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REFUNDED";
 
 // Interface entitas pesanan sesuai dengan model database
 export interface Order {

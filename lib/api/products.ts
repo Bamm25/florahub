@@ -4,6 +4,7 @@ import type {
   PaginatedResponse,
   ProductFormData,
 } from "@/types";
+import { fetchJson } from "./client";
 
 // Interface respons API untuk rincian data produk berdasarkan slug
 interface ProductDetailResponse {
@@ -75,12 +76,15 @@ function getBaseUrl(): string {
 }
 
 // Fungsi untuk mengambil daftar produk dengan filter pencarian dan paginasi
-export async function getProducts(params?: {
-  page?: number;
-  limit?: number;
-  search?: string;
-  categoryId?: string;
-}): Promise<PaginatedResponse<Product>> {
+export async function getProducts(
+  params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    categoryId?: string;
+  },
+  signal?: AbortSignal,
+): Promise<PaginatedResponse<Product>> {
   const queryParams = new URLSearchParams();
   if (params?.page) queryParams.set("page", params.page.toString());
   if (params?.limit) queryParams.set("limit", params.limit.toString());
@@ -89,42 +93,25 @@ export async function getProducts(params?: {
 
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}/api/products?${queryParams.toString()}`;
-  const res = await fetch(url, {
+  return fetchJson<PaginatedResponse<Product>>(url, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
     cache: "no-store",
+    signal,
   });
-
-  if (!res.ok) {
-    throw new Error(
-      `Failed to fetch products: ${res.status} ${res.statusText}`,
-    );
-  }
-
-  return res.json();
 }
 
 // Fungsi untuk mengambil detail data produk berdasarkan ID
 export async function getProductById(
   id: string,
+  signal?: AbortSignal,
 ): Promise<ApiResponse<Product>> {
   const baseUrl = getBaseUrl();
-  const url = `${baseUrl}/api/products/${id}`;
-
-  const res = await fetch(url, {
+  const url = `${baseUrl}/api/products/${encodeURIComponent(id)}`;
+  return fetchJson<ApiResponse<Product>>(url, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
     cache: "no-store",
+    signal,
   });
-
-  if (!res.ok) {
-    if (res.status === 404) {
-      throw new Error("Product not found");
-    }
-    throw new Error(`Failed to fetch product: ${res.status}`);
-  }
-
-  return res.json();
 }
 
 // Fungsi untuk menambahkan produk baru florist melalui API
@@ -132,22 +119,11 @@ export async function createProduct(
   data: ProductFormData,
 ): Promise<ApiResponse<Product>> {
   const baseUrl = getBaseUrl();
-  const url = `${baseUrl}/api/florist/products`;
-  const res = await fetch(url, {
+  return fetchJson<ApiResponse<Product>>(`${baseUrl}/api/florist/products`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
     credentials: "include",
   });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => null);
-    throw new Error(
-      errorBody?.message || `Failed to create product: ${res.status}`,
-    );
-  }
-
-  return res.json();
 }
 
 // Fungsi untuk memperbarui data produk florist berdasarkan ID
@@ -156,22 +132,14 @@ export async function updateProduct(
   data: Partial<ProductFormData>,
 ): Promise<ApiResponse<Product>> {
   const baseUrl = getBaseUrl();
-  const url = `${baseUrl}/api/florist/products/${id}`;
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-    credentials: "include",
-  });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => null);
-    throw new Error(
-      errorBody?.message || `Failed to update product: ${res.status}`,
-    );
-  }
-
-  return res.json();
+  return fetchJson<ApiResponse<Product>>(
+    `${baseUrl}/api/florist/products/${encodeURIComponent(id)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+      credentials: "include",
+    },
+  );
 }
 
 // Fungsi untuk menghapus produk florist berdasarkan ID
@@ -179,51 +147,46 @@ export async function deleteProduct(
   id: string,
 ): Promise<ApiResponse<{ id: string }>> {
   const baseUrl = getBaseUrl();
-  const url = `${baseUrl}/api/florist/products/${id}`;
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-  });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => null);
-    throw new Error(
-      errorBody?.message || `Failed to delete product: ${res.status}`,
-    );
-  }
-
-  return res.json();
+  return fetchJson<ApiResponse<{ id: string }>>(
+    `${baseUrl}/api/florist/products/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    },
+  );
 }
 
 // Fungsi untuk mengambil data rincian produk berdasarkan slug
 export async function getProductBySlug(
   slug: string,
+  signal?: AbortSignal,
 ): Promise<ProductDetailResponse> {
-  const response = await fetch(`/api/products?slug=${slug}`, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Gagal memuat detail produk");
-  }
-  return response.json();
+  return fetchJson<ProductDetailResponse>(
+    `/api/products?slug=${encodeURIComponent(slug)}`,
+    {
+      method: "GET",
+      cache: "no-store",
+      signal,
+    },
+  );
 }
 
 // Fungsi untuk mengambil daftar ulasan dan statistik rating produk
-export async function getProductReviews(productId: string) {
-  const response = await fetch(`/api/products/${productId}/reviews`, {
+export async function getProductReviews(
+  productId: string,
+  signal?: AbortSignal,
+) {
+  const result = await fetchJson<{
+    success: boolean;
+    data: {
+      items: Review[];
+      stats: { averageRating: number; totalReview: number };
+    };
+  }>(`/api/products/${encodeURIComponent(productId)}/reviews`, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
     cache: "no-store",
+    signal,
   });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Gagal memuat ulasan produk");
-  }
-  const result = await response.json();
   return {
     success: true,
     data: {
@@ -239,23 +202,47 @@ export async function createProductReview(
   productId: string,
   data: CreateReviewInput,
 ): Promise<CreateReviewResponse> {
-  const response = await fetch(`/api/products/${productId}/reviews`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return fetchJson<CreateReviewResponse>(
+    `/api/products/${encodeURIComponent(productId)}/reviews`,
+    {
+      method: "POST",
+      credentials: "include",
+      body: JSON.stringify(data),
     },
+  );
+}
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  slug?: string;
+}
+
+export async function getCategories(signal?: AbortSignal): Promise<CategoryItem[]> {
+  const result = await fetchJson<{
+    success: boolean;
+    data?: { items?: CategoryItem[] };
+  }>("/api/categories", { method: "GET", signal });
+  return result.data?.items || [];
+}
+
+export interface CheckPurchaseStatus {
+  canReview: boolean;
+  status: "DELIVERED" | "PENDING" | "NOT_PURCHASED";
+  message: string | null;
+}
+
+export async function checkProductPurchase(
+  productId: string,
+  signal?: AbortSignal,
+): Promise<CheckPurchaseStatus> {
+  const result = await fetchJson<{
+    success: boolean;
+    data: CheckPurchaseStatus;
+  }>(`/api/products/${encodeURIComponent(productId)}/check-purchase`, {
+    method: "GET",
     credentials: "include",
-    body: JSON.stringify(data),
+    signal,
   });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    const detailedMessage =
-      errorData?.errors?.[0]?.message ||
-      errorData?.message ||
-      "Gagal mengirim ulasan";
-    throw new Error(detailedMessage);
-  }
-
-  return response.json();
+  return result.data;
 }

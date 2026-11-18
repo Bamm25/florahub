@@ -6,8 +6,13 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { getOrderHistory } from "@/lib/api/orders";
 import { OrderCard } from "@/components/customer/OrderCard";
-import SearchInput from "@/components/ui/SearchInput";
-import EmptyState from "@/components/ui/EmptyState";
+import {
+  SearchInput,
+  EmptyState,
+  LoadingSpinner,
+  ErrorState,
+  Pagination,
+} from "@/components/ui";
 import { Search } from "lucide-react";
 
 // Interface untuk data order summary di halaman riwayat pesanan
@@ -54,6 +59,11 @@ export default function OrderHistoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRetry = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
 
   // Redirect ke login jika belum auth, fetch orders dengan pagination dan filter
   useEffect(() => {
@@ -62,31 +72,50 @@ export default function OrderHistoryPage() {
       return;
     }
 
+    if (status !== "authenticated") {
+      return;
+    }
+
+    const controller = new AbortController();
+
     async function loadOrders() {
       try {
         setIsLoading(true);
-        const response = await getOrderHistory({
-          status: selectedStatus || undefined,
-          page: currentPage,
-          limit: 10,
-        });
-        setOrders(response.data.orders);
-        setTotalPages(response.data.pagination.totalPages);
+        setErrorMessage(null);
+        const response = await getOrderHistory(
+          {
+            status: selectedStatus || undefined,
+            page: currentPage,
+            limit: 10,
+          },
+          controller.signal,
+        );
+        if (!controller.signal.aborted) {
+          setOrders(response.data.orders);
+          setTotalPages(response.data.pagination.totalPages);
+        }
       } catch (error) {
+        if (
+          controller.signal.aborted ||
+          (error instanceof Error && error.name === "AbortError")
+        ) {
+          return;
+        }
         setErrorMessage(
           error instanceof Error
             ? error.message
             : "Gagal memuat riwayat pesanan",
         );
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     }
 
-    if (status === "authenticated") {
-      loadOrders();
-    }
-  }, [status, selectedStatus, currentPage, router]);
+    void loadOrders();
+    return () => controller.abort();
+  }, [status, selectedStatus, currentPage, router, refreshKey]);
 
   // Filter orders di client-side berdasarkan search query
   const filteredOrders = orders.filter((order) => {
@@ -103,22 +132,11 @@ export default function OrderHistoryPage() {
     );
   });
 
-  // Render loading skeleton untuk order list
+  // Render loading spinner untuk order list
   if (status === "loading" || isLoading) {
     return (
       <main className="container-custom section-spacing">
-        <div className="mb-8 space-y-2">
-          <div className="h-8 w-48 animate-pulse rounded-lg bg-surface-container" />
-          <div className="h-4 w-72 animate-pulse rounded bg-surface-container-low" />
-        </div>
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded-2xl bg-surface-container-low"
-            />
-          ))}
-        </div>
+        <LoadingSpinner message="Memuat riwayat pesanan..." />
       </main>
     );
   }
@@ -126,18 +144,11 @@ export default function OrderHistoryPage() {
   if (errorMessage) {
     return (
       <main className="container-custom section-spacing">
-        <div className="mx-auto max-w-lg rounded-2xl border border-error/30 bg-error/5 p-8 text-center">
-          <p className="text-base font-semibold text-error">{errorMessage}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Periksa koneksi Anda dan muat ulang halaman.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="btn-secondary mt-5 h-10 px-5 text-sm"
-          >
-            Muat ulang
-          </button>
-        </div>
+        <ErrorState
+          title="Gagal Memuat Riwayat Pesanan"
+          error={errorMessage}
+          onRetry={handleRetry}
+        />
       </main>
     );
   }
@@ -273,30 +284,14 @@ export default function OrderHistoryPage() {
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <nav
-          aria-label="Navigasi halaman pesanan"
-          className="mt-10 flex items-center justify-center gap-2"
-        >
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="btn-secondary h-10 px-4 py-0 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Sebelumnya
-          </button>
-          <span className="px-3 text-xs font-medium tabular-nums text-muted-foreground">
-            Halaman {currentPage} dari {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="btn-secondary h-10 px-4 py-0 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Selanjutnya
-          </button>
-        </nav>
-      )}
+      <Pagination
+        variant="compact"
+        ariaLabel="Navigasi halaman pesanan"
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        className="mt-10 justify-center"
+      />
     </main>
   );
 }

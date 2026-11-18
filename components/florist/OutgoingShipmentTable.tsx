@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { formatRupiah } from "@/lib/utils/formatters";
 
 // Interface data pesanan customer yang siap dikirim
 interface Order {
@@ -21,15 +22,6 @@ interface OutgoingShipmentTableProps {
 
 // Komponen daftar kartu pesanan lunas yang memerlukan pembuatan resi pengiriman
 export function OutgoingShipmentTable({ orders, onCreateShipment }: OutgoingShipmentTableProps) {
-  // Helper untuk memformat nominal mata uang Rupiah
-  const formatRupiah = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {Array.isArray(orders) && orders.map((order) => (
@@ -40,7 +32,7 @@ export function OutgoingShipmentTable({ orders, onCreateShipment }: OutgoingShip
                 <p className="font-semibold text-foreground">{order.orderNumber ?? 'N/A'}</p>
                 <p className="text-xs text-muted-foreground">{order.user?.name ?? 'Unknown'}</p>
               </div>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-success/10 text-success border border-success/20">
                 LUNAS
               </span>
             </div>
@@ -58,8 +50,9 @@ export function OutgoingShipmentTable({ orders, onCreateShipment }: OutgoingShip
           </div>
 
           <button
+            type="button"
             onClick={() => onCreateShipment(order.id)}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold uppercase tracking-wider transition-colors shadow-xs"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold uppercase tracking-wider transition-colors shadow-xs"
           >
             <Plus className="w-4 h-4" />
             Buat Resi Shipment

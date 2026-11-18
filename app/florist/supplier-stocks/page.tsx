@@ -106,7 +106,7 @@ export default function FloristSupplierStocksPage() {
           try {
             await confirmDirectPurchaseMidtrans(id, result?.transaction_id || result?.order_id);
             setBuySuccess("Pembayaran Midtrans berhasil diverifikasi! Pesanan Anda kini berstatus Lunas.");
-          } catch (confirmErr) {
+          } catch {
 
             setBuySuccess("Pembayaran diterima Midtrans. Klik 'Cek Status Pembayaran' jika status belum berubah.");
           }
@@ -229,9 +229,9 @@ export default function FloristSupplierStocksPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Header Halaman */}
-      <div className="flex flex-col gap-6 rounded-2xl bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-2xl bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Katalog Pasokan Langsung (Ready Stock)
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">

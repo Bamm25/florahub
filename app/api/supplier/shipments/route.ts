@@ -1,6 +1,7 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP GET untuk mengambil seluruh riwayat pengiriman supplier (Pre-Order Panen & Penjualan Stok)
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
     const statusFilter = searchParams.get("status") || "ALL";
 
     // 1. Ambil pengiriman dari HarvestPreOrder
-    const preOrderWhere: any = {
+    const preOrderWhere: Prisma.HarvestPreOrderWhereInput = {
       announcement: { supplierId: userId },
       status: { in: ["SHIPPED", "DELIVERED", "PAID"] },
     };
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
     });
 
     // 2. Ambil pengiriman dari StockTransaction
-    const saleWhere: any = {
+    const saleWhere: Prisma.StockTransactionWhereInput = {
       stock: { supplierId: userId },
       status: { in: ["SHIPPED", "DELIVERED", "PAID"] },
     };

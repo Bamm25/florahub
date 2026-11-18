@@ -21,14 +21,14 @@ export default function SupplierDeliveryStatus({
   if (status === "DELIVERED") {
     return (
       <div className="space-y-1 text-xs">
-        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-800">
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+        <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2.5 py-1 font-semibold text-success">
+          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
           <span>Bunga Diterima oleh Florist</span>
         </span>
         {courier && <p className="text-muted-foreground">Kurir: {courier}</p>}
         {trackingNumber && <p className="font-mono text-[11px] text-muted-foreground">Resi: {trackingNumber}</p>}
         {deliveredAt && (
-          <p className="text-[11px] text-emerald-700 font-medium">
+          <p className="text-[11px] text-success font-medium">
             Tiba: {formatDateTime(deliveredAt)}
           </p>
         )}

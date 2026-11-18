@@ -28,24 +28,41 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (signal?: AbortSignal) => {
     try {
-      const data = await fetchAdminStats();
-      setStats(data);
-      setErrorMessage(null);
+      const data = await fetchAdminStats(signal);
+      if (!signal?.aborted) {
+        setStats(data);
+        setErrorMessage(null);
+      }
     } catch (err) {
+      if (
+        signal?.aborted ||
+        (err instanceof Error && err.name === "AbortError")
+      ) {
+        return;
+      }
       setErrorMessage(
         err instanceof Error
           ? err.message
           : "Gagal memuat data analitik dasbor",
       );
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    void Promise.resolve().then(() => fetchStats());
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void fetchStats(controller.signal);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [fetchStats]);
 
   const handleRefresh = async () => {
@@ -87,10 +104,10 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Hero Banner Operasional (FundedNext dark hero style) */}
-      <section className="relative overflow-hidden rounded-2xl bg-[#10121b] p-6 text-white sm:p-8">
+      <section className="relative overflow-hidden rounded-2xl bg-surface-dark p-6 text-white sm:p-8">
         <div className="relative z-10 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold tracking-wider text-[#b4aeff] uppercase">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold tracking-wider text-kicker uppercase">
               <ShieldAlert className="h-3.5 w-3.5" />
               Pusat Kendali Platform
             </span>
@@ -149,7 +166,7 @@ export default function AdminDashboardPage() {
                 {stats.users.total}
               </p>
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+                <span className="inline-flex items-center gap-1 font-semibold text-success">
                   <CheckCircle2 className="h-3 w-3" />
                   {stats.users.active} aktif
                 </span>
@@ -163,7 +180,7 @@ export default function AdminDashboardPage() {
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   GMV Terbayar B2C
                 </span>
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success">
                   <TrendingUp className="h-4 w-4" />
                 </div>
               </div>
@@ -246,7 +263,7 @@ export default function AdminDashboardPage() {
                   <span className="text-xs text-muted-foreground">
                     Pesanan Berhasil Sampai
                   </span>
-                  <p className="mt-1 text-xl font-bold text-emerald-600">
+                  <p className="mt-1 text-xl font-bold text-success">
                     {stats.b2cOrders.deliveredCount}
                   </p>
                 </div>

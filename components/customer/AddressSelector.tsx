@@ -1,19 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-
-// Interface untuk data alamat pengiriman
-interface Address {
-  id: string;
-  label: string;
-  recipientName: string;
-  phone: string;
-  street: string;
-  city: string;
-  province: string;
-  postalCode: string;
-  isDefault: boolean;
-}
+import type { Address } from "@/lib/api/customer";
 
 // Props interface untuk komponen selector alamat pengiriman
 interface AddressSelectorProps {
@@ -80,7 +68,7 @@ export default function AddressSelector({
                 {address.recipientName} • <span className="text-muted-foreground">{address.phone}</span>
               </p>
               <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
-                {address.street}, {address.city}, {address.province}{" "}
+                {address.fullAddress}, {address.city}, {address.province}{" "}
                 {address.postalCode}
               </p>
             </div>

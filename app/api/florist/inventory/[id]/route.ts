@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { updateInventorySchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -135,14 +136,14 @@ export async function PUT(
     }
 
     // Siapkan objek perubahan data inventaris
-    const updateData: any = {};
+    const updateData: Prisma.FloristInventoryUpdateInput = {};
 
     if (quantity !== undefined) {
       updateData.quantity = quantity;
       updateData.lastRestockDate = new Date();
     }
     if (location !== undefined) updateData.location = location;
-    if (notes !== undefined) updateData.notes = notes;
+    void notes;
 
     // Perbarui data inventaris di database
     const inventory = await prisma.floristInventory.update({

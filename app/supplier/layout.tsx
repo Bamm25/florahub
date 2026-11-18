@@ -5,6 +5,8 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import { getNotifications } from "@/lib/api/notifications";
+import { LoadingSpinner } from "@/components/ui";
 
 const navigationSections = [
   {
@@ -36,12 +38,11 @@ export default function SupplierLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const fetchUnreadCount = useCallback(async () => {
+  const fetchUnreadCount = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/notifications?unreadOnly=true&limit=1");
-      if (res.ok) {
-        const json = await res.json();
-        setUnreadCount(json.data?.unreadCount ?? 0);
+      const data = await getNotifications({ unreadOnly: true, limit: 1 }, signal);
+      if (!signal?.aborted) {
+        setUnreadCount(data.unreadCount ?? 0);
       }
     } catch {
       // Abaikan error polling latar belakang
@@ -50,11 +51,13 @@ export default function SupplierLayout({
 
   useEffect(() => {
     if (status === "authenticated") {
-      const initial = window.setTimeout(() => void fetchUnreadCount(), 0);
-      const interval = window.setInterval(() => void fetchUnreadCount(), 30000);
+      const controller = new AbortController();
+      const initial = window.setTimeout(() => void fetchUnreadCount(controller.signal), 0);
+      const interval = window.setInterval(() => void fetchUnreadCount(controller.signal), 30000);
       return () => {
         window.clearTimeout(initial);
         window.clearInterval(interval);
+        controller.abort();
       };
     }
   }, [status, fetchUnreadCount, pathname]);
@@ -72,13 +75,8 @@ export default function SupplierLayout({
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface">
-        <div className="text-center">
-          <div className="inline-flex h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <p className="mt-4 text-sm text-muted-foreground">
-            Memuat area supplier...
-          </p>
-        </div>
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <LoadingSpinner message="Memuat area supplier..." />
       </div>
     );
   }
@@ -92,7 +90,7 @@ export default function SupplierLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f6f7f9]">
+    <div className="flex min-h-screen bg-surface-dim">
       {/* Overlay latar belakang saat menu mobile terbuka */}
       {mobileMenuOpen && (
         <div
@@ -104,7 +102,7 @@ export default function SupplierLayout({
       {/* Sidebar Navigasi Supplier */}
       <aside
         id="supplier-navigation"
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/10 bg-[#10121b] text-white transition-transform duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/10 bg-surface-dark text-white transition-transform duration-200 lg:static lg:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

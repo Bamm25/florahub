@@ -1,3 +1,5 @@
+import { fetchJson } from "./client";
+
 export interface SupplierDashboardData {
   summary: {
     totalRevenue: number;
@@ -167,40 +169,28 @@ export interface StockTransactionItem {
   };
 }
 
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers || {}),
-    },
-    ...options,
-  });
-
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const errorMessage =
-      payload?.message || `Permintaan gagal dengan status ${response.status}`;
-    throw new Error(errorMessage);
-  }
-  return payload;
-}
-
-export async function getSupplierDashboard(): Promise<SupplierDashboardData> {
+export async function getSupplierDashboard(
+  signal?: AbortSignal,
+): Promise<SupplierDashboardData> {
   const result = await fetchJson<{
     success: boolean;
     data: SupplierDashboardData;
   }>("/api/supplier/dashboard", {
     method: "GET",
     cache: "no-store",
+    signal,
   });
   return result.data;
 }
 
 // daftar stok bunga
-export async function getSupplierStocks(params?: {
-  page?: number;
-  limit?: number;
-}): Promise<{
+export async function getSupplierStocks(
+  params?: {
+    page?: number;
+    limit?: number;
+  },
+  signal?: AbortSignal,
+): Promise<{
   stocks: StockItem[];
   lowStockCount: number;
   pagination: {
@@ -238,6 +228,7 @@ export async function getSupplierStocks(params?: {
   }>(url, {
     method: "GET",
     cache: "no-store",
+    signal,
   });
   return result.data;
 }
@@ -282,11 +273,14 @@ export async function deleteSupplierStock(id: string): Promise<void> {
 }
 
 // Mengambil jadwal panen
-export async function getSupplierHarvestAnnouncements(params?: {
-  page?: number;
-  limit?: number;
-  activeOnly?: boolean;
-}): Promise<{
+export async function getSupplierHarvestAnnouncements(
+  params?: {
+    page?: number;
+    limit?: number;
+    activeOnly?: boolean;
+  },
+  signal?: AbortSignal,
+): Promise<{
   announcements: HarvestAnnouncementItem[];
   pagination: {
     page: number;
@@ -323,6 +317,7 @@ export async function getSupplierHarvestAnnouncements(params?: {
   }>(url, {
     method: "GET",
     cache: "no-store",
+    signal,
   });
   return result.data;
 }
@@ -541,10 +536,13 @@ export async function receivePreOrder(
 }
 
 // riwayat transaksi penjualan stok
-export async function getSupplierSales(params?: {
-  page?: number;
-  limit?: number;
-}): Promise<StockTransactionItem[]> {
+export async function getSupplierSales(
+  params?: {
+    page?: number;
+    limit?: number;
+  },
+  signal?: AbortSignal,
+): Promise<StockTransactionItem[]> {
   const query = new URLSearchParams();
   if (params?.page) query.set("page", params.page.toString());
   if (params?.limit) query.set("limit", params.limit.toString());
@@ -559,6 +557,7 @@ export async function getSupplierSales(params?: {
   }>(url, {
     method: "GET",
     cache: "no-store",
+    signal,
   });
   return result.data;
 }
@@ -623,6 +622,7 @@ export interface SupplierBiteshipRate {
 // Mengambil daftar seluruh pengiriman supplier
 export async function getSupplierShipments(
   statusFilter?: string,
+  signal?: AbortSignal,
 ): Promise<SupplierUnifiedShipment[]> {
   const url =
     statusFilter && statusFilter !== "ALL"
@@ -635,20 +635,22 @@ export async function getSupplierShipments(
   }>(url, {
     method: "GET",
     cache: "no-store",
+    signal,
   });
   return result.data.shipments;
 }
 
 // Mengambil pesanan berstatus PAID yang siap dibuatkan resi shipment
-export async function getSupplierReadyToShipOrders(): Promise<
-  SupplierReadyToShipOrder[]
-> {
+export async function getSupplierReadyToShipOrders(
+  signal?: AbortSignal,
+): Promise<SupplierReadyToShipOrder[]> {
   const result = await fetchJson<{
     success: boolean;
     data: { orders: SupplierReadyToShipOrder[] };
   }>("/api/supplier/shipments/ready-to-ship", {
     method: "GET",
     cache: "no-store",
+    signal,
   });
   return result.data.orders;
 }
@@ -700,13 +702,17 @@ export async function autoCreateSupplierShipment(payload: {
 }
 
 // Melacak pengiriman Biteship
-export async function trackSupplierShipment(shipmentId: string): Promise<{ status: string; history: Array<{ note?: string; status?: string; updated_at?: string; date?: string }>; link?: string | null }> {
+export async function trackSupplierShipment(
+  shipmentId: string,
+  signal?: AbortSignal,
+): Promise<{ status: string; history: Array<{ note?: string; status?: string; updated_at?: string; date?: string }>; link?: string | null }> {
   const result = await fetchJson<{
     success: boolean;
     data: { tracking: { status: string; history: Array<{ note?: string; status?: string; updated_at?: string; date?: string }>; link?: string | null } };
   }>(`/api/supplier/shipments/${shipmentId}/track`, {
     method: "GET",
     cache: "no-store",
+    signal,
   });
   return result.data.tracking;
 }
@@ -745,11 +751,14 @@ export interface SupplierMarketplaceStock {
 }
 
 // Mengambil katalog stok bunga langsung dari semua supplier mitra untuk florist
-export async function getSupplierStocksMarketplace(params?: {
-  search?: string;
-  variety?: string;
-  page?: number;
-}): Promise<{ stocks: SupplierMarketplaceStock[]; total: number }> {
+export async function getSupplierStocksMarketplace(
+  params?: {
+    search?: string;
+    variety?: string;
+    page?: number;
+  },
+  signal?: AbortSignal,
+): Promise<{ stocks: SupplierMarketplaceStock[]; total: number }> {
   const query = new URLSearchParams();
   if (params?.search) query.set("search", params.search);
   if (params?.variety && params.variety !== "ALL")
@@ -762,7 +771,7 @@ export async function getSupplierStocksMarketplace(params?: {
   const result = await fetchJson<{
     success: boolean;
     data: { stocks: SupplierMarketplaceStock[]; pagination: { total: number } };
-  }>(url, { method: "GET", cache: "no-store" });
+  }>(url, { method: "GET", cache: "no-store", signal });
   return { stocks: result.data.stocks, total: result.data.pagination.total };
 }
 
@@ -793,9 +802,11 @@ export interface FloristStockPurchase extends StockTransactionItem {
   stock: StockTransactionItem["stock"] & { unit?: string; supplier: { id: string; name: string; email: string } };
 }
 
-export async function getFloristStockPurchases(): Promise<FloristStockPurchase[]> {
+export async function getFloristStockPurchases(
+  signal?: AbortSignal,
+): Promise<FloristStockPurchase[]> {
   const result = await fetchJson<{ success: boolean; data: { transactions: FloristStockPurchase[] } }>(
-    "/api/florist/purchase?limit=100", { method: "GET", cache: "no-store" },
+    "/api/florist/purchase?limit=100", { method: "GET", cache: "no-store", signal },
   );
   return result.data.transactions;
 }

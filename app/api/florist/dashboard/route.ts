@@ -116,7 +116,7 @@ export async function GET(request: Request) {
     });
 
     // Susun agregasi pendapatan bulanan untuk diagram grafik
-    const monthlyRevenue = monthlyOrders.reduce((acc: any, order) => {
+    const monthlyRevenue = monthlyOrders.reduce<Record<string, number>>((acc, order) => {
       const month = order.createdAt.toISOString().slice(0, 7);
       if (!acc[month]) {
         acc[month] = 0;

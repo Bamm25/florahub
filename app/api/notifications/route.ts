@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP GET untuk mengambil daftar notifikasi pengguna
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
     // Susun filter query notifikasi
-    const whereClause: any = {
+    const whereClause: Prisma.NotificationWhereInput = {
       userId,
     };
 

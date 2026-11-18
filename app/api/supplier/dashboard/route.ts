@@ -113,8 +113,8 @@ export async function GET(request: Request) {
     });
 
     // Format agregasi data pendapatan bulanan untuk diagram grafik
-    const monthlyRevenue = monthlyTransactions.reduce(
-      (acc: any, transaction) => {
+    const monthlyRevenue = monthlyTransactions.reduce<Record<string, number>>(
+      (acc, transaction) => {
         const month = transaction.createdAt.toISOString().slice(0, 7);
         if (!acc[month]) {
           acc[month] = 0;

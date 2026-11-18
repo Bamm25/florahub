@@ -4,6 +4,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import ErrorState from "@/components/ui/ErrorState";
 import FilterBar from "@/components/ui/FilterBar";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import Pagination from "@/components/ui/Pagination";
 import SearchInput from "@/components/ui/SearchInput";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
@@ -146,11 +147,18 @@ export default function AdminUsersPage() {
               </table>
             )}
           </div>
-          <nav aria-label="Halaman pengguna" className="flex items-center justify-between gap-4 text-sm">
-            <button type="button" className="btn-tertiary" disabled={!data.pagination.hasPrev || loading} onClick={() => { setData(null); setPage((value) => value - 1); setLoading(true); }}>Sebelumnya</button>
-            <span className="text-muted-foreground">Halaman {data.pagination.page} dari {Math.max(1, data.pagination.totalPages)}</span>
-            <button type="button" className="btn-tertiary" disabled={!data.pagination.hasNext || loading} onClick={() => { setData(null); setPage((value) => value + 1); setLoading(true); }}>Berikutnya</button>
-          </nav>
+          <Pagination
+            variant="compact"
+            ariaLabel="Halaman pengguna"
+            currentPage={data.pagination.page}
+            totalPages={Math.max(1, data.pagination.totalPages)}
+            disabled={loading}
+            onPageChange={(nextPage) => {
+              setData(null);
+              setPage(nextPage);
+              setLoading(true);
+            }}
+          />
         </>
       )}
       <Dialog open={selected !== null} onOpenChange={(open) => { if (!open && !saving) { setSelected(null); setReason(""); setActionError(null); } }}>

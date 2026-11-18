@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     // Autentikasi dan verifikasi hak akses florist
-    const { userId } = await requireAuth(request, ["FLORIST"]);
+    await requireAuth(request, ["FLORIST"]);
     // Ambil parameter ID pengiriman dari URL
     const { id } = await params;
 
@@ -66,10 +66,16 @@ export async function GET(
 
     // Alihkan ke URL label pengiriman Biteship
     return NextResponse.redirect(pdfUrl, 307);
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Tangani error otorisasi atau internal server error
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Internal error" },
+      {
+        success: false,
+        message: error instanceof Error ? error.message : "Internal error",
+      },
       { status: 500 },
     );
   }

@@ -1,22 +1,9 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { updateRawMaterialSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-// Skema validasi pembaruan bahan baku atau penyesuaian stok
-const updateRawMaterialSchema = z.object({
-  action: z.enum(["UPDATE_DETAILS", "ADJUST_STOCK"]).default("UPDATE_DETAILS"),
-  name: z.string().min(2, "Nama minimal 2 karakter").optional(),
-  category: z.string().optional(),
-  unit: z.string().optional(),
-  pricePerUnit: z.number().int().min(0).optional(),
-  minThreshold: z.number().int().min(0).optional(),
-  location: z.string().optional().nullable(),
-  adjustmentType: z.enum(["ADD", "SUBTRACT", "SET"]).optional(),
-  amount: z.number().int().min(0).optional(),
-  reason: z.string().optional(),
-});
 
 // Handler HTTP GET untuk mengambil detail bahan baku florist berdasarkan ID
 export async function GET(
@@ -59,9 +46,12 @@ export async function GET(
         inventory,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Gagal mengambil data" },
+      { success: false, message: error instanceof Error ? error.message : "Gagal mengambil data" },
       { status: 500 },
     );
   }
@@ -190,7 +180,10 @@ export async function PUT(
       message: "Data bahan baku berhasil diperbarui",
       data: updated,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     reportServerError("[PUT_RAW_MATERIALS_ERROR]", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -205,7 +198,7 @@ export async function PUT(
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Gagal memperbarui bahan baku",
+        message: error instanceof Error ? error.message : "Gagal memperbarui bahan baku",
       },
       { status: 500 },
     );
@@ -272,12 +265,15 @@ export async function DELETE(
       success: true,
       message: `Bahan baku "${inventory.stock.name}" berhasil dihapus`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    if (error instanceof NextResponse) {
+      return error;
+    }
     reportServerError("[DELETE_RAW_MATERIALS_ERROR]", error);
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Gagal menghapus bahan baku",
+        message: error instanceof Error ? error.message : "Gagal menghapus bahan baku",
       },
       { status: 500 },
     );

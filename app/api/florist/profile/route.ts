@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { updateFloristProfileSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -74,14 +75,6 @@ export async function GET(request: Request) {
   }
 }
 
-// Skema validasi pembaruan informasi toko florist
-const updateProfileSchema = z.object({
-  shopName: z.string().min(3).max(200).optional(),
-  shopDescription: z.string().max(1000).optional().nullable(),
-  logo: z.string().url().max(500).optional().nullable(),
-  banner: z.string().url().max(500).optional().nullable(),
-});
-
 // Handler HTTP PUT untuk memperbarui data informasi profil toko florist
 export async function PUT(request: Request) {
   try {
@@ -90,7 +83,7 @@ export async function PUT(request: Request) {
 
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
-    const validated = updateProfileSchema.parse(body);
+    const validated = updateFloristProfileSchema.parse(body);
 
     // Cari data profil toko florist eksisting
     const profile = await prisma.floristProfile.findUnique({

@@ -1,16 +1,9 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { reportServerError } from "@/lib/server-error-report";
+import { adminUserQuerySchema } from "@/lib/validations/schemas";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-
-const userQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  role: z.enum(["ADMIN", "SUPPLIER", "FLORIST", "CUSTOMER"]).optional(),
-  search: z.string().trim().max(100).optional(),
-});
 
 // Handler HTTP GET untuk mencari dan memfilter pengguna oleh admin
 export async function GET(request: Request) {
@@ -18,7 +11,7 @@ export async function GET(request: Request) {
     await requireAuth(request, ["ADMIN"]);
 
     const { searchParams } = new URL(request.url);
-    const parsed = userQuerySchema.safeParse({
+    const parsed = adminUserQuerySchema.safeParse({
       page: searchParams.get("page") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
       role: searchParams.get("role") ?? undefined,

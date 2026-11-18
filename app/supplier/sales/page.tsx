@@ -224,7 +224,7 @@ export default function SupplierSalesPage() {
                           {sale.status === "PAID" && !sale.biteshipOrderId && (
                             <a
                               href="/supplier/shipments"
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-xs"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
                             >
                               <Truck className="h-3.5 w-3.5" />
                               <span>Atur Pengiriman</span>
@@ -234,9 +234,9 @@ export default function SupplierSalesPage() {
                             <button
                               type="button"
                               onClick={() => setTrackingSale(sale)}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-100 transition-colors"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
                             >
-                              <Navigation className="h-3.5 w-3.5 text-indigo-600" />
+                              <Navigation className="h-3.5 w-3.5 text-primary" />
                               <span>Lacak & Kontrol Kurir</span>
                             </button>
                           )}

@@ -2,11 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import Image from "next/image";
 import {
   Flower2,
   Plus,
-  Search,
-  AlertTriangle,
   Layers,
   Edit,
   Trash2,
@@ -15,42 +14,32 @@ import {
   Info,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  LoadingSpinner,
+  ErrorState,
+  EmptyState,
+  SearchInput,
+} from "@/components/ui";
+import {
+  getFloristRawMaterials,
+  createFloristRawMaterial,
+  updateFloristRawMaterial,
+  deleteFloristRawMaterial,
+  type RawMaterialItem,
+  type RawMaterialStats,
+} from "@/lib/api/florist";
+import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
+import { formatRupiah } from "@/lib/utils/formatters";
 
-interface UsedInProduct {
+interface FinishedProduct {
   id: string;
   name: string;
-  image: string | null;
-  quantityRequired: number;
+  stock: number;
+  price: number;
+  isActive: boolean;
 }
 
-interface RawMaterial {
-  id: string;
-  stockId: string;
-  name: string;
-  category: string;
-  variety: string | null;
-  quantity: number;
-  unit: string;
-  pricePerUnit: number;
-  minThreshold: number;
-  location: string;
-  lastRestockDate: string | null;
-  createdAt: string;
-  isSelfSupplied: boolean;
-  sourceLabel: string;
-  supplierName: string;
-  isLowStock: boolean;
-  isOutOfStock: boolean;
-  usedInBOMCount: number;
-  usedInProducts: UsedInProduct[];
-}
-
-interface Stats {
-  totalItems: number;
-  totalStock: number;
-  lowStockCount: number;
-  usedInBOMCount: number;
-}
+const LOW_STOCK_THRESHOLD = 5;
 
 const CATEGORY_OPTIONS = [
   "ALL",
@@ -77,8 +66,9 @@ const QUICK_PRESETS = [
 export default function RawMaterialsPage() {
   const { status: authStatus } = useSession();
 
-  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
-  const [stats, setStats] = useState<Stats>({
+  const [rawMaterials, setRawMaterials] = useState<RawMaterialItem[]>([]);
+  const [products, setProducts] = useState<FinishedProduct[]>([]);
+  const [stats, setStats] = useState<RawMaterialStats>({
     totalItems: 0,
     totalStock: 0,
     lowStockCount: 0,
@@ -106,7 +96,7 @@ export default function RawMaterialsPage() {
 
   // Modal Sesuaikan Stok
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
-  const [selectedForAdjust, setSelectedForAdjust] = useState<RawMaterial | null>(null);
+  const [selectedForAdjust, setSelectedForAdjust] = useState<RawMaterialItem | null>(null);
   const [adjustType, setAdjustType] = useState<"ADD" | "SUBTRACT" | "SET">("ADD");
   const [adjustAmount, setAdjustAmount] = useState("10");
   const [adjustReason, setAdjustReason] = useState("");
@@ -114,7 +104,7 @@ export default function RawMaterialsPage() {
 
   // Modal Edit Detail
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedForEdit, setSelectedForEdit] = useState<RawMaterial | null>(null);
+  const [selectedForEdit, setSelectedForEdit] = useState<RawMaterialItem | null>(null);
   const [editForm, setEditForm] = useState({
     name: "",
     category: "",
@@ -126,44 +116,70 @@ export default function RawMaterialsPage() {
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   // Modal Info BOM
-  const [selectedBOMInfo, setSelectedBOMInfo] = useState<RawMaterial | null>(null);
+  const [selectedBOMInfo, setSelectedBOMInfo] = useState<RawMaterialItem | null>(null);
 
-  const fetchRawMaterials = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.set("search", searchQuery);
-      if (categoryFilter !== "ALL") params.set("category", categoryFilter);
+  const fetchInventoryData = useCallback(
+    async (signal?: AbortSignal) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const [rawRes, data] = await Promise.all([
+          getFloristRawMaterials(
+            {
+              search: searchQuery || undefined,
+              category: categoryFilter,
+            },
+            signal,
+          ),
+          fetchPaginatedCollection<FinishedProduct>("/api/florist/products", "products").catch(() => [] as FinishedProduct[]),
+        ]);
 
-      const res = await fetch(`/api/florist/raw-materials?${params.toString()}`);
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.message || "Gagal memuat bahan baku");
+        if (!signal?.aborted) {
+          setRawMaterials(rawRes.rawMaterials || []);
+          setStats(
+            rawRes.stats || {
+              totalItems: 0,
+              totalStock: 0,
+              lowStockCount: 0,
+              usedInBOMCount: 0,
+            },
+          );
+          setProducts(data);
+        }
+      } catch (err) {
+        if (
+          signal?.aborted ||
+          (err instanceof Error && err.name === "AbortError")
+        ) {
+          return;
+        }
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Terjadi kesalahan saat memuat data";
+        setError(message);
+      } finally {
+        if (!signal?.aborted) {
+          setIsLoading(false);
+        }
       }
-
-      setRawMaterials(json.data.rawMaterials || []);
-      setStats(json.data.stats || {
-        totalItems: 0,
-        totalStock: 0,
-        lowStockCount: 0,
-        usedInBOMCount: 0,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Terjadi kesalahan saat memuat data";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchQuery, categoryFilter]);
+    },
+    [searchQuery, categoryFilter],
+  );
 
   useEffect(() => {
-    if (authStatus === "authenticated") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      void fetchRawMaterials();
+    if (authStatus !== "authenticated") {
+      return;
     }
-  }, [authStatus, fetchRawMaterials]);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void fetchInventoryData(controller.signal);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [authStatus, fetchInventoryData]);
 
   // Handle pembuatan bahan baku baru
   const handleAddSubmit = async (e: React.FormEvent) => {
@@ -190,25 +206,16 @@ export default function RawMaterialsPage() {
 
     setIsSubmittingAdd(true);
     try {
-      const res = await fetch("/api/florist/raw-materials", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: addForm.name.trim(),
-          category: addForm.category.trim(),
-          variety: addForm.category.trim(),
-          quantity: qty,
-          unit: addForm.unit.trim().toLowerCase(),
-          pricePerUnit: price,
-          minThreshold: isNaN(minThresh) ? 10 : minThresh,
-          location: addForm.location.trim() || null,
-        }),
+      await createFloristRawMaterial({
+        name: addForm.name.trim(),
+        category: addForm.category.trim(),
+        variety: addForm.category.trim(),
+        quantity: qty,
+        unit: addForm.unit.trim().toLowerCase(),
+        pricePerUnit: price,
+        minThreshold: isNaN(minThresh) ? 10 : minThresh,
+        location: addForm.location.trim() || null,
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || "Gagal menambahkan bahan baku");
-      }
 
       setIsAddModalOpen(false);
       setAddForm({
@@ -220,7 +227,7 @@ export default function RawMaterialsPage() {
         minThreshold: "10",
         location: "Gudang / Storage Florist",
       });
-      await fetchRawMaterials();
+      await fetchInventoryData();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal menyimpan bahan baku";
       setAddErrors({ submit: message });
@@ -239,26 +246,17 @@ export default function RawMaterialsPage() {
 
     setIsSubmittingAdjust(true);
     try {
-      const res = await fetch(`/api/florist/raw-materials/${selectedForAdjust.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "ADJUST_STOCK",
-          adjustmentType: adjustType,
-          amount,
-          reason: adjustReason.trim() || "Penyesuaian stok mandiri florist",
-        }),
+      await updateFloristRawMaterial(selectedForAdjust.id, {
+        action: "ADJUST_STOCK",
+        adjustmentType: adjustType,
+        amount,
+        reason: adjustReason.trim() || "Penyesuaian stok mandiri florist",
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || "Gagal memperbarui stok");
-      }
 
       setIsAdjustModalOpen(false);
       setSelectedForAdjust(null);
       setAdjustReason("");
-      await fetchRawMaterials();
+      await fetchInventoryData();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal memperbarui stok";
       alert(message);
@@ -274,28 +272,19 @@ export default function RawMaterialsPage() {
 
     setIsSubmittingEdit(true);
     try {
-      const res = await fetch(`/api/florist/raw-materials/${selectedForEdit.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "UPDATE_DETAILS",
-          name: editForm.name.trim(),
-          category: editForm.category.trim(),
-          unit: editForm.unit.trim().toLowerCase(),
-          pricePerUnit: parseInt(editForm.pricePerUnit, 10) || 0,
-          minThreshold: parseInt(editForm.minThreshold, 10) || 10,
-          location: editForm.location.trim() || null,
-        }),
+      await updateFloristRawMaterial(selectedForEdit.id, {
+        action: "UPDATE_DETAILS",
+        name: editForm.name.trim(),
+        category: editForm.category.trim(),
+        unit: editForm.unit.trim().toLowerCase(),
+        pricePerUnit: parseInt(editForm.pricePerUnit, 10) || 0,
+        minThreshold: parseInt(editForm.minThreshold, 10) || 10,
+        location: editForm.location.trim() || null,
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || "Gagal menyimpan perubahan");
-      }
 
       setIsEditModalOpen(false);
       setSelectedForEdit(null);
-      await fetchRawMaterials();
+      await fetchInventoryData();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal menyimpan perubahan";
       alert(message);
@@ -305,7 +294,7 @@ export default function RawMaterialsPage() {
   };
 
   // Handle hapus bahan baku
-  const handleDelete = async (material: RawMaterial) => {
+  const handleDelete = async (material: RawMaterialItem) => {
     if (material.usedInBOMCount > 0) {
       const names = material.usedInProducts.map((p) => p.name).join(", ");
       alert(
@@ -319,21 +308,15 @@ export default function RawMaterialsPage() {
     }
 
     try {
-      const res = await fetch(`/api/florist/raw-materials/${material.id}`, {
-        method: "DELETE",
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || "Gagal menghapus bahan baku");
-      }
-      await fetchRawMaterials();
+      await deleteFloristRawMaterial(material.id);
+      await fetchInventoryData();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal menghapus bahan baku";
       alert(message);
     }
   };
 
-  const openAdjustModal = (material: RawMaterial) => {
+  const openAdjustModal = (material: RawMaterialItem) => {
     setSelectedForAdjust(material);
     setAdjustType("ADD");
     setAdjustAmount("10");
@@ -341,7 +324,7 @@ export default function RawMaterialsPage() {
     setIsAdjustModalOpen(true);
   };
 
-  const openEditModal = (material: RawMaterial) => {
+  const openEditModal = (material: RawMaterialItem) => {
     setSelectedForEdit(material);
     setEditForm({
       name: material.name,
@@ -364,20 +347,16 @@ export default function RawMaterialsPage() {
     }));
   };
 
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
+  const lowStockFinishedProducts = products.filter(
+    (product) => product.stock <= LOW_STOCK_THRESHOLD,
+  );
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Header Halaman */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Operasional & Bahan Baku
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
@@ -425,6 +404,49 @@ export default function RawMaterialsPage() {
         ))}
       </div>
 
+      {/* Ringkasan Stok Produk Jadi */}
+      {products.length > 0 && (
+        <div className="rounded-2xl border border-border bg-surface p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Ringkasan Stok Produk Jadi
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {lowStockFinishedProducts.length > 0
+                  ? `${lowStockFinishedProducts.length} produk jadi perlu dirakit (stok ≤ ${LOW_STOCK_THRESHOLD} unit).`
+                  : `Seluruh ${products.length} produk jadi siap jual.`}
+              </p>
+            </div>
+            <Link
+              href="/florist/products"
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              Kelola Stok Produk →
+            </Link>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {products.slice(0, 6).map((product) => {
+              const isLow = product.stock <= LOW_STOCK_THRESHOLD;
+              return (
+                <Link
+                  key={product.id}
+                  href="/florist/products"
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs transition-colors ${
+                    isLow
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : "border-border bg-surface-container-low text-foreground hover:border-primary/40"
+                  }`}
+                >
+                  <span className="font-medium truncate max-w-44">{product.name}</span>
+                  <span className="font-mono font-bold">{product.stock} unit</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Filter & Search Bar */}
       <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center">
@@ -432,14 +454,11 @@ export default function RawMaterialsPage() {
             <h2 className="text-sm font-semibold text-foreground">Daftar Bahan Baku</h2>
             <p className="text-xs text-muted-foreground">Cari dan sesuaikan stok sebelum merakit produk buket.</p>
           </div>
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Cari mawar, tulip, pita, kertas..."
+          <div className="w-full sm:w-80">
+            <SearchInput
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface-container-low py-2.5 pl-10 pr-4 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              onChange={setSearchQuery}
+              placeholder="Cari mawar, tulip, pita, kertas..."
             />
           </div>
         </div>
@@ -465,42 +484,39 @@ export default function RawMaterialsPage() {
       {/* Tabel Bahan Baku */}
       <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
         {isLoading ? (
-          <div className="flex min-h-[40vh] items-center justify-center p-8">
-            <div className="text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Memuat data bahan baku...</p>
-            </div>
-          </div>
+          <LoadingSpinner message="Memuat data bahan baku..." />
         ) : error ? (
-          <div className="p-8 text-center">
-            <AlertTriangle className="w-10 h-10 text-error mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground">{error}</p>
-            <button onClick={fetchRawMaterials} className="btn-secondary mt-4 text-xs">
-              Coba Lagi
-            </button>
+          <div className="p-6">
+            <ErrorState
+              title="Gagal Memuat Bahan Baku"
+              error={error}
+              onRetry={() => void fetchInventoryData()}
+            />
           </div>
         ) : rawMaterials.length === 0 ? (
-          <div className="p-12 text-center max-w-md mx-auto">
-            <h3 className="text-base font-semibold text-foreground mb-1">
-              {searchQuery || categoryFilter !== "ALL" ? "Tidak ada bahan yang sesuai" : "Belum Ada Bahan Baku"}
-            </h3>
-            <p className="text-xs text-muted-foreground mb-6">
-              {searchQuery || categoryFilter !== "ALL"
-                ? "Coba ubah kata kunci atau kategori untuk melihat stok lainnya."
-                : "Tambahkan stok bunga segar, daun, atau material wrapping agar siap dirangkai menjadi produk buket."}
-            </p>
-            {!(searchQuery || categoryFilter !== "ALL") && <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="btn-primary inline-flex items-center gap-2 text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Tambah Bahan Baku Pertama
-            </button>}
+          <div className="p-6">
+            <EmptyState
+              title={searchQuery || categoryFilter !== "ALL" ? "Tidak ada bahan yang sesuai" : "Belum Ada Bahan Baku"}
+              description={
+                searchQuery || categoryFilter !== "ALL"
+                  ? "Coba ubah kata kunci atau kategori untuk melihat stok lainnya."
+                  : "Tambahkan stok bunga segar, daun, atau material wrapping agar siap dirangkai menjadi produk buket."
+              }
+              action={
+                !(searchQuery || categoryFilter !== "ALL")
+                  ? {
+                      label: "Tambah Bahan Baku Pertama",
+                      onClick: () => setIsAddModalOpen(true),
+                      icon: <Plus className="w-4 h-4" />,
+                    }
+                  : undefined
+              }
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-180 text-left text-sm">
-              <thead className="bg-[#181720] border-b border-zinc-800 text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+              <thead className="bg-surface-dark border-b border-white/10 text-xs font-semibold text-white/80 uppercase tracking-wider">
                 <tr>
                   <th scope="col" className="px-5 py-3.5">
                     Nama Bahan Baku
@@ -548,7 +564,7 @@ export default function RawMaterialsPage() {
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           material.isSelfSupplied
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            ? "bg-primary/10 text-primary border border-primary/20"
                             : "bg-sky-50 text-sky-700 border border-sky-200"
                         }`}
                       >
@@ -607,7 +623,7 @@ export default function RawMaterialsPage() {
                         <button
                           type="button"
                           onClick={() => openAdjustModal(material)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-600 text-white hover:bg-violet-700 transition-colors shadow-xs"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
                           title="Sesuaikan stok (tambah/kurang mandiri)"
                         >
                           <ArrowUpDown className="w-3.5 h-3.5" />
@@ -619,6 +635,7 @@ export default function RawMaterialsPage() {
                           onClick={() => openEditModal(material)}
                           className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-surface-container transition-colors"
                           title="Edit detail bahan baku"
+                          aria-label={`Edit ${material.name}`}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -628,6 +645,7 @@ export default function RawMaterialsPage() {
                           onClick={() => handleDelete(material)}
                           className="p-1.5 text-rose-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                           title="Hapus bahan baku"
+                          aria-label={`Hapus ${material.name}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -644,20 +662,27 @@ export default function RawMaterialsPage() {
       {/* Modal Tambah Bahan Baku Baru */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="relative w-full max-w-xl rounded-2xl bg-card shadow-xl border border-border max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center bg-[#181720] text-white p-5 sm:p-6 flex-shrink-0">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Tambah Bahan Baku Florist"
+            className="relative w-full max-w-xl rounded-2xl bg-card shadow-xl border border-border max-h-[90vh] overflow-hidden flex flex-col"
+          >
+            <div className="flex justify-between items-center bg-surface-dark text-white p-5 sm:p-6 flex-shrink-0">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Input Mandiri</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">Input Mandiri</p>
                 <h3 className="text-lg font-bold text-white mt-1">
                   Tambah Bahan Baku Florist
                 </h3>
-                <p className="text-xs text-zinc-300 mt-0.5">
+                <p className="text-xs text-white/70 mt-0.5">
                   Bunga potong segar atau material wrapping untuk BOM produk buket.
                 </p>
               </div>
               <button
+                type="button"
+                aria-label="Tutup dialog tambah bahan baku"
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-zinc-400 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
+                className="text-white/60 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
               >
                 ✕
               </button>
@@ -667,7 +692,7 @@ export default function RawMaterialsPage() {
               {/* Pilihan Cepat Preset Bunga & Material */}
               <div className="mb-5 p-3 rounded-xl bg-surface-container-low border border-border">
                 <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-violet-500" />
+                  <Info className="w-3.5 h-3.5 text-primary" />
                   Pilihan Cepat (Klik untuk mengisi otomatis):
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -676,7 +701,7 @@ export default function RawMaterialsPage() {
                       key={preset.name}
                       type="button"
                       onClick={() => applyPreset(preset)}
-                      className="text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-violet-500 text-muted-foreground hover:text-violet-600 transition-colors text-left"
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-primary text-muted-foreground hover:text-primary transition-colors text-left"
                     >
                       + {preset.name}
                     </button>
@@ -874,7 +899,7 @@ export default function RawMaterialsPage() {
                     onClick={() => setAdjustType("ADD")}
                     className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
                       adjustType === "ADD"
-                        ? "bg-violet-600 border-violet-600 text-white"
+                        ? "bg-primary border-primary text-primary-foreground"
                         : "bg-surface-container-low border-border text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -885,7 +910,7 @@ export default function RawMaterialsPage() {
                     onClick={() => setAdjustType("SUBTRACT")}
                     className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
                       adjustType === "SUBTRACT"
-                        ? "bg-violet-600 border-violet-600 text-white"
+                        ? "bg-primary border-primary text-primary-foreground"
                         : "bg-surface-container-low border-border text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -896,7 +921,7 @@ export default function RawMaterialsPage() {
                     onClick={() => setAdjustType("SET")}
                     className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
                       adjustType === "SET"
-                        ? "bg-violet-600 border-violet-600 text-white"
+                        ? "bg-primary border-primary text-primary-foreground"
                         : "bg-surface-container-low border-border text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -944,7 +969,7 @@ export default function RawMaterialsPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingAdjust}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 px-3.5 py-2 text-xs font-semibold text-white transition-colors shadow-xs disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 px-3.5 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
                 >
                   {isSubmittingAdjust && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Simpan Penyesuaian
@@ -1071,7 +1096,7 @@ export default function RawMaterialsPage() {
                 <button
                   type="submit"
                   disabled={isSubmittingEdit}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 px-3.5 py-2 text-xs font-semibold text-white transition-colors shadow-xs disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 px-3.5 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
                 >
                   {isSubmittingEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Simpan Perubahan
@@ -1085,7 +1110,12 @@ export default function RawMaterialsPage() {
       {/* Modal Detail Keterkaitan BOM */}
       {selectedBOMInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Keterkaitan BOM Produk"
+            className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border"
+          >
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h3 className="text-base font-bold text-foreground flex items-center gap-2">
@@ -1097,6 +1127,8 @@ export default function RawMaterialsPage() {
                 </p>
               </div>
               <button
+                type="button"
+                aria-label="Tutup keterkaitan BOM"
                 onClick={() => setSelectedBOMInfo(null)}
                 className="text-muted-foreground hover:text-foreground p-1"
               >
@@ -1112,9 +1144,12 @@ export default function RawMaterialsPage() {
                 >
                   <div className="flex items-center gap-3">
                     {p.image ? (
-                      <img
+                      <Image
                         src={p.image}
                         alt={p.name}
+                        width={40}
+                        height={40}
+                        unoptimized
                         className="w-10 h-10 rounded-lg object-cover border border-border"
                       />
                     ) : (

@@ -15,6 +15,7 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LoadingSpinner } from "@/components/ui";
 
 const navigationSections = [
   {
@@ -62,13 +63,8 @@ export default function AdminLayout({
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-dim">
-        <div className="text-center">
-          <div className="inline-flex h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <p className="mt-4 text-sm text-muted-foreground">
-            Memverifikasi hak akses admin...
-          </p>
-        </div>
+      <div className="min-h-screen bg-surface-dim flex items-center justify-center">
+        <LoadingSpinner message="Memverifikasi hak akses admin..." />
       </div>
     );
   }
@@ -90,10 +86,10 @@ export default function AdminLayout({
           aria-hidden="true"
         />
       )}
-      {/* Sidebar Admin (FundedNext theme: #10121b) */}
+      {/* Sidebar Admin */}
       <aside
         id="admin-navigation"
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/10 bg-[#10121b] text-white transition-transform duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/10 bg-surface-dark text-white transition-transform duration-200 lg:static lg:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -108,7 +104,7 @@ export default function AdminLayout({
               <span className="text-lg font-bold tracking-tight text-white">
                 FloraHub
               </span>
-              <span className="text-[10px] font-semibold tracking-wider text-[#b4aeff] uppercase">
+              <span className="text-[10px] font-semibold tracking-wider text-kicker uppercase">
                 Portal Admin
               </span>
             </div>

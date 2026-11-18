@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Package, Search, Loader2, AlertCircle } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { Package } from "lucide-react";
+import { LoadingSpinner, ErrorState, EmptyState, SearchInput } from "@/components/ui";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
+import { formatDateTime, formatRupiah } from "@/lib/utils/formatters";
 
 // Interface data pesanan customer untuk dashboard florist
 interface Order {
@@ -45,25 +47,37 @@ export default function FloristOrdersPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    fetchOrders();
+  const fetchOrders = useCallback(() => {
+    setRefreshKey((prev) => prev + 1);
   }, []);
 
-  // Ambil daftar seluruh pesanan florist dari server
-  async function fetchOrders() {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await fetchPaginatedCollection<Order>("/api/florist/orders", "orders");
-      setOrders(data);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      setError(message);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOrders() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await fetchPaginatedCollection<Order>("/api/florist/orders", "orders");
+        if (!cancelled) {
+          setOrders(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Gagal memuat pesanan");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
     }
-  }
+    void loadOrders();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
 
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
@@ -76,24 +90,6 @@ export default function FloristOrdersPage() {
       order.user.email.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
-
-  const formatRupiah = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const getPaymentStatusBadge = (status?: string, orderStatus?: string) => {
     if (orderStatus === "CANCELLED" || status === "FAILED") {
@@ -111,7 +107,7 @@ export default function FloristOrdersPage() {
       );
     }
     const badges: Record<string, { label: string; className: string }> = {
-      PAID: { label: "Lunas", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+      PAID: { label: "Lunas", className: "bg-success/10 text-success border-success/20" },
       PENDING: { label: "Menunggu", className: "bg-amber-50 text-amber-700 border-amber-200" },
       FAILED: { label: "Dibatalkan", className: "bg-red-50 text-red-700 border-red-200" },
     };
@@ -133,9 +129,9 @@ export default function FloristOrdersPage() {
     }
     const badges: Record<string, { label: string; className: string }> = {
       PROCESSING: { label: "Sedang Dirakit", className: "bg-blue-50 text-blue-700 border-blue-200" },
-      READY_TO_SHIP: { label: "Siap Dikirim", className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+      READY_TO_SHIP: { label: "Siap Dikirim", className: "bg-primary/10 text-primary border-primary/20" },
       SHIPPED: { label: "Dalam Pengiriman", className: "bg-sky-50 text-sky-700 border-sky-200" },
-      DELIVERED: { label: "Selesai", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+      DELIVERED: { label: "Selesai", className: "bg-success/10 text-success border-success/20" },
     };
     const badge = badges[status] || badges.PROCESSING;
     return (
@@ -151,9 +147,9 @@ export default function FloristOrdersPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Restrained Dark Header for Rhythm */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Operasional Pesanan
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
@@ -222,62 +218,37 @@ export default function FloristOrdersPage() {
               <option value="DELIVERED">Selesai Diterima</option>
             </select>
           </div>
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Cari nomor pesanan, nama customer, atau email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface-container-low py-2.5 pl-10 pr-4 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Cari nomor pesanan, nama customer, atau email..."
+          />
         </div>
       </div>
 
       {/* Loading State */}
-      {isLoading && (
-        <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-border bg-surface p-12 text-center" role="status">
-          <Loader2 className="h-9 w-9 animate-spin text-primary" />
-          <p className="mt-3 text-sm font-medium text-muted-foreground">Memuat daftar pesanan...</p>
-        </div>
-      )}
+      {isLoading && <LoadingSpinner message="Memuat daftar pesanan..." />}
 
       {/* Error State */}
       {error && !isLoading && (
-        <div className="rounded-2xl border border-red-200 bg-red-50/50 p-6 sm:p-8">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
-            <div>
-              <h2 className="text-sm font-semibold text-red-900">Gagal memuat pesanan</h2>
-              <p className="mt-1 text-xs text-red-700">{error}</p>
-              <button
-                type="button"
-                onClick={fetchOrders}
-                className="mt-4 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Coba Lagi
-              </button>
-            </div>
-          </div>
-        </div>
+        <ErrorState
+          title="Gagal Memuat Pesanan"
+          error={error}
+          onRetry={fetchOrders}
+        />
       )}
 
       {/* Empty State */}
       {!isLoading && !error && filteredOrders.length === 0 && (
-        <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-border bg-surface p-12 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container-low text-muted-foreground">
-            <Package className="h-6 w-6" />
-          </div>
-          <h2 className="mt-4 text-base font-semibold text-foreground">
-            {searchQuery || statusFilter !== "ALL" ? "Tidak ada pesanan yang sesuai" : "Belum ada pesanan masuk"}
-          </h2>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            {searchQuery || statusFilter !== "ALL"
+        <EmptyState
+          icon={<Package className="h-6 w-6" />}
+          title={searchQuery || statusFilter !== "ALL" ? "Tidak ada pesanan yang sesuai" : "Belum ada pesanan masuk"}
+          description={
+            searchQuery || statusFilter !== "ALL"
               ? "Coba sesuaikan kata kunci pencarian atau ganti filter status."
-              : "Pesanan baru dari customer akan otomatis muncul di sini setelah pembayaran berhasil diverifikasi."}
-          </p>
-        </div>
+              : "Pesanan baru dari customer akan otomatis muncul di sini setelah pembayaran berhasil diverifikasi."
+          }
+        />
       )}
 
       {/* Orders Table */}
@@ -308,7 +279,7 @@ export default function FloristOrdersPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4 text-xs text-muted-foreground">
-                      {formatDate(order.createdAt)}
+                      {formatDateTime(order.createdAt)}
                     </td>
                     <td className="px-5 py-4 text-right font-semibold text-foreground">
                       {formatRupiah(order.totalAmount)}

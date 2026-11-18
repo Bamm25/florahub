@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { LoadingSpinner, ErrorState } from "@/components/ui";
 import ProductModal from "@/components/florist/ProductModal";
 import BOMModal from "@/components/florist/BOMModal";
 import ProduceModal from "@/components/florist/ProduceModal";
@@ -9,6 +10,12 @@ import ProductStats from "@/components/florist/ProductStats";
 import ProductFilters from "@/components/florist/ProductFilters";
 import ProductList from "@/components/florist/ProductList";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
+import { getCategories, type CategoryItem } from "@/lib/api/products";
+import {
+  getFloristProductById,
+  saveFloristProduct,
+  deleteFloristProduct,
+} from "@/lib/api/florist";
 
 interface Product {
   id: string;
@@ -44,15 +51,9 @@ interface Product {
   }>;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-}
-
 export default function FloristProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,31 +94,31 @@ export default function FloristProductsPage() {
       const productList = await fetchPaginatedCollection<Product>("/api/florist/products", "products");
       setProducts(productList);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = err instanceof Error ? err.message : "Unknown error";
       setError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const res = await fetch("/api/categories");
-      const json = await res.json();
-      if (res.ok) {
-        // Simpan daftar kategori dari respon API
-        setCategories(json.data?.items || []);
-      }
-    } catch (err) {
-
-    }
-  };
-
   useEffect(() => {
+    const controller = new AbortController();
     const fetchData = async () => {
-      await Promise.all([fetchProducts(), fetchCategories()]);
+      await Promise.all([
+        fetchProducts(),
+        getCategories(controller.signal)
+          .then((items) => {
+            if (!controller.signal.aborted) {
+              setCategories(items);
+            }
+          })
+          .catch(() => {
+            // Abaikan error memuat kategori opsional
+          }),
+      ]);
     };
-    fetchData();
+    void fetchData();
+    return () => controller.abort();
   }, []);
 
   const openCreateModal = () => {
@@ -166,15 +167,9 @@ export default function FloristProductsPage() {
   const openProduceModal = async (product: Product) => {
     try {
       // Ambil data lengkap produk beserta komponen BOM
-      const res = await fetch(`/api/florist/products/${product.id}`);
-      const json = await res.json();
-
-      if (res.ok && json.success) {
-        setSelectedProductForProduce(json.data);
-        setIsProduceModalOpen(true);
-      } else {
-        alert(json.message || "Gagal memuat data produk");
-      }
+      const fullProduct = await getFloristProductById<Product>(product.id);
+      setSelectedProductForProduce(fullProduct);
+      setIsProduceModalOpen(true);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal memuat data produk");
     }
@@ -254,33 +249,19 @@ export default function FloristProductsPage() {
         isFeatured: formData.isFeatured,
       };
 
-      const url =
-        modalMode === "create"
-          ? "/api/florist/products"
-          : `/api/florist/products/${selectedProduct?.id || ""}`;
-
       if (modalMode === "edit" && !selectedProduct?.id) {
         throw new Error("Product ID is missing");
       }
 
-      const method = modalMode === "create" ? "POST" : "PUT";
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(json?.message || `Gagal menyimpan produk (${res.status})`);
-      }
+      await saveFloristProduct(
+        payload,
+        modalMode === "edit" ? selectedProduct?.id : undefined,
+      );
 
       await fetchProducts();
       closeModal();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = err instanceof Error ? err.message : "Unknown error";
       setFormErrors({ submit: message });
     } finally {
       setIsSubmitting(false);
@@ -292,19 +273,10 @@ export default function FloristProductsPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/florist/products/${productId}`, {
-        method: "DELETE",
-      });
-
-      const json = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(json?.message || `Gagal menghapus produk (${res.status})`);
-      }
-
+      await deleteFloristProduct(productId);
       await fetchProducts();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = err instanceof Error ? err.message : "Unknown error";
       alert("Gagal menghapus produk: " + message);
     } finally {
       setIsSubmitting(false);
@@ -339,41 +311,25 @@ export default function FloristProductsPage() {
   );
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <div className="inline-flex h-12 w-12 animate-spin rounded-full border-4 border-surface-container border-t-primary"></div>
-          <p className="mt-4 text-sm font-medium text-muted-foreground">
-            Memuat katalog produk...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Memuat katalog produk..." />;
   }
 
   if (error) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center max-w-md">
-          <AlertTriangle className="w-16 h-16 text-error mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">
-            Gagal Memuat Produk
-          </h3>
-          <p className="text-sm text-muted-foreground mb-4">{error}</p>
-          <button onClick={fetchProducts} className="btn-primary">
-            Coba Lagi
-          </button>
-        </div>
-      </div>
+      <ErrorState
+        title="Gagal Memuat Produk"
+        error={error}
+        onRetry={() => void fetchProducts()}
+      />
     );
   }
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header Halaman */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-[#10121b] px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b4aeff]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Katalog & Perakitan
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
@@ -388,7 +344,7 @@ export default function FloristProductsPage() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b4aeff]"
+            className="inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <Plus className="w-4 h-4" />
             Tambah Produk Baru

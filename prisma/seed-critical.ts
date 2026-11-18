@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import { Pool } from 'pg';
 
 const pool = new Pool({
@@ -19,7 +19,6 @@ async function seedCriticalTables() {
       where: { status: { in: ['PROCESSING', 'SHIPPED', 'DELIVERED'] } },
       include: { items: true, user: true }
     });
-    const products = await prisma.product.findMany();
     const florists = await prisma.user.findMany({ where: { role: 'FLORIST' } });
 
     // 1. Shipments - Critical for order tracking
@@ -83,14 +82,14 @@ async function seedCriticalTables() {
     // 3. Notifications - Important for both roles
     console.log('🔔 Creating notifications...');
     
-    const notifications = [
+    const notifications: Prisma.NotificationUncheckedCreateInput[] = [
       { userId: florists[0].id, type: 'ORDER_CREATED', title: 'Pesanan Baru!', message: 'Order baru Rp 450K telah masuk.', link: '/florist/orders', isRead: false },
       { userId: florists[0].id, type: 'PAYMENT_SUCCESS', title: 'Pembayaran Diterima', message: 'Order telah dibayar, siap kirim.', link: '/florist/orders', isRead: false },
       { userId: florists[0].id, type: 'LOW_STOCK_ALERT', title: 'Stok Rendah', message: 'Stok Buket Mawar tersisa 3 unit.', link: '/florist/inventory', isRead: true },
     ];
 
     for (const notif of notifications) {
-      await prisma.notification.create({ data: notif as any });
+      await prisma.notification.create({ data: notif });
     }
     console.log(`  ✅ ${notifications.length} notifications created`);
 
@@ -116,7 +115,7 @@ async function seedCriticalTables() {
 
 seedCriticalTables()
   .then(() => prisma.$disconnect())
-  .catch(async (e) => {
+  .catch(async () => {
     await prisma.$disconnect();
     process.exit(1);
   });

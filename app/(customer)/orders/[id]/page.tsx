@@ -1,11 +1,12 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useCallback } from "react";
 
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   getOrderDetail,
   getOrderShipment,
@@ -13,6 +14,7 @@ import {
   type Shipment,
 } from "@/lib/api/orders";
 import { createPaymentToken } from "@/lib/api/customer";
+import { LoadingSpinner, ErrorState } from "@/components/ui";
 import {
   ArrowLeft,
   RefreshCw,
@@ -85,6 +87,11 @@ export default function OrderDetailPage({
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRetry = useCallback(() => {
+    setRefreshKey((prev) => prev + 1);
+  }, []);
 
   // Redirect ke login jika belum auth, fetch order detail dan shipment info
   useEffect(() => {
@@ -93,48 +100,63 @@ export default function OrderDetailPage({
       return;
     }
 
+    if (status !== "authenticated") {
+      return;
+    }
+
+    const controller = new AbortController();
+
     async function loadOrder() {
       try {
         setIsLoading(true);
-        const response = await getOrderDetail(orderId);
+        setErrorMessage(null);
+        const response = await getOrderDetail(orderId, controller.signal);
+        if (controller.signal.aborted) return;
         setOrder(response.data.order);
 
         // Fetch shipment info jika tersedia, skip error jika belum ada
         try {
-          const shipmentRes = await getOrderShipment(orderId);
-          setShipment(shipmentRes.data.shipment);
+          const shipmentRes = await getOrderShipment(orderId, controller.signal);
+          if (!controller.signal.aborted) {
+            setShipment(shipmentRes.data.shipment);
+          }
         } catch {
           // Shipment belum tersedia untuk order ini
-          setShipment(null);
+          if (!controller.signal.aborted) {
+            setShipment(null);
+          }
         }
       } catch (error) {
+        if (
+          controller.signal.aborted ||
+          (error instanceof Error && error.name === "AbortError")
+        ) {
+          return;
+        }
         setErrorMessage(
           error instanceof Error ? error.message : "Gagal memuat pesanan",
         );
       } finally {
-        setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     }
 
-    if (status === "authenticated") {
-      loadOrder();
-    }
-  }, [status, orderId, router]);
+    void loadOrder();
+    return () => controller.abort();
+  }, [status, orderId, router, refreshKey]);
 
   // Fungsi refresh manual untuk reload order status dari DB (no cache)
   const handleRefreshOrder = async () => {
     try {
       setIsRefreshing(true);
-      const response = await fetch(`/api/customer/orders/${orderId}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache" },
-      });
-      const result = await response.json();
-      if (response.ok && result.success) {
+      const result = await getOrderDetail(orderId);
+      if (result.success) {
         setOrder(result.data.order);
       }
-    } catch (error) {
-
+    } catch {
+      // Abaikan error refresh manual sementara
     } finally {
       setIsRefreshing(false);
     }
@@ -191,19 +213,11 @@ export default function OrderDetailPage({
     }
   };
 
-  // Render loading skeleton untuk order detail
+  // Render loading spinner untuk order detail
   if (status === "loading" || isLoading) {
     return (
       <main className="container-custom section-spacing">
-        <div className="h-6 w-40 animate-pulse rounded bg-surface-container mb-6" />
-        <div className="h-44 animate-pulse rounded-2xl bg-surface-container-low mb-8" />
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4">
-            <div className="h-64 animate-pulse rounded-2xl bg-surface-container-low" />
-            <div className="h-40 animate-pulse rounded-2xl bg-surface-container-low" />
-          </div>
-          <div className="h-80 animate-pulse rounded-2xl bg-surface-container-low" />
-        </div>
+        <LoadingSpinner message="Memuat detail pesanan..." />
       </main>
     );
   }
@@ -211,22 +225,19 @@ export default function OrderDetailPage({
   // Render error state jika order tidak ditemukan
   if (errorMessage || !order) {
     return (
-      <main className="container-custom section-spacing">
-        <div className="mx-auto max-w-lg rounded-2xl border border-border bg-card p-8 text-center">
-          <p className="text-base font-semibold text-foreground">
-            {errorMessage || "Pesanan tidak ditemukan"}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Pesanan mungkin sudah dipindahkan atau nomor referensi tidak valid.
-          </p>
-          <div className="mt-6 flex justify-center gap-3">
-            <Link href="/orders" className="btn-secondary h-10 px-5 text-sm">
-              Ke Riwayat Pesanan
-            </Link>
-            <Link href="/" className="btn-primary h-10 px-5 text-sm">
-              Beranda
-            </Link>
-          </div>
+      <main className="container-custom section-spacing space-y-4">
+        <ErrorState
+          title="Pesanan Belum Dapat Dimuat"
+          error={errorMessage || "Pesanan tidak ditemukan atau nomor referensi tidak valid."}
+          onRetry={handleRetry}
+        />
+        <div className="flex justify-center gap-3">
+          <Link href="/orders" className="btn-secondary h-10 px-5 text-sm">
+            Ke Riwayat Pesanan
+          </Link>
+          <Link href="/" className="btn-primary h-10 px-5 text-sm">
+            Beranda
+          </Link>
         </div>
       </main>
     );
@@ -250,7 +261,7 @@ export default function OrderDetailPage({
       {/* Status Hero — aksen gelap elegan */}
       <section
         aria-labelledby="order-status-heading"
-        className="mb-8 rounded-2xl bg-[#10121b] p-6 text-white sm:p-8 border border-white/10"
+        className="mb-8 rounded-2xl bg-surface-dark p-6 text-white sm:p-8 border border-white/10"
       >
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -414,9 +425,12 @@ export default function OrderDetailPage({
                   className="flex items-center gap-4 py-3.5 first:pt-0 last:pb-0"
                 >
                   {item.product.image ? (
-                    <img
+                    <Image
                       src={item.product.image}
                       alt={item.product.name}
+                      width={64}
+                      height={64}
+                      unoptimized
                       className="h-16 w-16 shrink-0 rounded-xl border border-border object-cover"
                     />
                   ) : (

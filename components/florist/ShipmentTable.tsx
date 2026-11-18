@@ -1,6 +1,6 @@
 import { Edit, RefreshCw, FileText, Loader2 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
-import { formatDateTime } from "@/lib/utils/formatters";
+import { formatDateTime, formatRupiah } from "@/lib/utils/formatters";
 
 // Tipe data pengiriman untuk daftar shipment florist
 export interface Shipment {
@@ -46,27 +46,19 @@ interface ShipmentTableProps {
 
 // Komponen tabel daftar pengiriman florist dengan aksi sinkronisasi Biteship dan cetak label
 export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: ShipmentTableProps) {
-  const formatRupiah = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
       <div className="overflow-x-auto overscroll-x-contain">
         <table className="w-full min-w-[820px]">
-          <thead className="bg-[#181720] border-b border-zinc-800">
+          <thead className="bg-surface-dark border-b border-white/10">
             <tr>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Order</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Customer</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Kurir</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Nomor Resi</th>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-300">Status</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-300">Dibuat</th>
-              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-zinc-300">Aksi</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white/80">Order</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white/80">Customer</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white/80">Kurir</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white/80">Nomor Resi</th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white/80">Status</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white/80">Dibuat</th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-white/80">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -139,9 +131,10 @@ export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: Shipment
 
                     {/* NOTE: CANCELLED shipments cannot be edited by design. For corrections, contact admin. */}
                     <button
+                      type="button"
                       onClick={() => onEdit(shipment)}
                       disabled={shipment.status === "DELIVERED" || shipment.status === "CANCELLED"}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Edit className="w-3.5 h-3.5" />
                       Update

@@ -54,14 +54,14 @@ export async function GET(
       );
     }
 
-    // Validasi hak akses pemilik florist, pembeli, atau admin
-    const userId = (session.user as any).id;
-    const userRole = (session.user as any).role;
+    // Validasi hak akses pemilik florist atau pembeli
+    const sessionUser = session.user as { id?: string; role?: string };
+    const userId = sessionUser.id;
     const floristId = shipment.order.items[0]?.product?.florist?.id;
     const isOwner = floristId === userId;
     const isCustomer = shipment.order.userId === userId;
 
-    if (!isOwner && !isCustomer && userRole !== "ADMIN") {
+    if (!isOwner && !isCustomer) {
       return NextResponse.json(
         { success: false, message: "Anda tidak memiliki akses ke shipment ini" },
         { status: 403 }
@@ -168,13 +168,13 @@ export async function GET(
         source: "biteship",
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Tangani error internal server
     reportServerError("[TRACK_SHIPMENT_ERROR]", error);
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Gagal melakukan tracking",
+        message: error instanceof Error ? error.message : "Gagal melakukan tracking",
       },
       { status: 500 }
     );

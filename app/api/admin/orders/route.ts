@@ -1,12 +1,13 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { OrderStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP GET untuk mengambil daftar pesanan seluruh sistem oleh admin
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
+    await requireAuth(request, ["ADMIN"]);
     // Ambil parameter paginasi dan filter dari query string
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
     const statusParam = searchParams.get("status");
     const isPreorderParam = searchParams.get("isPreorder");
-    const whereClause: any = {};
+    const whereClause: Prisma.OrderWhereInput = {};
 
     // Filter berdasarkan status pesanan jika ada
     if (
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
       typeof statusParam === "string" &&
       statusParam.trim() !== ""
     ) {
-      whereClause.status = statusParam.trim();
+      whereClause.status = statusParam.trim() as OrderStatus;
     }
     // Filter berdasarkan jenis pesanan preorder jika ada
     if (isPreorderParam !== null) {

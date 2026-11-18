@@ -14,7 +14,7 @@ type RouteParams = {
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     // Autentikasi dan verifikasi hak akses admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
+    await requireAuth(request, ["ADMIN"]);
     // Ambil parameter ID kupon dari URL
     const { id: couponId } = await params;
 
@@ -90,7 +90,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
     // Autentikasi dan verifikasi hak akses admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
+    await requireAuth(request, ["ADMIN"]);
     // Ambil parameter ID kupon dari URL
     const { id: couponId } = await params;
 
@@ -235,7 +235,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
     // Autentikasi dan verifikasi hak akses admin
-    const { userId } = await requireAuth(request, ["ADMIN"]);
+    await requireAuth(request, ["ADMIN"]);
     // Ambil parameter ID kupon dari URL
     const { id: couponId } = await params;
 

@@ -1,6 +1,7 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP GET untuk florist menjelajahi stok bunga langsung milik supplier (transaksi biasa tanpa pre-order)
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 50);
     const skip = (page - 1) * limit;
 
-    const whereClause: any = {
+    const whereClause: Prisma.StockWhereInput = {
       isAvailable: true,
       quantity: { gt: 0 },
     };

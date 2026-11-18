@@ -344,3 +344,76 @@ export const createNotificationSchema = z.object({
 export const updateNotificationSchema = z.object({
   isRead: z.boolean(),
 });
+
+// Skema validasi query daftar pengguna admin
+export const adminUserQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  role: z.enum(["ADMIN", "SUPPLIER", "FLORIST", "CUSTOMER"]).optional(),
+  search: z.string().trim().max(100).optional(),
+});
+
+// Skema validasi pembaruan profil pelanggan
+export const updateCustomerProfileSchema = z.object({
+  name: z.string().min(3, "Nama minimal 3 karakter").max(100),
+  phone: z.string().regex(/^\d{10,15}$/, "No HP harus 10-15 digit"),
+});
+
+// Skema validasi pembaruan profil toko florist
+export const updateFloristProfileSchema = z.object({
+  shopName: z.string().min(3).max(200).optional(),
+  shopDescription: z.string().max(1000).optional().nullable(),
+  logo: z.url().max(500).optional().nullable(),
+  banner: z.url().max(500).optional().nullable(),
+});
+
+// Skema validasi kuantitas produksi produk florist
+export const produceProductSchema = z.object({
+  quantity: z.number().int().positive("Jumlah harus lebih dari 0"),
+});
+
+// Skema validasi pembuatan bahan baku mandiri oleh florist
+export const createRawMaterialSchema = z.object({
+  name: z.string().min(2, "Nama bahan baku minimal 2 karakter"),
+  category: z.string().default("Bunga Segar"),
+  variety: z.string().optional().nullable(),
+  quantity: z.number().int().min(0, "Stok awal tidak boleh negatif"),
+  unit: z.string().default("tangkai"),
+  pricePerUnit: z
+    .number()
+    .int()
+    .min(0, "Harga modal per unit tidak boleh negatif"),
+  minThreshold: z.number().int().min(0).default(10),
+  location: z.string().optional().nullable(),
+});
+
+// Skema validasi pembaruan bahan baku atau penyesuaian stok florist
+export const updateRawMaterialSchema = z.object({
+  action: z.enum(["UPDATE_DETAILS", "ADJUST_STOCK"]).default("UPDATE_DETAILS"),
+  name: z.string().min(2, "Nama minimal 2 karakter").optional(),
+  category: z.string().optional(),
+  unit: z.string().optional(),
+  pricePerUnit: z.number().int().min(0).optional(),
+  minThreshold: z.number().int().min(0).optional(),
+  location: z.string().optional().nullable(),
+  adjustmentType: z.enum(["ADD", "SUBTRACT", "SET"]).optional(),
+  amount: z.number().int().min(0).optional(),
+  reason: z.string().optional(),
+});
+
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type CreateAddressInput = z.infer<typeof createAddressSchema>;
+export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
+export type CheckoutInput = z.infer<typeof checkoutSchema>;
+export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type CreateRawMaterialInput = z.infer<typeof createRawMaterialSchema>;
+export type UpdateRawMaterialInput = z.infer<typeof updateRawMaterialSchema>;
+export type UpdateCustomerProfileInput = z.infer<
+  typeof updateCustomerProfileSchema
+>;
+export type UpdateFloristProfileInput = z.infer<
+  typeof updateFloristProfileSchema
+>;
+export type AdminUserQueryInput = z.infer<typeof adminUserQuerySchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;

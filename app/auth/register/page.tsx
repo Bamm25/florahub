@@ -1,9 +1,11 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, CheckCircle, Eye, EyeOff, Flower2 } from "lucide-react";
+import { registerUser } from "@/lib/api/customer";
+import { ApiClientError } from "@/lib/api/client";
 
 const labelClass = "mb-2 block text-sm font-semibold text-foreground";
 const hintTextClass = "mt-2 text-sm text-muted-foreground";
@@ -24,7 +26,7 @@ function BrandPanel() {
       </Link>
 
       <div className="max-w-md">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b4aeff]">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
           Platform Florikultura
         </p>
         <p className="mt-4 text-5xl font-extrabold leading-[1.1] tracking-[-0.024em]">
@@ -67,6 +69,15 @@ function RegisterForm() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const redirectTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current !== null) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -116,32 +127,24 @@ function RegisterForm() {
     setFormErrors({});
 
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          phone,
-          password,
-          role,
-        }),
+      await registerUser({
+        name,
+        email,
+        phone,
+        password,
+        role,
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        setErrorMessage(result.message || "Pendaftaran gagal. Silakan coba lagi.");
-        setIsLoading(false);
-        return;
-      }
-
       setSuccessMessage("Akun berhasil dibuat. Mengarahkan ke halaman masuk…");
-      setTimeout(() => {
+      redirectTimerRef.current = window.setTimeout(() => {
         router.push("/auth/login");
       }, 1500);
-    } catch {
-      setErrorMessage("Koneksi terputus saat mendaftar. Periksa internet Anda, lalu coba lagi.");
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        setErrorMessage(error.message || "Pendaftaran gagal. Silakan coba lagi.");
+      } else {
+        setErrorMessage("Koneksi terputus saat mendaftar. Periksa internet Anda, lalu coba lagi.");
+      }
       setIsLoading(false);
     }
   };

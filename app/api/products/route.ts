@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { createProductSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -103,7 +104,7 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit;
 
     // Susun klausa filter pencarian dan kategori produk
-    const whereClause: any = {
+    const whereClause: Prisma.ProductWhereInput = {
       isActive: true,
     };
     if (search) {

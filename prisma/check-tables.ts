@@ -13,31 +13,31 @@ const prisma = new PrismaClient({ adapter });
 async function checkAllTables() {
   console.log('🔍 Checking all tables for data...\n');
 
-  const tables = [
-    'User',
-    'Address',
-    'FlowerCategory',
-    'Product',
-    'Order',
-    'OrderItem',
-    'Payment',
-    'Shipment',
-    'Review',
-    'Coupon',
-    'CouponUsage',
-    'Notification',
-    'FloristInventory',
-    'Stock',
-    'HarvestAnnouncement',
-    'HarvestPreOrder',
-    'StockTransaction',
-  ];
+  const tableCounters: Record<string, () => Promise<number>> = {
+    User: () => prisma.user.count(),
+    Address: () => prisma.address.count(),
+    FlowerCategory: () => prisma.flowerCategory.count(),
+    Product: () => prisma.product.count(),
+    Order: () => prisma.order.count(),
+    OrderItem: () => prisma.orderItem.count(),
+    Payment: () => prisma.payment.count(),
+    Shipment: () => prisma.shipment.count(),
+    Review: () => prisma.review.count(),
+    Coupon: () => prisma.coupon.count(),
+    CouponUsage: () => prisma.couponUsage.count(),
+    Notification: () => prisma.notification.count(),
+    FloristInventory: () => prisma.floristInventory.count(),
+    Stock: () => prisma.stock.count(),
+    HarvestAnnouncement: () => prisma.harvestAnnouncement.count(),
+    HarvestPreOrder: () => prisma.harvestPreOrder.count(),
+    StockTransaction: () => prisma.stockTransaction.count(),
+  };
 
   const results: Record<string, number> = {};
 
-  for (const table of tables) {
+  for (const [table, countFn] of Object.entries(tableCounters)) {
     try {
-      const count = await (prisma as any)[table.charAt(0).toLowerCase() + table.slice(1)].count();
+      const count = await countFn();
       results[table] = count;
       
       if (count === 0) {
@@ -51,13 +51,13 @@ async function checkAllTables() {
   }
 
   console.log('\n📊 Summary:');
-  const emptyTables = Object.entries(results).filter(([_, count]) => count === 0);
+  const emptyTables = Object.entries(results).filter(([, count]) => count === 0);
   
   if (emptyTables.length === 0) {
     console.log('✅ All tables have data!');
   } else {
     console.log(`❌ Empty tables (${emptyTables.length}):`);
-    emptyTables.forEach(([table, _]) => console.log(`   - ${table}`));
+    emptyTables.forEach(([table]) => console.log(`   - ${table}`));
   }
 
   return results;

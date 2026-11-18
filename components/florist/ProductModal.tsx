@@ -1,7 +1,9 @@
 import React, { useRef, useState } from "react";
+import Image from "next/image";
 import { Loader2, Upload, X } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
+import { uploadMediaFile } from "@/lib/api/florist";
 
 interface Category {
   id: string;
@@ -79,19 +81,7 @@ export default function ProductModal({
     try {
       setIsUploading(true);
 
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(data?.error || `Upload gagal (${response.status})`);
-      }
+      const data = await uploadMediaFile(file);
 
       if (data?.storage !== "cloudflare-r2" || typeof data.url !== "string" || !data.url.startsWith("https://")) {
         throw new Error("Respon upload bukan URL publik Cloudflare R2");
@@ -226,15 +216,17 @@ export default function ProductModal({
               </span>
             </button>
           ) : (
-            <div className="relative group">
-              <img
+            <div className="relative group h-48 w-full">
+              <Image
                 src={formData.image}
                 alt="Preview"
+                fill
+                unoptimized
                 onError={() => {
                   setPreviewError(true);
                   setUploadError("Gambar tidak dapat ditampilkan. Unggah ulang gambar sebelum menyimpan.");
                 }}
-                className="w-full h-48 object-cover rounded-xl border border-border"
+                className="object-cover rounded-xl border border-border"
               />
               <button
                 type="button"
@@ -332,7 +324,7 @@ export default function ProductModal({
           <button
             type="submit"
             disabled={isSubmitting || isUploading || previewError}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 flex-1"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 flex-1"
           >
             {isSubmitting ? (
               <>

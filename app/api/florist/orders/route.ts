@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import type { OrderStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP GET untuk mengambil daftar pesanan florist
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
 
     const status = searchParams.get("status");
     // Susun filter query pesanan florist
-    const whereClause: any = {
+    const whereClause: Prisma.OrderWhereInput = {
       items: {
         some: {
           product: {
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
         },
       },
     };
-    if (status) whereClause.status = status;
+    if (status) whereClause.status = status as OrderStatus;
 
     // Ambil daftar pesanan florist beserta relasi pembeli, produk, pembayaran, pengiriman, dan total data
     const [orders, total] = await Promise.all([

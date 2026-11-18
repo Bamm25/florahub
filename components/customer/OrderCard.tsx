@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
@@ -80,9 +81,12 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           {visibleItems.map((item, idx) => (
             <div key={item.id || idx} className="flex items-center gap-3">
               {item.product.image ? (
-                <img
+                <Image
                   src={item.product.image}
                   alt={item.product.name}
+                  width={48}
+                  height={48}
+                  unoptimized
                   className="h-12 w-12 shrink-0 rounded-lg border border-border object-cover"
                 />
               ) : (
