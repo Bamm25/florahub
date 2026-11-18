@@ -345,54 +345,246 @@ export async function fetchAdminAuditLogs<T = Record<string, unknown>>(
   return result.data;
 }
 
-export async function fetchAdminCoupons<T = Record<string, unknown>>(
-  params: { page?: number; limit?: number } = {},
+export type AdminCouponType = "PERCENTAGE" | "FIXED" | "FREE_SHIPPING";
+
+export interface AdminCouponItem {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  type: AdminCouponType;
+  value: number;
+  minPurchase: number | null;
+  maxDiscount: number | null;
+  validFrom: string;
+  validUntil: string;
+  usageLimit: number | null;
+  usagePerUser: number;
+  usageCount: number;
+  isActive: boolean;
+  applicableFor: string[];
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    usages: number;
+  };
+}
+
+export interface AdminCouponsPage {
+  coupons: AdminCouponItem[];
+  pagination: AdminPaginationMeta;
+}
+
+export interface AdminCouponMutationInput {
+  code?: string;
+  name: string;
+  description?: string | null;
+  type: AdminCouponType;
+  value: number;
+  minPurchase?: number | null;
+  maxDiscount?: number | null;
+  usageLimit?: number | null;
+  usagePerUser?: number;
+  validFrom?: string;
+  validUntil?: string;
+  isActive?: boolean;
+}
+
+export interface AdminDeleteCouponResult {
+  archived: boolean;
+  message: string;
+  coupon?: AdminCouponItem;
+}
+
+export interface AdminCategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    products: number;
+  };
+}
+
+export interface AdminCategoriesPage {
+  items: AdminCategoryItem[];
+  pagination: AdminPaginationMeta;
+}
+
+export interface AdminCategoryMutationInput {
+  name: string;
+  slug: string;
+  description?: string | null;
+  image?: string | null;
+  isActive?: boolean;
+}
+
+// Mengambil daftar kupon promosi dengan filter tipe, status aktif, dan pencarian
+export async function fetchAdminCoupons(
+  params: {
+    page?: number;
+    limit?: number;
+    type?: AdminCouponType;
+    isActive?: boolean;
+    search?: string;
+  } = {},
   signal?: AbortSignal,
-): Promise<{ coupons: T[]; pagination: AdminPaginationMeta }> {
+): Promise<AdminCouponsPage> {
   const query = new URLSearchParams();
-  if (params.page) query.set("page", String(params.page));
-  if (params.limit) query.set("limit", String(params.limit));
-  const qs = query.toString();
+  query.set("page", String(params.page ?? 1));
+  query.set("limit", String(params.limit ?? 20));
+  if (params.type) query.set("type", params.type);
+  if (params.isActive !== undefined) {
+    query.set("isActive", String(params.isActive));
+  }
+  if (params.search?.trim()) query.set("search", params.search.trim());
+
   const result = await fetchJson<{
     success: boolean;
-    data: { coupons: T[]; pagination: AdminPaginationMeta };
-  }>(qs ? `/api/admin/coupons?${qs}` : "/api/admin/coupons", {
+    data: AdminCouponsPage;
+  }>(`/api/admin/coupons?${query.toString()}`, {
     method: "GET",
     cache: "no-store",
     signal,
   });
+
+  if (!result?.success || !result.data) {
+    throw new Error("Respons daftar kupon tidak valid");
+  }
   return result.data;
 }
 
-export async function createAdminCoupon<T = Record<string, unknown>>(
-  payload: Record<string, unknown>,
-): Promise<T> {
-  const result = await fetchJson<{ success: boolean; data: { coupon: T } }>(
-    "/api/admin/coupons",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
+export async function createAdminCoupon(
+  payload: AdminCouponMutationInput & { code: string },
+): Promise<AdminCouponItem> {
+  const result = await fetchJson<{
+    success: boolean;
+    data: { coupon: AdminCouponItem };
+  }>("/api/admin/coupons", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!result?.success || !result.data?.coupon) {
+    throw new Error("Gagal membuat kupon promosi");
+  }
   return result.data.coupon;
 }
 
-export async function updateAdminCoupon<T = Record<string, unknown>>(
+export async function updateAdminCoupon(
   id: string,
-  payload: Record<string, unknown>,
-): Promise<T> {
-  const result = await fetchJson<{ success: boolean; data: { coupon: T } }>(
-    `/api/admin/coupons/${encodeURIComponent(id)}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    },
-  );
+  payload: Partial<AdminCouponMutationInput>,
+): Promise<AdminCouponItem> {
+  const result = await fetchJson<{
+    success: boolean;
+    data: { coupon: AdminCouponItem };
+  }>(`/api/admin/coupons/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  if (!result?.success || !result.data?.coupon) {
+    throw new Error("Gagal memperbarui kupon promosi");
+  }
   return result.data.coupon;
 }
 
-export async function deleteAdminCoupon(id: string): Promise<void> {
-  await fetchJson(`/api/admin/coupons/${encodeURIComponent(id)}`, {
+export async function deleteAdminCoupon(
+  id: string,
+): Promise<AdminDeleteCouponResult> {
+  const result = await fetchJson<{
+    success: boolean;
+    message?: string;
+    data?: { archived?: boolean; coupon?: AdminCouponItem };
+  }>(`/api/admin/coupons/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
+  if (!result?.success) {
+    throw new Error("Gagal menghapus kupon promosi");
+  }
+  return {
+    archived: Boolean(result.data?.archived),
+    message: result.message || "Operasi kupon selesai",
+    coupon: result.data?.coupon,
+  };
+}
+
+// Mengambil daftar kategori bunga untuk katalog admin
+export async function fetchAdminCategories(
+  params: {
+    page?: number;
+    limit?: number;
+    isActive?: boolean;
+    search?: string;
+  } = {},
+  signal?: AbortSignal,
+): Promise<AdminCategoriesPage> {
+  const query = new URLSearchParams();
+  query.set("page", String(params.page ?? 1));
+  query.set("limit", String(params.limit ?? 20));
+  if (params.isActive !== undefined) {
+    query.set("isActive", String(params.isActive));
+  }
+  if (params.search?.trim()) query.set("search", params.search.trim());
+
+  const result = await fetchJson<{
+    success: boolean;
+    data: AdminCategoriesPage;
+  }>(`/api/categories?${query.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+    signal,
+  });
+
+  if (!result?.success || !result.data) {
+    throw new Error("Respons daftar kategori tidak valid");
+  }
+  return result.data;
+}
+
+export async function createAdminCategory(
+  payload: AdminCategoryMutationInput,
+): Promise<AdminCategoryItem> {
+  const result = await fetchJson<{
+    success: boolean;
+    data: AdminCategoryItem;
+  }>("/api/categories", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (!result?.success || !result.data) {
+    throw new Error("Gagal membuat kategori bunga");
+  }
+  return result.data;
+}
+
+export async function updateAdminCategory(
+  id: string,
+  payload: Partial<AdminCategoryMutationInput>,
+): Promise<AdminCategoryItem> {
+  const result = await fetchJson<{
+    success: boolean;
+    data: AdminCategoryItem;
+  }>(`/api/categories/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  if (!result?.success || !result.data) {
+    throw new Error("Gagal memperbarui kategori bunga");
+  }
+  return result.data;
+}
+
+export async function deleteAdminCategory(id: string): Promise<void> {
+  const result = await fetchJson<{ success: boolean }>(
+    `/api/categories/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+    },
+  );
+  if (!result?.success) {
+    throw new Error("Gagal menghapus kategori bunga");
+  }
 }

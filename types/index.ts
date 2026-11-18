@@ -170,6 +170,12 @@ export interface AuthState {
 }
 
 export type {
+  AdminCategoryQueryInput,
+  AdminCouponQueryInput,
   AdminOrderQueryInput,
   AdminSupplyQueryInput,
+  CreateCategoryInput,
+  CreateCouponInput,
+  UpdateCategoryInput,
+  UpdateCouponInput,
 } from "@/lib/validations/schemas";

@@ -1,31 +1,74 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { reportServerError } from "@/lib/server-error-report";
+import {
+  adminCategoryQuerySchema,
+  createCategorySchema,
+} from "@/lib/validations/schemas";
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { createCategorySchema } from "@/lib/validations/schemas";
 import { z } from "zod";
 
-// Handler HTTP GET untuk mengambil daftar kategori bunga dengan paginasi
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2002"
+  );
+}
+
+// Handler HTTP GET untuk mengambil daftar kategori bunga beserta filter dan paginasi
 export async function GET(request: Request) {
   try {
-    // Ambil parameter paginasi dari query URL
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const rawIsActive = searchParams.get("isActive")?.trim();
+    const rawSearch = searchParams.get("search")?.trim();
+
+    const parsed = adminCategoryQuerySchema.safeParse({
+      page: searchParams.get("page") ?? undefined,
+      limit: searchParams.get("limit") ?? undefined,
+      isActive: rawIsActive || undefined,
+      search: rawSearch || undefined,
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, message: "Filter kategori tidak valid" },
+        { status: 400 },
+      );
+    }
+
+    const { page, limit, isActive, search } = parsed.data;
     const skip = (page - 1) * limit;
 
-    // Ambil data kategori dan hitung total data secara bersamaan
+    const whereClause: Prisma.FlowerCategoryWhereInput = {
+      ...(isActive !== undefined ? { isActive } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { slug: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
     const [categories, total] = await Promise.all([
       prisma.flowerCategory.findMany({
-        orderBy: {
-          name: "asc",
-        },
+        where: whereClause,
+        orderBy: { name: "asc" },
         take: limit,
-        skip: skip,
+        skip,
+        include: {
+          _count: {
+            select: { products: true },
+          },
+        },
       }),
-      prisma.flowerCategory.count(),
+      prisma.flowerCategory.count({ where: whereClause }),
     ]);
 
-    // Kirim respons daftar kategori beserta metadata paginasi
     return NextResponse.json({
       success: true,
       data: {
@@ -35,6 +78,8 @@ export async function GET(request: Request) {
           limit,
           total,
           totalPages: Math.ceil(total / limit),
+          hasNext: page * limit < total,
+          hasPrev: page > 1,
         },
       },
     });
@@ -42,56 +87,86 @@ export async function GET(request: Request) {
     if (error instanceof NextResponse) {
       return error;
     }
+    reportServerError("Category list fetch failed:", error);
     return NextResponse.json(
-      {
-        success: false,
-        message: "Gagal mengambil data kategori",
-      },
+      { success: false, message: "Gagal mengambil data kategori" },
       { status: 500 },
     );
   }
 }
 
-// Handler HTTP POST untuk membuat kategori bunga baru
+// Handler HTTP POST untuk membuat kategori bunga baru oleh admin secara atomik
 export async function POST(request: Request) {
   try {
-    // Validasi otorisasi pengguna sebagai admin
-    await requireAuth(request, ["ADMIN"]);
+    const { userId } = await requireAuth(request, ["ADMIN"]);
 
-    // Parse dan validasi payload penambahan kategori
-    const body = await request.json();
+    const body: unknown = await request.json().catch(() => null);
     const validatedData = createCategorySchema.parse(body);
-    const { name, slug, description } = validatedData;
+    const { name, slug, description, image, isActive } = validatedData;
+    const normalizedName = name.trim();
+    const normalizedSlug = slug.trim();
 
-    // Validasi keunikan nama kategori bunga
-    const existingCategory = await prisma.flowerCategory.findUnique({
-      where: { name: name.trim() },
+    const result = await prisma.$transaction(async (tx) => {
+      const existingCategory = await tx.flowerCategory.findFirst({
+        where: {
+          OR: [{ name: normalizedName }, { slug: normalizedSlug }],
+        },
+        select: { id: true, name: true, slug: true },
+      });
+
+      if (existingCategory) {
+        return {
+          status: 409 as const,
+          message:
+            existingCategory.name === normalizedName
+              ? "Kategori dengan nama tersebut sudah ada"
+              : "Slug kategori tersebut sudah digunakan",
+        };
+      }
+
+      const newCategory = await tx.flowerCategory.create({
+        data: {
+          name: normalizedName,
+          slug: normalizedSlug,
+          description: description ? description.trim() : null,
+          image: image || null,
+          isActive,
+        },
+        include: {
+          _count: {
+            select: { products: true },
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: "CREATE",
+          entity: "FlowerCategory",
+          entityId: newCategory.id,
+          newValue: {
+            name: newCategory.name,
+            slug: newCategory.slug,
+            isActive: newCategory.isActive,
+          },
+        },
+      });
+
+      return { status: 201 as const, category: newCategory };
     });
 
-    if (existingCategory) {
+    if (result.status === 409) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Kategori dengan nama tersebut sudah ada",
-        },
+        { success: false, message: result.message },
         { status: 409 },
       );
     }
 
-    // Simpan kategori bunga baru ke database
-    const newCategory = await prisma.flowerCategory.create({
-      data: {
-        name: name.trim(),
-        slug,
-        description: description || null,
-      },
-    });
-
-    // Kembalikan respons berhasil pembuatan kategori
     return NextResponse.json(
       {
         success: true,
-        data: newCategory,
+        data: result.category,
         message: "Kategori berhasil ditambahkan",
       },
       { status: 201 },
@@ -100,17 +175,21 @@ export async function POST(request: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, message: "Validation error", errors: error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (error instanceof NextResponse) {
       return error;
     }
+    if (isUniqueConstraintError(error)) {
+      return NextResponse.json(
+        { success: false, message: "Nama atau slug kategori sudah terdaftar" },
+        { status: 409 },
+      );
+    }
+    reportServerError("Category creation failed:", error);
     return NextResponse.json(
-      {
-        success: false,
-        message: "Gagal menambahkan kategori bunga",
-      },
+      { success: false, message: "Gagal menambahkan kategori bunga" },
       { status: 500 },
     );
   }

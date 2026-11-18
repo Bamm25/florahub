@@ -62,33 +62,35 @@ export const checkoutSchema = z.object({
 
 // Skema validasi pembuatan kupon diskon baru oleh admin
 export const createCouponSchema = z.object({
-  code: z.string().min(3).max(20).toUpperCase(),
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
+  code: z.string().trim().min(3, "Kode minimal 3 karakter").max(20).toUpperCase(),
+  name: z.string().trim().min(1, "Nama kupon wajib diisi").max(100),
+  description: z.string().trim().max(500).nullable().optional(),
   type: z.enum(["PERCENTAGE", "FIXED", "FREE_SHIPPING"]),
   value: z.number().min(0, "Nilai tidak boleh negatif"),
-  minPurchase: z.number().min(0).optional(),
-  maxDiscount: z.number().min(0).optional(),
-  usageLimit: z.number().int().min(1).optional(),
+  minPurchase: z.number().min(0).nullable().optional(),
+  maxDiscount: z.number().min(0).nullable().optional(),
+  usageLimit: z.number().int().min(1).nullable().optional(),
   usagePerUser: z.number().int().min(1).default(1),
   validFrom: z.iso.datetime().optional(),
   validUntil: z.iso.datetime().optional(),
+  applicableFor: z.array(z.string().trim().min(1)).optional(),
   isActive: z.boolean().default(true),
 });
 
 // Skema validasi pembaruan data kupon diskon oleh admin
 export const updateCouponSchema = z.object({
-  code: z.string().min(3).max(20).toUpperCase().optional(),
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
+  code: z.string().trim().min(3, "Kode minimal 3 karakter").max(20).toUpperCase().optional(),
+  name: z.string().trim().min(1, "Nama kupon wajib diisi").max(100).optional(),
+  description: z.string().trim().max(500).nullable().optional(),
   type: z.enum(["PERCENTAGE", "FIXED", "FREE_SHIPPING"]).optional(),
   value: z.number().min(0).optional(),
-  minPurchase: z.number().min(0).optional(),
-  maxDiscount: z.number().min(0).optional(),
-  usageLimit: z.number().int().min(1).optional(),
+  minPurchase: z.number().min(0).nullable().optional(),
+  maxDiscount: z.number().min(0).nullable().optional(),
+  usageLimit: z.number().int().min(1).nullable().optional(),
   usagePerUser: z.number().int().min(1).optional(),
   validFrom: z.iso.datetime().optional(),
   validUntil: z.iso.datetime().optional(),
+  applicableFor: z.array(z.string().trim().min(1)).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -138,27 +140,31 @@ export const updateReviewSchema = z.object({
 
 // Skema validasi pembuatan kategori produk baru
 export const createCategorySchema = z.object({
-  name: z.string().min(1, "Nama kategori wajib diisi").max(50),
+  name: z.string().trim().min(1, "Nama kategori wajib diisi").max(50),
   slug: z
     .string()
+    .trim()
     .min(1, "Slug wajib diisi")
     .max(50)
     .regex(/^[a-z0-9-]+$/, "Slug harus lowercase, angka, dan dash saja"),
-  description: z.string().max(500).optional(),
-  image: z.url().optional(),
+  description: z.string().trim().max(500).nullable().optional(),
+  image: z.url().nullable().optional(),
+  isActive: z.boolean().default(true),
 });
 
 // Skema validasi pembaruan data kategori produk
 export const updateCategorySchema = z.object({
-  name: z.string().min(1).max(50).optional(),
+  name: z.string().trim().min(1, "Nama kategori wajib diisi").max(50).optional(),
   slug: z
     .string()
-    .min(1)
+    .trim()
+    .min(1, "Slug wajib diisi")
     .max(50)
-    .regex(/^[a-z0-9-]+$/)
+    .regex(/^[a-z0-9-]+$/, "Slug harus lowercase, angka, dan dash saja")
     .optional(),
-  description: z.string().max(500).optional(),
-  image: z.url().optional(),
+  description: z.string().trim().max(500).nullable().optional(),
+  image: z.url().nullable().optional(),
+  isActive: z.boolean().optional(),
 });
 
 // Skema validasi penambahan stok inventaris florist
@@ -476,10 +482,37 @@ export const adminSupplyQuerySchema = z
     }
   });
 
+// Skema validasi query daftar kupon promosi untuk admin
+export const adminCouponQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  type: z.enum(["PERCENTAGE", "FIXED", "FREE_SHIPPING"]).optional(),
+  isActive: z
+    .enum(["true", "false"])
+    .transform((val) => val === "true")
+    .optional(),
+  search: z.string().trim().max(100).optional(),
+});
+
+// Skema validasi query daftar kategori bunga
+export const adminCategoryQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  isActive: z
+    .enum(["true", "false"])
+    .transform((val) => val === "true")
+    .optional(),
+  search: z.string().trim().max(100).optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type CreateAddressInput = z.infer<typeof createAddressSchema>;
 export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+export type CreateCouponInput = z.infer<typeof createCouponSchema>;
+export type UpdateCouponInput = z.infer<typeof updateCouponSchema>;
+export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
+export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type CreateRawMaterialInput = z.infer<typeof createRawMaterialSchema>;
@@ -493,4 +526,6 @@ export type UpdateFloristProfileInput = z.infer<
 export type AdminUserQueryInput = z.infer<typeof adminUserQuerySchema>;
 export type AdminOrderQueryInput = z.infer<typeof adminOrderQuerySchema>;
 export type AdminSupplyQueryInput = z.infer<typeof adminSupplyQuerySchema>;
+export type AdminCouponQueryInput = z.infer<typeof adminCouponQuerySchema>;
+export type AdminCategoryQueryInput = z.infer<typeof adminCategoryQuerySchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
