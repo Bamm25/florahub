@@ -9,6 +9,16 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_PRODUCTION_SEED !== "true"
+  ) {
+    throw new Error(
+      "Seeding diblokir di environment production (set ALLOW_PRODUCTION_SEED=true bila benar-benar diperlukan).",
+    );
+  }
+
+  const seedPassword = process.env.SEED_USER_PASSWORD || "password123";
   console.log('🌱 Starting seed...');
 
   // Clean up existing data (optional - comment out if you want to keep existing data)
@@ -30,7 +40,7 @@ async function main() {
       data: {
         name: 'Toko Bunga Indah',
         email: floristEmail,
-        password: await bcrypt.hash('password123', 10),
+        password: await bcrypt.hash(seedPassword, 10),
         role: 'FLORIST',
         phone: '081234567890',
         isActive: true,
@@ -244,7 +254,7 @@ async function main() {
       data: {
         name: 'Test Customer',
         email: customerEmail,
-        password: await bcrypt.hash('password123', 10),
+        password: await bcrypt.hash(seedPassword, 10),
         role: 'CUSTOMER',
         phone: '081298765432',
         isActive: true,

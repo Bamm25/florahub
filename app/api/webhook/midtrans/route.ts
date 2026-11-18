@@ -1,4 +1,5 @@
 import { reportServerError } from "@/lib/server-error-report";
+import { releaseCouponUsageInTx } from "@/lib/coupons";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
 import { settlePreorder, settleStock } from "@/lib/supply-chain/midtrans-payments";
@@ -59,9 +60,12 @@ export async function POST(request: Request) {
     }
     if (/^(DP|FINAL|STOCK)_/.test(order_id)) return NextResponse.json({ success: false, message: "Invalid payment order ID" }, { status: 400 });
 
-    // Cari data pesanan berdasarkan nomor pesanan
+    // Cari data pesanan berdasarkan nomor pesanan (mendukung sufiks retry -Rxxxx)
+    const baseOrderNumber = order_id.replace(/-R[a-z0-9]+$/i, "");
     const order = await prisma.order.findFirst({
-      where: { orderNumber: order_id },
+      where: {
+        OR: [{ orderNumber: order_id }, { orderNumber: baseOrderNumber }],
+      },
       include: {
         payment: true,
         items: true,
@@ -184,16 +188,19 @@ export async function POST(request: Request) {
         });
 
         if (updateResult.count > 0) {
-          for (const item of order.items) {
-            await tx.product.update({
-              where: { id: item.productId },
-              data: {
-                stock: {
-                  increment: item.quantity,
+          await Promise.all(
+            order.items.map((item) =>
+              tx.product.update({
+                where: { id: item.productId },
+                data: {
+                  stock: {
+                    increment: item.quantity,
+                  },
                 },
-              },
-            });
-          }
+              }),
+            ),
+          );
+          await releaseCouponUsageInTx(tx, order.id);
         }
       });
     }

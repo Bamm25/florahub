@@ -350,21 +350,6 @@ export async function createHarvestAnnouncement(
   return result.data.announcement;
 }
 
-// CRUD update jadwal panen
-export async function updateHarvestAnnouncement(
-  id: string,
-  input: Partial<CreateHarvestAnnouncementInput>,
-): Promise<HarvestAnnouncementItem> {
-  const result = await fetchJson<{
-    success: boolean;
-    data: { announcement: HarvestAnnouncementItem };
-  }>(`/api/supplier/harvest-announcements/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(input),
-  });
-  return result.data.announcement;
-}
-
 // CRUD delete jadwal panen
 export async function deleteHarvestAnnouncement(id: string): Promise<void> {
   await fetchJson<{ success: boolean; message: string }>(
@@ -390,62 +375,6 @@ export async function updatePreOrderStatus(
       status,
       cancelReason,
     }),
-  });
-  return result.data.preOrder;
-}
-
-// Supplier memverifikasi pembayaran DP florist
-export async function verifyPreOrderDeposit(
-  preOrderId: string,
-): Promise<HarvestPreOrderItem> {
-  const result = await fetchJson<{
-    success: boolean;
-    data: { preOrder: HarvestPreOrderItem };
-  }>(`/api/supplier/preorders/${preOrderId}/verify-deposit`, {
-    method: "PATCH",
-  });
-  return result.data.preOrder;
-}
-
-// Supplier memverifikasi pembayaran pelunasan sisa tagihan florist
-export async function verifyPreOrderFinalPayment(
-  preOrderId: string,
-): Promise<HarvestPreOrderItem> {
-  const result = await fetchJson<{
-    success: boolean;
-    data: { preOrder: HarvestPreOrderItem };
-  }>(`/api/supplier/preorders/${preOrderId}/verify-final`, {
-    method: "PATCH",
-  });
-  return result.data.preOrder;
-}
-
-// Florist mengunggah bukti pembayaran DP 50%
-export async function uploadPreOrderDepositProof(
-  preOrderId: string,
-  depositProof: string,
-): Promise<HarvestPreOrderItem> {
-  const result = await fetchJson<{
-    success: boolean;
-    data: { preOrder: HarvestPreOrderItem };
-  }>(`/api/florist/preorders/${preOrderId}/deposit`, {
-    method: "PUT",
-    body: JSON.stringify({ depositProof }),
-  });
-  return result.data.preOrder;
-}
-
-// Florist mengunggah bukti pelunasan sisa tagihan saat panen
-export async function uploadPreOrderFinalProof(
-  preOrderId: string,
-  finalProof: string,
-): Promise<HarvestPreOrderItem> {
-  const result = await fetchJson<{
-    success: boolean;
-    data: { preOrder: HarvestPreOrderItem };
-  }>(`/api/florist/preorders/${preOrderId}/final-payment`, {
-    method: "PUT",
-    body: JSON.stringify({ finalProof }),
   });
   return result.data.preOrder;
 }

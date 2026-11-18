@@ -1,6 +1,7 @@
 "use client";
 
 import { useCartStore } from "@/lib/stores/cartStore";
+import { formatRupiah } from "@/lib/utils/formatters";
 import { Trash2, Plus, Minus, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -68,7 +69,7 @@ export default function CartTable() {
                   Stok: {item.stock} tangkai
                 </p>
                 <p className="mt-1 text-sm font-semibold text-foreground">
-                  Rp {item.price.toLocaleString("id-ID")}
+                  {formatRupiah(item.price)}
                 </p>
               </div>
             </div>
@@ -137,7 +138,7 @@ export default function CartTable() {
             <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
               <span className="text-xs uppercase tracking-wider text-muted-foreground">Subtotal</span>
               <span className="text-base font-bold text-foreground">
-                Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+                {formatRupiah(item.price * item.quantity)}
               </span>
             </div>
           </div>
@@ -198,7 +199,7 @@ export default function CartTable() {
                 </td>
 
                 <td className="px-4 py-5 text-right text-sm font-medium text-foreground whitespace-nowrap">
-                  Rp {item.price.toLocaleString("id-ID")}
+                  {formatRupiah(item.price)}
                 </td>
 
                 <td className="px-4 py-5">
@@ -252,7 +253,7 @@ export default function CartTable() {
                 </td>
 
                 <td className="px-4 py-5 text-right text-base font-bold text-foreground whitespace-nowrap">
-                  Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+                  {formatRupiah(item.price * item.quantity)}
                 </td>
 
                 <td className="px-4 py-5 text-center">

@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { reportServerError } from "@/lib/server-error-report";
+import { maskEmail } from "@/lib/utils/masking";
 import { adminSupplyQuerySchema } from "@/lib/validations/schemas";
 import type {
   HarvestPreOrderStatus,
@@ -8,15 +9,6 @@ import type {
   TransactionStatus,
 } from "@prisma/client";
 import { NextResponse } from "next/server";
-
-// Fungsi pembantu untuk menyamarkan email supplier dan florist di tabel monitoring B2B
-function maskEmail(email: string): string {
-  const parts = email.split("@");
-  if (parts.length !== 2) return "***";
-  const [local, domain] = parts;
-  const visible = local.slice(0, Math.min(2, local.length));
-  return `${visible}***@${domain}`;
-}
 
 // Evaluasi anomali pembayaran dan logistik untuk transaksi pembelian stok langsung B2B
 function evaluateDirectAnomaly(tx: {

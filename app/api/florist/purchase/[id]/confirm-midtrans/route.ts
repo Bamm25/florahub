@@ -18,7 +18,12 @@ export async function PATCH(
 
     const sale = await prisma.stockTransaction.findUnique({
       where: { id },
-      include: { stock: true, florist: true },
+      include: {
+        stock: true,
+        florist: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+      },
     });
     if (!sale) {
       return NextResponse.json(
@@ -65,7 +70,12 @@ export async function PATCH(
 
     const current = await prisma.stockTransaction.findUnique({
       where: { id },
-      include: { stock: true, florist: true },
+      include: {
+        stock: true,
+        florist: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+      },
     });
 
     if (
@@ -91,10 +101,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Tidak dapat memverifikasi pembayaran Midtrans",
+        message: "Tidak dapat memverifikasi pembayaran Midtrans",
       },
       { status: 502 },
     );

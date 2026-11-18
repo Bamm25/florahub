@@ -19,6 +19,7 @@ import {
   MapPin,
 } from "lucide-react";
 import ProductReviews from "@/components/customer/ProductReviews";
+import { formatRupiah } from "@/lib/utils/formatters";
 import Link from "next/link";
 
 // Interface untuk data detail produk dengan relasi florist dan category
@@ -250,7 +251,7 @@ export default function ProductDetailPage() {
             </div>
 
             <p className="mt-6 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Rp {product.price.toLocaleString("id-ID")}
+              {formatRupiah(product.price)}
             </p>
 
             {/* Purchase panel */}

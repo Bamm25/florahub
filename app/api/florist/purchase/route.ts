@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { parsePaginationParams } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { formatRupiah } from "@/lib/utils/formatters";
 import type { Prisma, TransactionStatus } from "@prisma/client";
@@ -16,12 +17,16 @@ export async function POST(request: Request) {
     const validated = createPurchaseSchema.parse(body);
     const { stockId, quantity } = validated;
 
-    // Cari data stok bunga supplier
+    // Cari data stok bunga milik supplier aktif
     const stock = await prisma.stock.findUnique({
       where: { id: stockId },
+      include: {
+        supplier: {
+          select: { role: true, isActive: true },
+        },
+      },
     });
 
-    // Validasi keberadaan data stok
     if (!stock) {
       return NextResponse.json(
         { success: false, message: "Stok tidak ditemukan" },
@@ -29,10 +34,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Hanya stok katalog milik supplier yang tersedia bisa dibeli langsung.
-    if (!stock.isAvailable || stock.quantity <= 0 || stock.supplierId === userId) {
+    // Hanya stok katalog milik supplier aktif yang tersedia bisa dibeli langsung.
+    if (
+      !stock.isAvailable ||
+      stock.quantity <= 0 ||
+      stock.supplierId === userId ||
+      stock.supplier.role !== "SUPPLIER" ||
+      !stock.supplier.isActive
+    ) {
       return NextResponse.json(
-        { success: false, message: "Pasokan supplier tidak tersedia untuk pembelian langsung." },
+        {
+          success: false,
+          message: "Pasokan supplier tidak tersedia untuk pembelian langsung.",
+        },
         { status: 400 },
       );
     }
@@ -129,8 +143,7 @@ export async function GET(request: Request) {
     const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter filter status, stok, dan paginasi dari query string
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+    const { page, limit, skip } = parsePaginationParams(searchParams, 50, 100);
     const status = searchParams.get("status");
     const stockId = searchParams.get("stockId");
     // Susun filter query riwayat pembelian
@@ -165,7 +178,7 @@ export async function GET(request: Request) {
         orderBy: {
           createdAt: "desc",
         },
-        skip: (page - 1) * limit,
+        skip,
         take: limit,
       }),
       prisma.stockTransaction.count({ where: whereClause }),

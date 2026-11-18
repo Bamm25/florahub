@@ -1,8 +1,20 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { isPrismaUniqueError } from "@/lib/prisma-errors";
+import { PRODUCT_LOW_STOCK_THRESHOLD } from "@/lib/config/domain";
+import {
+  applyCouponAtomicallyInTx,
+  CouponValidationError,
+  validateAndCalculateCoupon,
+} from "@/lib/coupons";
+import {
+  calculateB2CShippingQuotes,
+  ShippingQuoteError,
+} from "@/lib/shipping-rates";
+import { formatRupiah } from "@/lib/utils/formatters";
 import { checkoutSchema } from "@/lib/validations/schemas";
+import { NextResponse } from "next/server";
 
 // Handler HTTP POST untuk memproses transaksi checkout dan pembuatan pesanan baru
 export async function POST(request: Request) {
@@ -10,21 +22,20 @@ export async function POST(request: Request) {
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const body = await request.json();
     const validatedData = checkoutSchema.parse(body);
-    const { addressId, shippingCost, couponCode, notes, items } = validatedData;
+    const { addressId, shippingCost, courier, service, couponCode, notes, items } =
+      validatedData;
 
-    // Validasi ketersediaan daftar item dari antarmuka pengguna
-    if (!items || items.length === 0) {
+    const productIds = items.map((item) => item.productId);
+    if (new Set(productIds).size !== items.length) {
       return NextResponse.json(
         {
           success: false,
-          message: "Keranjang kosong",
+          message: "Duplikat item produk dalam permintaan checkout",
         },
         { status: 400 },
       );
     }
 
-    // Ambil rincian produk dari basis data untuk validasi data
-    const productIds = items.map((item) => item.productId);
     const products = await prisma.product.findMany({
       where: { id: { in: productIds } },
       select: {
@@ -34,34 +45,24 @@ export async function POST(request: Request) {
         stock: true,
         isActive: true,
         floristId: true,
+        categoryId: true,
       },
     });
 
-    // Validasi kesesuaian dan keaktifan masing-masing item produk
     for (const item of items) {
       const product = products.find((p) => p.id === item.productId);
-
       if (!product) {
         return NextResponse.json(
-          {
-            success: false,
-            message: `Produk tidak ditemukan`,
-          },
+          { success: false, message: "Produk tidak ditemukan" },
           { status: 404 },
         );
       }
-
       if (!product.isActive) {
         return NextResponse.json(
-          {
-            success: false,
-            message: `Produk tidak aktif: ${product.name}`,
-          },
+          { success: false, message: `Produk tidak aktif: ${product.name}` },
           { status: 400 },
         );
       }
-
-      // Validasi keselarasan harga produk dengan katalog basis data
       if (item.price !== product.price) {
         return NextResponse.json(
           {
@@ -71,7 +72,6 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-
       if (product.stock < item.quantity) {
         return NextResponse.json(
           {
@@ -83,183 +83,97 @@ export async function POST(request: Request) {
       }
     }
 
-    // Validasi keberadaan ongkos kirim untuk pesanan beralamat tujuan
-    if (addressId && shippingCost <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Ongkos kirim wajib diisi untuk pengiriman ke alamat",
-        },
-        { status: 400 },
+    // Verifikasi kepemilikan alamat, batasan toko florist tunggal, & hitung tarif kurir otoritatif di server
+    const shippingQuote = await calculateB2CShippingQuotes({
+      userId,
+      addressId,
+      items: items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+      })),
+    });
+
+    let verifiedShippingCost: number;
+    if (courier && service) {
+      const matchedRate = shippingQuote.rates.find(
+        (rate) =>
+          rate.courier.toLowerCase() === courier.trim().toLowerCase() &&
+          rate.service.toLowerCase() === service.trim().toLowerCase(),
       );
+      if (!matchedRate) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Opsi layanan pengiriman yang dipilih tidak valid",
+          },
+          { status: 400 },
+        );
+      }
+      verifiedShippingCost = matchedRate.price;
+    } else {
+      const priceMatched = shippingQuote.rates.find(
+        (rate) => rate.price === shippingCost,
+      );
+      if (!priceMatched) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Ongkos kirim tidak sesuai tarif kurir resmi. Silakan hitung ulang ongkir.",
+          },
+          { status: 400 },
+        );
+      }
+      verifiedShippingCost = priceMatched.price;
     }
 
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
-
     const lastOrder = await prisma.order.findFirst({
-      where: {
-        orderNumber: {
-          startsWith: `ORD-${dateStr}`,
-        },
-      },
-      orderBy: {
-        orderNumber: "desc",
-      },
+      where: { orderNumber: { startsWith: `ORD-${dateStr}` } },
+      orderBy: { orderNumber: "desc" },
     });
 
-    let sequance = 1;
+    let sequence = 1;
     if (lastOrder) {
       const parts = lastOrder.orderNumber.split("-");
       if (parts.length >= 3) {
-        const parsed = parseInt(parts[2], 10);
-        if (!isNaN(parsed)) {
-          sequance = parsed + 1;
-        }
+        const parsed = Number.parseInt(parts[2], 10);
+        if (!Number.isNaN(parsed)) sequence = parsed + 1;
       }
     }
-
     const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString();
-    const orderNumber = `ORD-${dateStr}-${sequance.toString().padStart(3, "0")}-${randomSuffix}`;
+    const orderNumber = `ORD-${dateStr}-${sequence.toString().padStart(3, "0")}-${randomSuffix}`;
 
-    // Hitung subtotal pesanan berdasarkan harga resmi produk di database
     const subtotal = items.reduce((sum, item) => {
-      const product = products.find((p) => p.id === item.productId);
-      const price = product ? product.price : item.price;
-      return sum + price * item.quantity;
+      const product = products.find((p) => p.id === item.productId)!;
+      return sum + product.price * item.quantity;
     }, 0);
 
     let discount = 0;
-    let appliedCoupon = null;
+    let appliedCoupon: Awaited<
+      ReturnType<typeof validateAndCalculateCoupon>
+    >["coupon"] | null = null;
 
     if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
-      const normalizedCode = couponCode.trim().toUpperCase();
-
-      // Cari kupon diskon berdasarkan kode yang dimasukkan
-      const coupon = await prisma.coupon.findUnique({
-        where: { code: normalizedCode },
+      const couponResult = await validateAndCalculateCoupon(prisma, {
+        code: couponCode,
+        userId,
+        subtotal,
+        shippingCost: verifiedShippingCost,
+        productIds,
+        categoryIds: [...new Set(products.map((p) => p.categoryId))],
       });
-
-      if (!coupon) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Kode kupon "${normalizedCode}" tidak ditemukan`,
-          },
-          { status: 404 },
-        );
-      }
-
-      if (!coupon.isActive) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Kupon sudah tidak aktif",
-          },
-          { status: 400 },
-        );
-      }
-
-      const now = new Date();
-      if (now < coupon.validFrom) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Kupon belum berlaku. Mulai berlaku: ${coupon.validFrom.toLocaleDateString("id-ID")}`,
-          },
-          { status: 400 },
-        );
-      }
-
-      if (now > coupon.validUntil) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Kupon sudah kadaluarsa",
-          },
-          { status: 400 },
-        );
-      }
-
-      if (coupon.minPurchase && subtotal < coupon.minPurchase) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Minimal belanja Rp ${coupon.minPurchase.toLocaleString("id-ID")} untuk menggunakan kupon ini`,
-          },
-          { status: 400 },
-        );
-      }
-
-      if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Kupon sudah habis digunakan",
-          },
-          { status: 400 },
-        );
-      }
-
-      const userUsageCount = await prisma.couponUsage.count({
-        where: {
-          couponId: coupon.id,
-          userId,
-        },
-      });
-
-      if (userUsageCount >= coupon.usagePerUser) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Anda sudah mencapai batas penggunaan kupon ini (${coupon.usagePerUser}x)`,
-          },
-          { status: 400 },
-        );
-      }
-
-      if (coupon.type === "PERCENTAGE") {
-        const rawDiscount = (subtotal * coupon.value) / 100;
-        discount = Math.round(rawDiscount);
-
-        if (coupon.maxDiscount && discount > coupon.maxDiscount) {
-          discount = coupon.maxDiscount;
-        }
-
-        if (discount > subtotal) {
-          discount = subtotal;
-        }
-      } else if (coupon.type === "FIXED") {
-        discount = Math.round(coupon.value);
-
-        if (discount > subtotal) {
-          discount = subtotal;
-        }
-      } else if (coupon.type === "FREE_SHIPPING") {
-        const maxShippingDiscount = coupon.maxDiscount || shippingCost;
-        discount = Math.min(shippingCost, maxShippingDiscount);
-      } else {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Tipe kupon tidak valid: ${coupon.type}`,
-          },
-          { status: 400 },
-        );
-      }
-
-      // Kupon promosi valid dan berhasil diterapkan
-      appliedCoupon = coupon;
+      appliedCoupon = couponResult.coupon;
+      discount = couponResult.discountAmount;
     }
 
-    const totalAmount = subtotal + shippingCost - discount;
+    const totalAmount = Math.max(0, subtotal + verifiedShippingCost - discount);
+    const isZeroTotal = totalAmount === 0;
+    const paidAtNow = isZeroTotal ? new Date() : null;
 
-    // Jalankan transaksi atomik untuk pengurangan stok, pembuatan pesanan, dan pencatatan kupon
     const { order, lowStockAlerts } = await prisma.$transaction(async (tx) => {
-      const alerts: { floristId: string; productName: string; remainingStock: number }[] = [];
-
       for (const item of items) {
-        // Lakukan pengurangan stok secara atomik dengan verifikasi ketersediaan sisa stok
         const updateResult = await tx.product.updateMany({
           where: {
             id: item.productId,
@@ -267,9 +181,7 @@ export async function POST(request: Request) {
             isActive: true,
           },
           data: {
-            stock: {
-              decrement: item.quantity,
-            },
+            stock: { decrement: item.quantity },
           },
         });
 
@@ -279,56 +191,52 @@ export async function POST(request: Request) {
             select: { name: true, stock: true },
           });
           throw new Error(
-            `INSUFFICIENT_STOCK:${currentProd?.name || item.productId}:${currentProd?.stock ?? 0}`
+            `INSUFFICIENT_STOCK:${currentProd?.name || item.productId}:${currentProd?.stock ?? 0}`,
           );
         }
-
-        const updatedProd = await tx.product.findUnique({
-          where: { id: item.productId },
-          select: {
-            id: true,
-            name: true,
-            stock: true,
-            floristId: true,
-          },
-        });
-
-        // Picu peringatan stok menipis jika sisa stok di bawah batas ambang 10 unit
-        const LOW_STOCK_THRESHOLD = 10;
-        if (updatedProd && updatedProd.stock < LOW_STOCK_THRESHOLD && updatedProd.stock >= 0) {
-          alerts.push({
-            floristId: updatedProd.floristId,
-            productName: updatedProd.name,
-            remainingStock: updatedProd.stock,
-          });
-        }
       }
+
+      const updatedProducts = await tx.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, name: true, stock: true, floristId: true },
+      });
+
+      const alerts = updatedProducts
+        .filter((p) => p.stock < PRODUCT_LOW_STOCK_THRESHOLD && p.stock >= 0)
+        .map((p) => ({
+          floristId: p.floristId,
+          productName: p.name,
+          remainingStock: p.stock,
+        }));
 
       const createdOrder = await tx.order.create({
         data: {
           orderNumber,
           userId,
-          addressId: addressId || null,
+          addressId,
           subtotal,
-          shippingCost,
+          shippingCost: verifiedShippingCost,
           discount,
           totalAmount,
-          status: "PENDING",
+          status: isZeroTotal ? "PAID" : "PENDING",
           notes: notes || null,
-
           items: {
-            create: items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              price: item.price,
-              subtotal: item.price * item.quantity,
-            })),
+            create: items.map((item) => {
+              const product = products.find((p) => p.id === item.productId)!;
+              return {
+                productId: item.productId,
+                quantity: item.quantity,
+                price: product.price,
+                subtotal: product.price * item.quantity,
+              };
+            }),
           },
           payment: {
             create: {
               amount: totalAmount,
-              method: "pending",
-              status: "PENDING",
+              method: isZeroTotal ? "coupon" : "pending",
+              status: isZeroTotal ? "PAID" : "PENDING",
+              paidAt: paidAtNow,
             },
           },
         },
@@ -350,58 +258,58 @@ export async function POST(request: Request) {
       });
 
       if (appliedCoupon) {
-        await tx.couponUsage.create({
-          data: {
-            couponId: appliedCoupon.id,
-            orderId: createdOrder.id,
-            userId,
-            discount,
-          },
-        });
-        await tx.coupon.update({
-          where: { id: appliedCoupon.id },
-          data: {
-            usageCount: { increment: 1 },
-          },
+        await applyCouponAtomicallyInTx(tx, {
+          couponId: appliedCoupon.id,
+          orderId: createdOrder.id,
+          userId,
+          discount,
         });
       }
 
       return { order: createdOrder, lowStockAlerts: alerts };
     });
 
-    // Kirim notifikasi stok rendah ke florist terkait jika belum ada notifikasi yang belum dibaca
-    for (const alert of lowStockAlerts) {
-      const existingAlert = await prisma.notification.findFirst({
+    if (lowStockAlerts.length > 0) {
+      const floristAlertIds = [...new Set(lowStockAlerts.map((a) => a.floristId))];
+      const existingAlerts = await prisma.notification.findMany({
         where: {
-          userId: alert.floristId,
+          userId: { in: floristAlertIds },
           type: "LOW_STOCK_ALERT",
           isRead: false,
-          message: { contains: alert.productName },
         },
+        select: { userId: true, message: true },
       });
 
-      if (!existingAlert) {
-        await prisma.notification.create({
-          data: {
+      const alertsToCreate = lowStockAlerts.filter(
+        (alert) =>
+          !existingAlerts.some(
+            (existing) =>
+              existing.userId === alert.floristId &&
+              existing.message.includes(alert.productName),
+          ),
+      );
+
+      if (alertsToCreate.length > 0) {
+        await prisma.notification.createMany({
+          data: alertsToCreate.map((alert) => ({
             userId: alert.floristId,
             title: "Peringatan Stok Rendah!",
             message: `Stok produk "${alert.productName}" hanya tersisa ${alert.remainingStock} unit. Segera lakukan restock untuk menghindari kehabisan stok.`,
-            type: "LOW_STOCK_ALERT",
+            type: "LOW_STOCK_ALERT" as const,
             link: `/florist/products`,
             isRead: false,
-          },
+          })),
         });
       }
     }
 
-    // Kirim notifikasi pesanan baru kepada setiap florist terkait
     const floristIds = [...new Set(products.map((p) => p.floristId))];
     if (floristIds.length > 0) {
       await prisma.notification.createMany({
         data: floristIds.map((floristId) => ({
           userId: floristId,
           title: "Pesanan Baru Masuk!",
-          message: `Order #${order.orderNumber} telah masuk dengan total Rp ${order.totalAmount.toLocaleString("id-ID")}. Segera proses pesanan.`,
+          message: `Order #${order.orderNumber} telah masuk dengan total ${formatRupiah(order.totalAmount)}. Segera proses pesanan.`,
           type: "ORDER_CREATED" as const,
           link: `/florist/orders`,
           isRead: false,
@@ -413,13 +321,13 @@ export async function POST(request: Request) {
       data: {
         userId,
         title: "Pesanan Dibuat!",
-        message: `Pesanan #${order.orderNumber} berhasil dibuat. Lanjutkan pembayaran untuk diproses florist.`,
+        message: isZeroTotal
+          ? `Pesanan #${order.orderNumber} berhasil dibuat dan lunas menggunakan kupon promosi.`
+          : `Pesanan #${order.orderNumber} berhasil dibuat. Lanjutkan pembayaran untuk diproses florist.`,
         type: "ORDER_CREATED",
         link: `/orders/${order.id}`,
       },
     });
-
-    // Keranjang dikelola pada penyimpanan lokal klien tanpa menghapus data database
 
     return NextResponse.json(
       {
@@ -473,7 +381,19 @@ export async function POST(request: Request) {
     if (error instanceof NextResponse) {
       return error;
     }
-    if (error instanceof Error && error.message.startsWith("INSUFFICIENT_STOCK:")) {
+    if (
+      error instanceof CouponValidationError ||
+      error instanceof ShippingQuoteError
+    ) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: error.status },
+      );
+    }
+    if (
+      error instanceof Error &&
+      error.message.startsWith("INSUFFICIENT_STOCK:")
+    ) {
       const [, productName, remaining] = error.message.split(":");
       return NextResponse.json(
         {
@@ -483,7 +403,13 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (error && typeof error === 'object' && 'name' in error && error.name === "ZodError" && 'issues' in error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "name" in error &&
+      error.name === "ZodError" &&
+      "issues" in error
+    ) {
       reportServerError("Zod validation error checkout:");
       return NextResponse.json(
         {
@@ -494,7 +420,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    if (error && typeof error === 'object' && ('code' in error && error.code === 'P2002' || (error instanceof Error && error.message.includes('Unique constraint failed')))) {
+    if (isPrismaUniqueError(error)) {
       return NextResponse.json(
         {
           success: false,
@@ -503,12 +429,11 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    const message = error instanceof Error ? error.message : "Gagal membuat order";
     reportServerError("Error checkout:", error);
     return NextResponse.json(
       {
         success: false,
-        message,
+        message: "Gagal membuat order",
       },
       { status: 500 },
     );

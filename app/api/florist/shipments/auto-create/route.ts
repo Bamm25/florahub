@@ -1,58 +1,46 @@
 import { reportServerError } from "@/lib/server-error-report";
-// Endpoint untuk pembuatan pengiriman otomatis dengan Biteship API dan pembuatan resi AWB
-import { getServerSession } from "next-auth";
-import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
+import { DEFAULT_PRODUCT_WEIGHT_GRAMS } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { getFloristPickupAddress } from "@/lib/florist-pickup-address";
 import { getBiteshipClient, mapBiteshipStatus } from "@/lib/biteship";
 import type { BiteshipOrderRequest } from "@/lib/biteship";
+import { NextRequest, NextResponse } from "next/server";
 
 // Handler HTTP POST untuk membuat pengiriman otomatis Biteship dan menerbitkan nomor resi
 export async function POST(req: NextRequest) {
   try {
-    // Autentikasi sesi pengguna
-    const session = await getServerSession(authOptions);
+    const { userId, userRole } = await requireAuth(req, ["FLORIST", "ADMIN"]);
 
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const sessionUser = session.user as { id?: string; role?: string };
-    const userId = sessionUser.id;
-    const userRole = sessionUser.role;
-
-    // Verifikasi peran pengguna harus florist
-    if (userRole !== "FLORIST") {
-      return NextResponse.json(
-        { success: false, message: "Hanya florist yang dapat membuat pengiriman otomatis" },
-        { status: 403 }
-      );
-    }
-
-    // Parsing dan validasi kelengkapan parameter request body
     const body = await req.json();
-    const { orderId, courierCompany, courierType, deliveryType, deliveryDate, deliveryTime } = body;
-
-
+    const {
+      orderId,
+      courierCompany,
+      courierType,
+      deliveryType,
+      deliveryDate,
+      deliveryTime,
+    } = body;
 
     if (!orderId || !courierCompany || !courierType) {
-
       return NextResponse.json(
-        { success: false, message: "orderId, courierCompany, dan courierType wajib diisi" },
-        { status: 400 }
+        {
+          success: false,
+          message: "orderId, courierCompany, dan courierType wajib diisi",
+        },
+        { status: 400 },
       );
     }
 
-    // Ambil data pesanan beserta relasi pembeli dan produk
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
+        address: true,
         user: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
             addresses: {
               where: { isDefault: true },
               take: 1,
@@ -63,7 +51,13 @@ export async function POST(req: NextRequest) {
           include: {
             product: {
               include: {
-                florist: true,
+                florist: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
               },
             },
           },
@@ -74,28 +68,31 @@ export async function POST(req: NextRequest) {
     if (!order) {
       return NextResponse.json(
         { success: false, message: "Order tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Validasi hak kepemilikan pesanan oleh florist
-    const floristId = order.items[0]?.product?.florist?.id;
-    if (!floristId || floristId !== userId) {
+    const isOwner = order.items.some(
+      (item) => item.product?.florist?.id === userId,
+    );
+    if (userRole !== "ADMIN" && !isOwner) {
       return NextResponse.json(
         { success: false, message: "Anda tidak memiliki akses ke order ini" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    // Validasi status pesanan harus PAID
     if (order.status !== "PAID") {
       return NextResponse.json(
-        { success: false, message: "Hanya order dengan status PAID yang dapat dibuatkan pengiriman otomatis" },
-        { status: 400 }
+        {
+          success: false,
+          message:
+            "Hanya order dengan status PAID yang dapat dibuatkan pengiriman otomatis",
+        },
+        { status: 400 },
       );
     }
 
-    // Periksa apakah pengiriman untuk pesanan ini sudah ada
     const existingShipment = await prisma.shipment.findFirst({
       where: { orderId: order.id },
     });
@@ -103,31 +100,42 @@ export async function POST(req: NextRequest) {
     if (existingShipment) {
       return NextResponse.json(
         { success: false, message: "Order ini sudah memiliki shipment" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Ambil alamat default pembeli
-    const customerAddress = order.user.addresses[0];
+    // Prioritaskan alamat yang dipilih pelanggan saat checkout sebelum jatuh ke alamat default
+    const customerAddress = order.address || order.user.addresses[0];
     if (!customerAddress) {
       return NextResponse.json(
-        { success: false, message: "Customer belum memiliki alamat default" },
-        { status: 400 }
+        {
+          success: false,
+          message: "Alamat tujuan pelanggan belum tersedia pada pesanan ini",
+        },
+        { status: 400 },
       );
     }
 
-    // Gunakan alamat penjemputan default dari profil florist
-    const florist = order.items[0].product.florist;
-    const floristAddress = await getFloristPickupAddress(florist.id);
-
-    if (!floristAddress || !floristAddress.postalCode) {
+    const florist = order.items[0]?.product?.florist;
+    if (!florist) {
       return NextResponse.json(
-        { success: false, message: "Florist belum melengkapi data alamat dan kode pos" },
-        { status: 400 }
+        { success: false, message: "Data florist pada pesanan tidak valid" },
+        { status: 400 },
       );
     }
 
-    // Siapkan data barang pesanan untuk Biteship
+    const floristAddress = await getFloristPickupAddress(florist.id);
+    if (!floristAddress || !floristAddress.postalCode || !floristAddress.phone) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Florist wajib melengkapi alamat pickup, nomor telepon, dan kode pos terlebih dahulu",
+        },
+        { status: 400 },
+      );
+    }
+
     const biteshipItems = order.items.map((item) => ({
       name: item.product?.name || "Produk Florist",
       description: item.product?.description || "",
@@ -136,26 +144,26 @@ export async function POST(req: NextRequest) {
       height: 10,
       length: 15,
       width: 10,
-      weight: 500 * item.quantity,
+      weight:
+        (item.product?.weight || DEFAULT_PRODUCT_WEIGHT_GRAMS) * item.quantity,
     }));
 
-    // Buat pesanan pengiriman di Biteship
     const biteshipClient = getBiteshipClient();
     const biteshipRequest: BiteshipOrderRequest = {
       shipper_contact_name: florist.name,
-      shipper_contact_phone: floristAddress.phone || "08123456789",
+      shipper_contact_phone: floristAddress.phone,
       shipper_contact_email: florist.email,
       shipper_organization: "FloraHub Florist",
       origin_contact_name: florist.name,
-      origin_contact_phone: floristAddress.phone || "08123456789",
+      origin_contact_phone: floristAddress.phone,
       origin_address: floristAddress.fullAddress,
-      origin_postal_code: parseInt(floristAddress.postalCode),
+      origin_postal_code: Number.parseInt(floristAddress.postalCode, 10),
       origin_note: floristAddress.city || "",
       destination_contact_name: customerAddress.recipientName,
       destination_contact_phone: customerAddress.phone,
       destination_contact_email: order.user.email,
       destination_address: `${customerAddress.fullAddress}, ${customerAddress.city}, ${customerAddress.province}`,
-      destination_postal_code: parseInt(customerAddress.postalCode),
+      destination_postal_code: Number.parseInt(customerAddress.postalCode, 10),
       destination_note: "",
       delivery_type: deliveryType || "now",
       delivery_date: deliveryDate || undefined,
@@ -172,32 +180,30 @@ export async function POST(req: NextRequest) {
       biteshipOrder = await biteshipClient.createOrder(biteshipRequest);
     } catch (biteshipError: unknown) {
       reportServerError("[BITESHIP_CREATE_ERROR]", biteshipError);
-      await prisma.order.update({ where: { id: order.id }, data: { status: "PAID" } });
       return NextResponse.json(
         {
           success: false,
-          message: `Biteship API error: ${biteshipError instanceof Error ? biteshipError.message : "Gagal membuat shipment"}`,
+          message: "Gagal membuat shipment melalui layanan kurir Biteship",
         },
         { status: 502 },
       );
     }
 
-    // Ambil order id dan nomor resi dari struktur response Biteship
     const biteshipOrderId = biteshipOrder.id;
-    const waybillId = biteshipOrder.courier?.waybill_id || biteshipOrder.waybill_id || null;
+    const waybillId =
+      biteshipOrder.courier?.waybill_id || biteshipOrder.waybill_id || null;
 
-    // Tolak penyimpanan shipment jika Biteship tidak mengembalikan order id
     if (!biteshipOrderId) {
-      await prisma.order.update({ where: { id: order.id }, data: { status: "PAID" } });
       return NextResponse.json(
         { success: false, message: "Biteship tidak mengembalikan order id" },
         { status: 502 },
       );
     }
 
-    const courierCompanyCode = (biteshipOrder.courier?.company || courierCompany).toUpperCase();
+    const courierCompanyCode = (
+      biteshipOrder.courier?.company || courierCompany
+    ).toUpperCase();
 
-    // Ambil URL PDF shipping label resmi dari Biteship
     let biteshipLabelUrl: string | null = null;
     try {
       biteshipLabelUrl = await biteshipClient.getShippingLabel(biteshipOrderId);
@@ -205,7 +211,6 @@ export async function POST(req: NextRequest) {
       biteshipLabelUrl = null;
     }
 
-    // Simpan data pengiriman ke database
     const shipment = await prisma.shipment.create({
       data: {
         orderId: order.id,
@@ -214,20 +219,21 @@ export async function POST(req: NextRequest) {
         service: courierType.toUpperCase(),
         estimatedDays: 3,
         shippingCost: Math.round(biteshipOrder.price),
-        weight: biteshipItems.reduce((sum, item) => sum + item.weight * item.quantity, 0),
+        weight: biteshipItems.reduce(
+          (sum, item) => sum + item.weight * item.quantity,
+          0,
+        ),
         status: mapBiteshipStatus(biteshipOrder.status),
         biteshipOrderId: biteshipOrderId,
         biteshipLabelUrl,
       },
     });
 
-    // Perbarui status pesanan menjadi PROCESSING
     await prisma.order.update({
       where: { id: order.id },
       data: { status: "PROCESSING" },
     });
 
-    // Buat notifikasi status pesanan untuk pembeli
     await prisma.notification.create({
       data: {
         userId: order.userId,
@@ -237,7 +243,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Kembalikan respon sukses pembuatan pengiriman otomatis
     return NextResponse.json({
       success: true,
       message: "Pengiriman berhasil dibuat dengan nomor resi otomatis",
@@ -250,18 +255,16 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    // Tangani error internal server
+    if (error instanceof NextResponse) {
+      return error;
+    }
     reportServerError("[AUTO_CREATE_SHIPMENT_ERROR]", error);
-    reportServerError("[AUTO_CREATE_SHIPMENT_ERROR] Stack:");
-    reportServerError("[AUTO_CREATE_SHIPMENT_ERROR] Response:");
-    const errMsg = error instanceof Error ? error.message : "Gagal membuat pengiriman otomatis";
     return NextResponse.json(
       {
         success: false,
-        message: errMsg,
-        error: process.env.NODE_ENV === "development" ? errMsg : undefined,
+        message: "Gagal membuat pengiriman otomatis",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

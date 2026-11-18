@@ -1,34 +1,11 @@
 import { fetchJson } from "./client";
+import {
+  getAddresses,
+  type Address,
+  type AddressesResponse,
+} from "./addresses";
 
-// Interface representasi data alamat pengiriman pelanggan
-export interface Address {
-  id: string;
-  label: string;
-  recipientName: string;
-  phone: string;
-  fullAddress: string;
-  city: string;
-  province: string;
-  postalCode: string;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Interface respons API untuk daftar alamat pelanggan
-interface AddressesResponse {
-  success: boolean;
-  message: string;
-  data: {
-    items: Address[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
-  };
-}
+export type { Address, AddressesResponse };
 
 // Interface respons API setelah pembuatan pesanan checkout
 interface CheckoutOrderResponse {
@@ -111,17 +88,15 @@ export interface ValidateCouponResponse {
 export async function getCustomerAddresses(
   signal?: AbortSignal,
 ): Promise<AddressesResponse> {
-  return fetchJson<AddressesResponse>("/api/customer/addresses", {
-    method: "GET",
-    credentials: "include",
-    signal,
-  });
+  return getAddresses(signal);
 }
 
 // Fungsi untuk membuat pesanan checkout baru melalui API
 export async function createCheckoutOrder(data: {
   addressId: string;
   shippingCost: number;
+  courier?: string;
+  service?: string;
   couponCode?: string;
   notes?: string;
   items: Array<{
@@ -153,6 +128,7 @@ export async function validateCoupon(data: {
   code: string;
   subtotal: number;
   shippingCost?: number;
+  productIds?: string[];
 }): Promise<ValidateCouponResponse> {
   return fetchJson<ValidateCouponResponse>("/api/customer/coupons/validate", {
     method: "POST",

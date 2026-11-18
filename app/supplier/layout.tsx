@@ -4,8 +4,8 @@ import { Menu, Sprout, X, Bell } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
-import { getNotifications } from "@/lib/api/notifications";
+import { useEffect, useState } from "react";
+import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { LoadingSpinner } from "@/components/ui";
 
 const navigationSections = [
@@ -36,31 +36,18 @@ export default function SupplierLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const fetchUnreadCount = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const data = await getNotifications({ unreadOnly: true, limit: 1 }, signal);
-      if (!signal?.aborted) {
-        setUnreadCount(data.unreadCount ?? 0);
-      }
-    } catch {
-      // Abaikan error polling latar belakang
-    }
-  }, []);
+  const unreadCount = useUnreadNotificationCount(status, pathname);
 
   useEffect(() => {
-    if (status === "authenticated") {
-      const controller = new AbortController();
-      const initial = window.setTimeout(() => void fetchUnreadCount(controller.signal), 0);
-      const interval = window.setInterval(() => void fetchUnreadCount(controller.signal), 30000);
-      return () => {
-        window.clearTimeout(initial);
-        window.clearInterval(interval);
-        controller.abort();
-      };
-    }
-  }, [status, fetchUnreadCount, pathname]);
+    if (!mobileMenuOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -81,12 +68,14 @@ export default function SupplierLayout({
     );
   }
 
+  if (status !== "authenticated" || !session?.user) {
+    return null;
+  }
+
   // protect route role
-  if (status === "authenticated" && session?.user) {
-    const userRole = (session.user as { role?: string }).role;
-    if (userRole !== "SUPPLIER") {
-      return null;
-    }
+  const userRole = (session.user as { role?: string }).role;
+  if (userRole !== "SUPPLIER") {
+    return null;
   }
 
   return (

@@ -1,31 +1,28 @@
 import prisma from "@/lib/prisma";
+import { buildPaginationMeta, parsePaginationParams } from "@/lib/config/domain";
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 
 // Handler HTTP GET untuk mengambil katalog produk pelanggan dengan filter kategori, pencarian, rating, dan pengurutan
 export async function GET(request: Request) {
   try {
-    // Urai parameter query untuk penyaringan dan penomoran halaman
     const { searchParams } = new URL(request.url);
-    const categoryId = searchParams.get("categoryId") || searchParams.get("categiryId"); // Dukung kedua variasi penulisan
+    const categoryId =
+      searchParams.get("categoryId") || searchParams.get("categiryId");
     const search = searchParams.get("search");
     const minRating = searchParams.get("minRating");
     const sortBy = searchParams.get("sortBy") || "newest";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams, 50, 100);
 
-    // Susun klausa filter hanya untuk produk yang berstatus aktif
     const whereClause: Prisma.ProductWhereInput = {
       isActive: true,
+      florist: { isActive: true },
     };
 
-    // Terapkan penyaringan berdasarkan kategori produk jika tersedia
     if (categoryId) {
       whereClause.categoryId = categoryId;
     }
 
-    // Terapkan penyaringan kata kunci pencarian pada nama, deskripsi, dan tag
     if (search) {
       whereClause.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -34,10 +31,9 @@ export async function GET(request: Request) {
       ];
     }
 
-    // Terapkan batas minimum rating ulasan produk
     if (minRating && minRating !== "all") {
-      const minRatingNum = parseFloat(minRating);
-      if (!isNaN(minRatingNum)) {
+      const minRatingNum = Number.parseFloat(minRating);
+      if (!Number.isNaN(minRatingNum)) {
         whereClause.reviews = {
           some: {
             rating: {
@@ -48,7 +44,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // Tentukan urutan pengurutan data berdasarkan parameter sortBy
     let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: "desc" };
     switch (sortBy) {
       case "price-asc":
@@ -69,7 +64,6 @@ export async function GET(request: Request) {
         break;
     }
 
-    // Ambil data produk beserta relasi kategori, florist, dan ulasan secara paralel
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where: whereClause,
@@ -85,58 +79,61 @@ export async function GET(request: Request) {
             select: {
               id: true,
               name: true,
-              phone: true,
-            },
-          },
-          reviews: {
-            select: {
-              rating: true,
             },
           },
         },
         orderBy,
         take: limit,
-        skip: skip,
+        skip,
       }),
       prisma.product.count({ where: whereClause }),
     ]);
 
-    // Hitung rating rata-rata dan total ulasan untuk masing-masing produk
-    const productsWithRatings = products.map((product) => {
-      const reviews = product.reviews;
-      const reviewCount = reviews.length;
-      const averageRating = reviewCount > 0
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
-        : 0;
+    const reviewAggregations =
+      products.length > 0
+        ? await prisma.review.groupBy({
+            by: ["productId"],
+            where: {
+              productId: { in: products.map((p) => p.id) },
+            },
+            _avg: { rating: true },
+            _count: { _all: true },
+          })
+        : [];
 
-      const { reviews: productReviews, ...productData } = product;
-      void productReviews;
+    const ratingMap = new Map(
+      reviewAggregations.map((row) => [
+        row.productId,
+        {
+          averageRating: row._avg.rating ?? 0,
+          reviewCount: row._count._all,
+        },
+      ]),
+    );
+
+    const productsWithRatings = products.map((product) => {
+      const stats = ratingMap.get(product.id);
       return {
-        ...productData,
-        averageRating: averageRating > 0 ? averageRating : undefined,
-        reviewCount: reviewCount > 0 ? reviewCount : undefined,
+        ...product,
+        averageRating:
+          stats && stats.averageRating > 0 ? stats.averageRating : undefined,
+        reviewCount:
+          stats && stats.reviewCount > 0 ? stats.reviewCount : undefined,
       };
     });
 
-    // Kirim respons berhasil beserta data produk dan metadata paginasi
     return NextResponse.json(
       {
         success: true,
         message: "Produk berhasil diambil",
         data: {
           items: productsWithRatings,
-          pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit),
-          },
+          pagination: buildPaginationMeta(page, limit, total),
         },
       },
       { status: 200 },
     );
   } catch (error) {
-    // Tangani galat dan kembalikan respons kesalahan server
     if (error instanceof NextResponse) {
       return error;
     }

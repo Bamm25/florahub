@@ -2,39 +2,10 @@ import { sanitizeAuditPayload } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { reportServerError } from "@/lib/server-error-report";
+import { maskEmail, maskIpAddress } from "@/lib/utils/masking";
 import { adminAuditLogQuerySchema } from "@/lib/validations/schemas";
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-
-// Menyamarkan email aktor pada tampilan audit log
-function maskEmail(email: string): string {
-  const parts = email.split("@");
-  if (parts.length !== 2) return "***";
-  const [local, domain] = parts;
-  const visible = local.slice(0, Math.min(2, local.length));
-  return `${visible}***@${domain}`;
-}
-
-// Menyamarkan alamat IP agar tetap informatif secara diagnostik tanpa mengekspos IP penuh
-function maskIpAddress(ip: string | null | undefined): string | null {
-  if (!ip) return null;
-  const trimmed = ip.trim();
-  if (!trimmed) return null;
-
-  if (trimmed.includes(".")) {
-    const octets = trimmed.split(".");
-    if (octets.length === 4) {
-      return `${octets[0]}.${octets[1]}.*.*`;
-    }
-  }
-
-  if (trimmed.includes(":")) {
-    const groups = trimmed.split(":");
-    return `${groups.slice(0, 2).join(":")}:****`;
-  }
-
-  return "***";
-}
 
 // Handler HTTP GET read-only untuk mengambil daftar audit log terfilter & tersanitasi oleh admin
 export async function GET(request: Request) {

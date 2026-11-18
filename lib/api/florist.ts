@@ -293,17 +293,6 @@ export async function deleteFloristProduct(productId: string): Promise<void> {
   });
 }
 
-export async function getProductComponents<T>(
-  productId: string,
-  signal?: AbortSignal,
-): Promise<T[]> {
-  const result = await fetchJson<{ success: boolean; data?: { items?: T[] } }>(
-    `/api/florist/products/${encodeURIComponent(productId)}/components`,
-    { method: "GET", signal },
-  );
-  return result.data?.items || [];
-}
-
 export async function addProductComponent(
   productId: string,
   payload: { inventoryId: string; quantity: number },

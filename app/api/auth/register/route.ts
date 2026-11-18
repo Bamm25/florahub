@@ -1,4 +1,5 @@
 import { reportServerError } from "@/lib/server-error-report";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
@@ -8,6 +9,21 @@ import { z } from "zod";
 // Handler HTTP POST untuk mendaftarkan pengguna baru
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+    const limitCheck = checkRateLimit(`register:${clientIp}`, 10, 60_000);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Terlalu banyak permintaan pendaftaran. Coba lagi nanti.",
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limitCheck.retryAfterSec) },
+        },
+      );
+    }
+
     // Parse dan validasi data registrasi dari payload permintaan
     const body = await request.json();
     const validatedData = registerSchema.parse(body);

@@ -1,5 +1,6 @@
 import { Edit, RefreshCw, FileText, Loader2 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
+import { isValidShippingLabelUrl } from "@/lib/config/domain";
 import { formatDateTime, formatRupiah } from "@/lib/utils/formatters";
 
 // Tipe data pengiriman untuk daftar shipment florist
@@ -112,13 +113,9 @@ export function ShipmentTable({ shipments, onEdit, onSync, syncingId }: Shipment
                     )}
 
                     {/* Tombol cetak shipping label untuk pengiriman Biteship */}
-                    {(shipment.biteshipOrderId || (shipment.biteshipLabelUrl && !shipment.biteshipLabelUrl.includes("undefined"))) && (
+                    {(shipment.biteshipOrderId || isValidShippingLabelUrl(shipment.biteshipLabelUrl)) && (
                       <a
-                        href={
-                          shipment.biteshipLabelUrl && shipment.biteshipLabelUrl.includes("biteship.s3")
-                            ? shipment.biteshipLabelUrl
-                            : `/api/florist/shipments/${shipment.id}/label`
-                        }
+                        href={`/api/florist/shipments/${shipment.id}/label`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-foreground border border-border bg-card hover:bg-surface-container-low rounded-xl transition-colors"

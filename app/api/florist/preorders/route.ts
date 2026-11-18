@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { parsePaginationParams } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { HarvestPreOrderStatus, Prisma } from "@prisma/client";
 import { autoExpireOverduePreOrders } from "@/lib/supply-chain/expire-preorders";
@@ -11,11 +12,9 @@ import { z } from "zod";
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST"]);
+    const { userId, session } = await requireAuth(request, ["FLORIST"]);
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams, 20, 100);
     const status = searchParams.get("status");
     const whereClause: Prisma.HarvestPreOrderWhereInput = {
       floristId: userId,
@@ -90,7 +89,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId } = await requireAuth(request, ["FLORIST"]);
+    const { userId, session } = await requireAuth(request, ["FLORIST"]);
     // Parsing dan validasi request body menggunakan skema Zod
     const body = await request.json();
     const validated = createPreorderSchema.parse(body);
@@ -263,15 +262,11 @@ export async function POST(request: Request) {
     }
 
     // Kirim notifikasi pesanan masuk ke supplier
-    const florist = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true },
-    });
     await prisma.notification.create({
       data: {
         userId: announcement.supplierId,
         title: "Pre-Order Panen Baru Masuk!",
-        message: `Florist ${florist?.name || "Mitra"} memesan ${requestedQuantity} tangkai ${announcement.flowerName} untuk jadwal panen mendatang.`,
+        message: `Florist ${session.user?.name || "Mitra"} memesan ${requestedQuantity} tangkai ${announcement.flowerName} untuk jadwal panen mendatang.`,
         type: "HARVEST_ANNOUNCEMENT",
         link: `/supplier/harvest-announcements/${announcement.id}`,
         isRead: false,

@@ -1,55 +1,37 @@
 import { reportServerError } from "@/lib/server-error-report";
-// Endpoint untuk memeriksa tarif ongkos kirim melalui Biteship API
-import { getServerSession } from "next-auth";
-import { NextRequest, NextResponse } from "next/server";
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/middleware/requireAuth";
+import {
+  DEFAULT_PRODUCT_WEIGHT_GRAMS,
+  SUPPORTED_COURIER_LIST,
+} from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { getFloristPickupAddress } from "@/lib/florist-pickup-address";
 import { getBiteshipClient } from "@/lib/biteship";
 import type { BiteshipRateItem } from "@/lib/biteship";
+import { NextRequest, NextResponse } from "next/server";
 
 // Handler HTTP POST untuk mengecek tarif ongkos kirim pesanan melalui Biteship
 export async function POST(req: NextRequest) {
   try {
-    // Autentikasi sesi pengguna
-    const session = await getServerSession(authOptions);
+    const { userId, userRole } = await requireAuth(req, ["FLORIST", "ADMIN"]);
 
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const sessionUser = session.user as { id?: string; role?: string };
-    const userId = sessionUser.id;
-    const userRole = sessionUser.role;
-
-    // Verifikasi peran pengguna harus florist
-    if (userRole !== "FLORIST" || !userId) {
-      return NextResponse.json(
-        { success: false, message: "Hanya florist yang dapat cek ongkir" },
-        { status: 403 }
-      );
-    }
-
-    // Parsing dan validasi request body
     const body = await req.json();
     const { orderId, couriers } = body;
 
     if (!orderId) {
       return NextResponse.json(
         { success: false, message: "orderId wajib diisi" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Ambil data pesanan beserta relasi pembeli dan produk
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
+        address: true,
         user: {
-          include: {
+          select: {
+            id: true,
             addresses: {
               where: { isDefault: true },
               take: 1,
@@ -59,8 +41,11 @@ export async function POST(req: NextRequest) {
         items: {
           include: {
             product: {
-              include: {
-                florist: true,
+              select: {
+                id: true,
+                name: true,
+                weight: true,
+                floristId: true,
               },
             },
           },
@@ -71,39 +56,45 @@ export async function POST(req: NextRequest) {
     if (!order) {
       return NextResponse.json(
         { success: false, message: "Order tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Validasi hak kepemilikan pesanan oleh florist
-    const floristId = order.items[0]?.product?.florist?.id;
-    if (!floristId || floristId !== userId) {
+    const ownedItem = order.items.find(
+      (item) => item.product?.floristId === userId,
+    );
+    if (userRole !== "ADMIN" && !ownedItem) {
       return NextResponse.json(
         { success: false, message: "Anda tidak memiliki akses ke order ini" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    // Gunakan alamat penjemputan dari profil florist
-    const floristAddress = await getFloristPickupAddress(userId);
+    const targetFloristId =
+      ownedItem?.product?.floristId ?? order.items[0]?.product?.floristId;
+    if (!targetFloristId) {
+      return NextResponse.json(
+        { success: false, message: "Data florist tidak ditemukan" },
+        { status: 400 },
+      );
+    }
 
+    const floristAddress = await getFloristPickupAddress(targetFloristId);
     if (!floristAddress || !floristAddress.postalCode) {
       return NextResponse.json(
         { success: false, message: "Florist belum melengkapi data kode pos" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Ambil alamat default pembeli
-    const customerAddress = order.user.addresses[0];
+    const customerAddress = order.address || order.user.addresses[0];
     if (!customerAddress) {
       return NextResponse.json(
-        { success: false, message: "Customer belum memiliki alamat default" },
-        { status: 400 }
+        { success: false, message: "Alamat tujuan pelanggan belum tersedia" },
+        { status: 400 },
       );
     }
 
-    // Siapkan data barang untuk perhitungan tarif ongkir Biteship
     const items: BiteshipRateItem[] = order.items.map((item) => ({
       name: item.product?.name || "Produk Florist",
       value: Math.round(item.price),
@@ -111,16 +102,16 @@ export async function POST(req: NextRequest) {
       height: 10,
       length: 15,
       width: 10,
-      weight: 500 * item.quantity,
+      weight:
+        (item.product?.weight || DEFAULT_PRODUCT_WEIGHT_GRAMS) * item.quantity,
     }));
 
-    // Ambil kalkulasi tarif ongkos kirim dari Biteship
     const biteshipClient = getBiteshipClient();
     const rates = await biteshipClient.getRates(
-      parseInt(floristAddress.postalCode),
-      parseInt(customerAddress.postalCode),
+      Number.parseInt(floristAddress.postalCode, 10),
+      Number.parseInt(customerAddress.postalCode, 10),
       items,
-      couriers || ["jne", "jnt", "sicepat", "anteraja", "ninja"]
+      couriers || SUPPORTED_COURIER_LIST,
     );
 
     const formattedRates = rates.pricing.map((rate, idx) => ({
@@ -139,7 +130,6 @@ export async function POST(req: NextRequest) {
       availableInsurance: rate.available_for_insurance,
     }));
 
-    // Kembalikan respon sukses daftar tarif ongkos kirim
     return NextResponse.json({
       success: true,
       message: "Ongkos kirim berhasil diambil",
@@ -153,14 +143,16 @@ export async function POST(req: NextRequest) {
       destination: rates.destination,
     });
   } catch (error: unknown) {
-    // Tangani error internal server
+    if (error instanceof NextResponse) {
+      return error;
+    }
     reportServerError("[GET_RATES_ERROR]", error);
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Gagal mengambil ongkos kirim",
+        message: "Gagal mengambil ongkos kirim",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

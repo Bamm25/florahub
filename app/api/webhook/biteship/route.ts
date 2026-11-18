@@ -43,6 +43,8 @@ export async function POST(req: NextRequest) {
         await prisma.shipment.updateMany({ where: { id: shipment.id, status: { notIn: ["DELIVERED", "CANCELLED"] } }, data: { status, trackingNumber: waybill || shipment.trackingNumber, shippedAt: status === "SHIPPED" ? shipment.shippedAt || now : undefined, deliveredAt: status === "DELIVERED" ? shipment.deliveredAt || now : undefined } });
         const moved = await prisma.order.updateMany({ where: { id: shipment.orderId, status: { in: status === "DELIVERED" ? ["PROCESSING", "SHIPPED"] : ["PROCESSING"] } }, data: { status } });
         if (moved.count) await prisma.notification.create({ data: { userId: shipment.order.userId, type: "SHIPMENT_UPDATE", title: status === "DELIVERED" ? "Pesanan Telah Sampai" : "Pesanan Dalam Pengiriman", message: `Pesanan #${shipment.order.orderNumber} ${status === "DELIVERED" ? "telah diterima" : "sedang dikirim"}.` } });
+      } else if (status === "CANCELLED") {
+        await prisma.shipment.updateMany({ where: { id: shipment.id, status: { notIn: ["DELIVERED", "CANCELLED"] } }, data: { status: "CANCELLED" } });
       } else if (waybill) await prisma.shipment.update({ where: { id: shipment.id }, data: { trackingNumber: waybill } });
     }
     return NextResponse.json({ success: true, message: "Webhook processed" });

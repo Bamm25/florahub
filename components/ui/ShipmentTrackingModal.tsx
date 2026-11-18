@@ -459,8 +459,9 @@ export default function ShipmentTrackingModal({
             </div>
           )}
 
-          {/* Kontrol simulasi hanya tampil untuk supplier/admin. */}
-          {(userRole === "SUPPLIER" || userRole === "ADMIN") && (
+          {/* Kontrol simulasi hanya tampil di mode development bila flag diaktifkan */}
+          {process.env.NEXT_PUBLIC_ENABLE_BITESHIP_SIMULATOR === "true" &&
+            (userRole === "SUPPLIER" || userRole === "ADMIN") && (
             <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-4">
               <p className="text-xs font-semibold text-amber-950">Simulasi pengiriman</p>
               <div className="mt-3 flex flex-wrap gap-2">

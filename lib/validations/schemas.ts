@@ -38,15 +38,17 @@ export const updateAddressSchema = z.object({
     .string()
     .regex(/^\d{5,8}$/)
     .optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
   isDefault: z.boolean().optional(),
 });
 
 // Skema validasi data pesanan saat proses checkout pelanggan
 export const checkoutSchema = z.object({
-  addressId: z.string().min(1, "Address ID tidak valid").optional(),
-  shippingCost: z.number().min(0, "Ongkir tidak boleh negatif"),
+  addressId: z.string().min(1, "Alamat pengiriman wajib dipilih"),
+  shippingCost: z.number().int().min(0, "Ongkir tidak boleh negatif"),
+  courier: z.string().trim().max(50).optional(),
+  service: z.string().trim().max(50).optional(),
   couponCode: z.string().min(3).toUpperCase().optional(),
   notes: z.string().max(500).optional(),
   items: z
@@ -54,7 +56,7 @@ export const checkoutSchema = z.object({
       z.object({
         productId: z.string().min(1, "Product ID tidak valid"),
         quantity: z.number().int().min(1, "Quantity minimal 1"),
-        price: z.number().min(0, "Harga tidak boleh negatif"),
+        price: z.number().int().min(0, "Harga tidak boleh negatif"),
       }),
     )
     .min(1, "Cart tidak boleh kosong"),
@@ -98,10 +100,10 @@ export const updateCouponSchema = z.object({
 export const createProductSchema = z.object({
   name: z.string().min(1, "Nama produk wajib diisi").max(100),
   description: z.string().min(10, "Deskripsi minimal 10 karakter"),
-  price: z.number().min(0, "Harga tidak boleh negatif"),
+  price: z.number().int().min(0, "Harga tidak boleh negatif"),
   stock: z.number().int().min(0, "Stok tidak boleh negatif"),
   categoryId: z.string().min(1, "Category ID tidak valid"),
-  image: z.url("URL gambar tidak valid").optional(),
+  image: z.url({ protocol: /^https$/ }).optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -109,10 +111,10 @@ export const createProductSchema = z.object({
 export const updateProductSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().min(10).optional(),
-  price: z.number().min(0).optional(),
+  price: z.number().int().min(0).optional(),
   stock: z.number().int().min(0).optional(),
   categoryId: z.string().min(1).optional(),
-  image: z.url().optional(),
+  image: z.url({ protocol: /^https$/ }).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -128,14 +130,14 @@ export const createReviewSchema = z.object({
     .min(10, "Komentar minimal 10 karakter")
     .max(1000)
     .optional(),
-  images: z.array(z.url()).max(5, "Maksimal 5 gambar").optional(),
+  images: z.array(z.url({ protocol: /^https$/ })).max(5, "Maksimal 5 gambar").optional(),
 });
 
 // Skema validasi pembaruan ulasan dan penilaian produk oleh pelanggan
 export const updateReviewSchema = z.object({
   rating: z.number().int().min(1).max(5).optional(),
   comment: z.string().min(10).max(1000).optional(),
-  images: z.array(z.url()).max(5).optional(),
+  images: z.array(z.url({ protocol: /^https$/ })).max(5).optional(),
 });
 
 // Skema validasi pembuatan kategori produk baru
@@ -148,7 +150,7 @@ export const createCategorySchema = z.object({
     .max(50)
     .regex(/^[a-z0-9-]+$/, "Slug harus lowercase, angka, dan dash saja"),
   description: z.string().trim().max(500).nullable().optional(),
-  image: z.url().nullable().optional(),
+  image: z.url({ protocol: /^https$/ }).nullable().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -163,34 +165,19 @@ export const updateCategorySchema = z.object({
     .regex(/^[a-z0-9-]+$/, "Slug harus lowercase, angka, dan dash saja")
     .optional(),
   description: z.string().trim().max(500).nullable().optional(),
-  image: z.url().nullable().optional(),
+  image: z.url({ protocol: /^https$/ }).nullable().optional(),
   isActive: z.boolean().optional(),
-});
-
-// Skema validasi penambahan stok inventaris florist
-export const createInventorySchema = z.object({
-  stockId: z.string().min(1, "Stock ID tidak valid"),
-  quantity: z.number().min(0, "Quantity tidak boleh negatif"),
-  location: z.string().min(1, "Lokasi wajib diisi").max(100),
-  notes: z.string().max(500).optional(),
-});
-
-// Skema validasi pembaruan data inventaris florist
-export const updateInventorySchema = z.object({
-  quantity: z.number().min(0).optional(),
-  location: z.string().min(1).max(100).optional(),
-  notes: z.string().max(500).optional(),
 });
 
 // Skema validasi pembuatan komponen bahan baku produk florist
 export const createProductComponentSchema = z.object({
   inventoryId: z.string().length(25, "Inventory ID harus CUID 25 karakter"), // ID inventory Prisma bertipe CUID
-  quantity: z.number().min(0.01, "Quantity harus lebih dari 0"),
+  quantity: z.number().int().min(1, "Quantity minimal 1"),
 });
 
 // Skema validasi pembaruan jumlah komponen bahan baku produk
 export const updateProductComponentSchema = z.object({
-  quantity: z.number().min(0.01).optional(),
+  quantity: z.number().int().min(1).optional(),
 });
 
 // Skema validasi pendaftaran stok pasokan baru oleh supplier
@@ -221,7 +208,7 @@ export const createHarvestAnnouncementSchema = z.object({
   harvestDate: z.iso.datetime(),
   description: z.string().min(10, "Deskripsi minimal 10 karakter").optional(),
   location: z.string().max(200).optional(),
-  image: z.url().optional(),
+  image: z.url({ protocol: /^https$/ }).optional(),
 });
 
 // Skema validasi pembaruan data pengumuman panen oleh supplier
@@ -233,7 +220,7 @@ export const updateHarvestAnnouncementSchema = z.object({
   harvestDate: z.iso.datetime().optional(),
   description: z.string().min(10).optional(),
   location: z.string().max(200).optional(),
-  image: z.url().optional(),
+  image: z.url({ protocol: /^https$/ }).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -262,11 +249,6 @@ export const createPurchaseSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
-// Skema validasi pengunggahan bukti bayar pembelian pasokan bunga
-export const updatePurchaseSchema = z.object({
-  paymentProof: z.url("URL bukti bayar tidak valid"),
-});
-
 // Skema validasi pembuatan data pengiriman pesanan florist
 export const createShipmentSchema = z.object({
   orderId: z.string().min(1, "Order ID tidak valid"),
@@ -293,28 +275,9 @@ export const updateShipmentStatusSchema = z.object({
   weight: z.number().min(0.01).nullable().optional(),
 });
 
-// Skema validasi pembaruan status transaksi penjualan
-export const updateSaleSchema = z.object({
-  status: z.enum(["PAID", "SHIPPED", "DELIVERED", "CANCELLED"]).optional(),
-  courier: z.string().max(100).optional(),
-  trackingNumber: z.string().max(100).optional(),
-  deliveredAt: z.iso.datetime().optional(),
-});
-
 // Skema validasi pembuatan data transaksi pembayaran
 export const createPaymentSchema = z.object({
   orderId: z.string().min(1, "Order ID tidak valid"),
-});
-
-// Skema validasi penambahan item ke dalam keranjang belanja
-export const createCartItemSchema = z.object({
-  productId: z.string().min(1, "Product ID tidak valid"),
-  quantity: z.number().int().min(1, "Quantity minimal 1"),
-});
-
-// Skema validasi pembaruan kuantitas item dalam keranjang belanja
-export const updateCartItemSchema = z.object({
-  quantity: z.number().int().min(1, "Quantity minimal 1"),
 });
 
 // Skema validasi pemeriksaan kode kupon belanja
@@ -322,6 +285,7 @@ export const validateCouponSchema = z.object({
   code: z.string().min(3, "Kode kupon minimal 3 karakter").toUpperCase(),
   subtotal: z.number().min(0, "Subtotal tidak boleh negatif"),
   shippingCost: z.number().min(0, "Ongkir tidak boleh negatif").optional(),
+  productIds: z.array(z.string().min(1)).optional(),
 });
 
 // Form admin ini hanya mengubah status akun. Koreksi identitas memerlukan alur
@@ -336,20 +300,6 @@ export const updateUserSchema = z
     ]),
   })
   .strict();
-
-// Skema validasi pembuatan notifikasi sistem untuk pengguna
-export const createNotificationSchema = z.object({
-  userId: z.string().min(1, "User ID tidak valid"),
-  title: z.string().min(1, "Judul wajib diisi").max(200),
-  message: z.string().min(1, "Pesan wajib diisi").max(1000),
-  type: z.string().max(50).optional(),
-  link: z.string().max(500).optional(),
-});
-
-// Skema validasi pembaruan status keterbacaan notifikasi
-export const updateNotificationSchema = z.object({
-  isRead: z.boolean(),
-});
 
 // Skema validasi query daftar pengguna admin
 export const adminUserQuerySchema = z.object({
@@ -369,8 +319,8 @@ export const updateCustomerProfileSchema = z.object({
 export const updateFloristProfileSchema = z.object({
   shopName: z.string().min(3).max(200).optional(),
   shopDescription: z.string().max(1000).optional().nullable(),
-  logo: z.url().max(500).optional().nullable(),
-  banner: z.url().max(500).optional().nullable(),
+  logo: z.url({ protocol: /^https$/ }).max(500).optional().nullable(),
+  banner: z.url({ protocol: /^https$/ }).max(500).optional().nullable(),
 });
 
 // Skema validasi kuantitas produksi produk florist
@@ -538,28 +488,12 @@ export const adminAuditLogQuerySchema = z
     }
   });
 
-export type RegisterInput = z.infer<typeof registerSchema>;
-export type CreateAddressInput = z.infer<typeof createAddressSchema>;
-export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
-export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type CreateCouponInput = z.infer<typeof createCouponSchema>;
 export type UpdateCouponInput = z.infer<typeof updateCouponSchema>;
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
-export type CreateProductInput = z.infer<typeof createProductSchema>;
-export type UpdateProductInput = z.infer<typeof updateProductSchema>;
-export type CreateRawMaterialInput = z.infer<typeof createRawMaterialSchema>;
-export type UpdateRawMaterialInput = z.infer<typeof updateRawMaterialSchema>;
-export type UpdateCustomerProfileInput = z.infer<
-  typeof updateCustomerProfileSchema
->;
-export type UpdateFloristProfileInput = z.infer<
-  typeof updateFloristProfileSchema
->;
-export type AdminUserQueryInput = z.infer<typeof adminUserQuerySchema>;
 export type AdminOrderQueryInput = z.infer<typeof adminOrderQuerySchema>;
 export type AdminSupplyQueryInput = z.infer<typeof adminSupplyQuerySchema>;
 export type AdminCouponQueryInput = z.infer<typeof adminCouponQuerySchema>;
 export type AdminCategoryQueryInput = z.infer<typeof adminCategoryQuerySchema>;
 export type AdminAuditLogQueryInput = z.infer<typeof adminAuditLogQuerySchema>;
-export type UpdateUserInput = z.infer<typeof updateUserSchema>;

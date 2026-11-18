@@ -1,9 +1,5 @@
-import type {
-  Product,
-  ApiResponse,
-  PaginatedResponse,
-  ProductFormData,
-} from "@/types";
+import type { Product, PaginatedResponse } from "@/types";
+import { APP_URL } from "@/lib/config/domain";
 import { fetchJson } from "./client";
 
 // Interface respons API untuk rincian data produk berdasarkan slug
@@ -66,13 +62,10 @@ function getBaseUrl(): string {
   if (typeof window !== "undefined") {
     return "";
   }
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  }
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  return "http://localhost:3000";
+  return APP_URL;
 }
 
 // Fungsi untuk mengambil daftar produk dengan filter pencarian dan paginasi
@@ -98,62 +91,6 @@ export async function getProducts(
     cache: "no-store",
     signal,
   });
-}
-
-// Fungsi untuk mengambil detail data produk berdasarkan ID
-export async function getProductById(
-  id: string,
-  signal?: AbortSignal,
-): Promise<ApiResponse<Product>> {
-  const baseUrl = getBaseUrl();
-  const url = `${baseUrl}/api/products/${encodeURIComponent(id)}`;
-  return fetchJson<ApiResponse<Product>>(url, {
-    method: "GET",
-    cache: "no-store",
-    signal,
-  });
-}
-
-// Fungsi untuk menambahkan produk baru florist melalui API
-export async function createProduct(
-  data: ProductFormData,
-): Promise<ApiResponse<Product>> {
-  const baseUrl = getBaseUrl();
-  return fetchJson<ApiResponse<Product>>(`${baseUrl}/api/florist/products`, {
-    method: "POST",
-    body: JSON.stringify(data),
-    credentials: "include",
-  });
-}
-
-// Fungsi untuk memperbarui data produk florist berdasarkan ID
-export async function updateProduct(
-  id: string,
-  data: Partial<ProductFormData>,
-): Promise<ApiResponse<Product>> {
-  const baseUrl = getBaseUrl();
-  return fetchJson<ApiResponse<Product>>(
-    `${baseUrl}/api/florist/products/${encodeURIComponent(id)}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(data),
-      credentials: "include",
-    },
-  );
-}
-
-// Fungsi untuk menghapus produk florist berdasarkan ID
-export async function deleteProduct(
-  id: string,
-): Promise<ApiResponse<{ id: string }>> {
-  const baseUrl = getBaseUrl();
-  return fetchJson<ApiResponse<{ id: string }>>(
-    `${baseUrl}/api/florist/products/${encodeURIComponent(id)}`,
-    {
-      method: "DELETE",
-      credentials: "include",
-    },
-  );
 }
 
 // Fungsi untuk mengambil data rincian produk berdasarkan slug

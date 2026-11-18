@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle } from "lucide-react";
+import { formatRupiah } from "@/lib/utils/formatters";
 
 // Interface untuk data kupon yang sudah diapply
 interface AppliedCoupon {
@@ -55,7 +56,7 @@ export default function CouponInput({
                 {appliedCoupon.code}
               </p>
               <p className="text-xs text-muted-foreground">
-                Hemat Rp {appliedCoupon.discountAmount.toLocaleString("id-ID")}
+                Hemat {formatRupiah(appliedCoupon.discountAmount)}
               </p>
             </div>
           </div>

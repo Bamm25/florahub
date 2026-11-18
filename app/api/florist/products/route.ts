@@ -1,5 +1,6 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { parsePaginationParams } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
@@ -11,9 +12,7 @@ export async function GET(request: Request) {
     const { userId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams, 20, 100);
     const whereClause = { floristId: userId };
 
     // Ambil daftar produk beserta relasi kategori, komponen bahan baku, dan total data

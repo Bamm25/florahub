@@ -1,5 +1,7 @@
 "use client";
 
+import { formatRupiah } from "@/lib/utils/formatters";
+
 // Interface untuk item produk di keranjang checkout
 interface CartItem {
   productId: string;
@@ -39,11 +41,11 @@ export default function OrderItems({ items }: OrderItemsProps) {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">{item.name}</p>
               <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                {item.quantity} × Rp {item.price.toLocaleString("id-ID")}
+                {item.quantity} × {formatRupiah(item.price)}
               </p>
             </div>
             <p className="text-sm font-semibold tabular-nums text-foreground">
-              Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+              {formatRupiah(item.price * item.quantity)}
             </p>
           </li>
         ))}

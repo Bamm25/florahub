@@ -3,6 +3,7 @@ import { NextAuthOptions } from "next-auth";
 import { Role } from "@prisma/client";
 import prisma from "./prisma";
 import bcrypt from "bcryptjs";
+import { checkRateLimit } from "./rate-limit";
 import {
   DEFAULT_MAX_AGE_SECONDS,
   decodeRfc7519Jwt,
@@ -32,8 +33,20 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email dan password harus diisi");
         }
 
+        const normalizedEmail = credentials.email.trim().toLowerCase();
+        const limitCheck = checkRateLimit(
+          `login:${normalizedEmail}`,
+          10,
+          60_000,
+        );
+        if (!limitCheck.allowed) {
+          throw new Error(
+            "Terlalu banyak percobaan login. Silakan tunggu sebentar.",
+          );
+        }
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: normalizedEmail },
         });
 
         if (!user || !user.password || !user.isActive) {
@@ -72,32 +85,54 @@ export const authOptions: NextAuthOptions = {
       if (token.id && !token.sub) {
         token.sub = token.id as string;
       }
-      // Sinkronisasi data ID dan peran pengguna dari basis data ke token JWT
-      if (token.email) {
+      // Sinkronisasi data ID, status aktif, dan peran pengguna dari basis data ke token JWT
+      const lookupId = (token.id || token.sub) as string | undefined;
+      if (lookupId || token.email) {
         try {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: token.email as string },
-            select: { id: true, role: true, name: true, isActive: true },
-          });
-          if (dbUser && dbUser.isActive) {
-            token.id = dbUser.id;
-            token.sub = dbUser.id;
-            token.role = dbUser.role;
-            if (dbUser.name) {
-              token.name = dbUser.name;
-            }
+          const dbUser = lookupId
+            ? await prisma.user.findUnique({
+                where: { id: lookupId },
+                select: { id: true, role: true, name: true, isActive: true },
+              })
+            : await prisma.user.findUnique({
+                where: { email: token.email as string },
+                select: { id: true, role: true, name: true, isActive: true },
+              });
+          if (!dbUser || !dbUser.isActive) {
+            return {
+              ...token,
+              id: "",
+              sub: "",
+              isActive: false,
+            };
+          }
+          token.id = dbUser.id;
+          token.sub = dbUser.id;
+          token.role = dbUser.role;
+          token.isActive = true;
+          if (dbUser.name) {
+            token.name = dbUser.name;
           }
         } catch {
           // Abaikan galat pembacaan basis data selama proses verifikasi token
         }
       }
-      // Perbarui data nama pengguna saat terjadi pemanggilan pembaruan sesi
-      if (trigger === "update" && session?.name) {
-        token.name = session.name;
+      // Perbarui data nama pengguna tervalidasi saat terjadi pemanggilan pembaruan sesi
+      if (
+        trigger === "update" &&
+        typeof session?.name === "string" &&
+        session.name.trim().length > 0 &&
+        session.name.trim().length <= 100
+      ) {
+        token.name = session.name.trim();
       }
       return token;
     },
     async session({ session, token }) {
+      if (token.isActive === false || (!token.id && !token.sub)) {
+        session.user = undefined as never;
+        return session;
+      }
       if (session.user) {
         Object.assign(session.user, {
           id: (token.id as string) || (token.sub as string),

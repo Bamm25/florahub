@@ -49,10 +49,10 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCallback = searchParams.get("callbackUrl");
-  const callbackUrl =
-    requestedCallback?.startsWith("/") && !requestedCallback.startsWith("//")
-      ? requestedCallback
-      : "/";
+  const isSafeRelativeCallback =
+    typeof requestedCallback === "string" &&
+    /^\/(?!\/|\\)[^\s\\]*$/.test(requestedCallback);
+  const callbackUrl = isSafeRelativeCallback ? requestedCallback : "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -10,42 +10,29 @@ type RouteParams = {
   params: Promise<{ id: string }>;
 };
 
-// Handler HTTP GET untuk mengambil detail pengumuman panen beserta data pemesanan
+// Handler HTTP GET terautentikasi untuk detail pengumuman panen dengan scoping pre-order per peran
 export async function GET(request: Request, { params }: RouteParams) {
   try {
-    // Ambil parameter ID pengumuman dari URL
+    const { userId, userRole } = await requireAuth(request, [
+      "SUPPLIER",
+      "FLORIST",
+      "ADMIN",
+    ]);
     const { id: announcementId } = await params;
 
-    // Cari data pengumuman panen beserta supplier dan daftar pre-order
-    const announcement = await prisma.harvestAnnouncement.findUnique({
+    const baseAnnouncement = await prisma.harvestAnnouncement.findUnique({
       where: { id: announcementId },
       include: {
         supplier: {
           select: {
             id: true,
             name: true,
-            email: true,
-          },
-        },
-        preOrders: {
-          include: {
-            florist: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: "desc",
           },
         },
       },
     });
 
-    // Validasi keberadaan data pengumuman panen
-    if (!announcement) {
+    if (!baseAnnouncement) {
       return NextResponse.json(
         {
           success: false,
@@ -55,11 +42,47 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Kembalikan respon sukses data detail pengumuman panen
+    const canSeeAllPreOrders =
+      userRole === "ADMIN" ||
+      (userRole === "SUPPLIER" && baseAnnouncement.supplierId === userId);
+
+    const preOrders = canSeeAllPreOrders
+      ? await prisma.harvestPreOrder.findMany({
+          where: { announcementId },
+          include: {
+            florist: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
+      : userRole === "FLORIST"
+        ? await prisma.harvestPreOrder.findMany({
+            where: { announcementId, floristId: userId },
+            include: {
+              florist: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          })
+        : [];
+
     return NextResponse.json({
       success: true,
       message: "Detail pengumuman panen berhasil diambil",
-      data: { announcement },
+      data: {
+        announcement: {
+          ...baseAnnouncement,
+          preOrders,
+        },
+      },
     });
   } catch (error) {
     // Tangani error otorisasi atau internal server error

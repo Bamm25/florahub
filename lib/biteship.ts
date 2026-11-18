@@ -1,12 +1,7 @@
 // Klien API Biteship untuk pengelolaan resi pengiriman dan pelacakan paket
 import axios from "axios";
 import type { AxiosInstance } from "axios";
-
-// URL dasar endpoint API Biteship sesuai lingkungan aplikasi
-const BITESHIP_BASE_URL =
-  process.env.BITESHIP_ENV === "production"
-    ? "https://api.biteship.com/v1"
-    : "https://api.biteship.com/v1"; // Sandbox: ubah saat Biteship provide sandbox URL
+import { BITESHIP_BASE_URL, BITESHIP_TIMEOUT_MS } from "@/lib/config/domain";
 
 // Interface konfigurasi kredensial klien Biteship
 interface BiteshipConfig {
@@ -189,7 +184,7 @@ class BiteshipClient {
         Authorization: config.apiKey,
         "Content-Type": "application/json",
       },
-      timeout: 30000,
+      timeout: BITESHIP_TIMEOUT_MS,
     });
   }
 

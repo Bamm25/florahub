@@ -107,6 +107,18 @@ export interface Shipment {
   shippingCost: number;
   shippedAt: string | null;
   deliveredAt: string | null;
+  createdAt?: string;
+}
+
+export interface ShipmentTrackingDetails {
+  status: string;
+  history: Array<{
+    note: string;
+    status: string;
+    updated_at: string;
+    service_type?: string;
+  }>;
+  link: string | null;
 }
 
 // Interface respons API untuk data pengiriman pesanan
@@ -115,6 +127,7 @@ interface ShipmentResponse {
   message: string;
   data: {
     shipment: Shipment;
+    tracking?: ShipmentTrackingDetails | null;
   };
 }
 

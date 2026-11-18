@@ -80,11 +80,13 @@ export default function AdminLayout({
     );
   }
 
-  if (status === "authenticated" && session?.user) {
-    const userRole = (session.user as { role?: string }).role;
-    if (userRole !== "ADMIN") {
-      return null;
-    }
+  if (status !== "authenticated" || !session?.user) {
+    return null;
+  }
+
+  const userRole = (session.user as { role?: string }).role;
+  if (userRole !== "ADMIN") {
+    return null;
   }
 
   return (
@@ -170,7 +172,7 @@ export default function AdminLayout({
               {session?.user?.name || "Administrator"}
             </p>
             <p className="truncate text-[11px] text-white/50">
-              {session?.user?.email || "admin@florahub.com"}
+              {session?.user?.email || ""}
             </p>
           </div>
           <button

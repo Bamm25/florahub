@@ -97,13 +97,31 @@ export async function POST(
 
       for (const component of product.productComponents) {
         const consumedQty = component.quantity * quantity;
-        const newQty = component.inventory.quantity - consumedQty;
 
-        const updatedInventory = await tx.floristInventory.update({
+        // Pengurangan atomik dengan verifikasi stok mencukupi mencegah lost-update pada produksi paralel
+        const deducted = await tx.floristInventory.updateMany({
+          where: {
+            id: component.inventory.id,
+            floristId: userId,
+            quantity: { gte: consumedQty },
+          },
+          data: { quantity: { decrement: consumedQty } },
+        });
+
+        if (deducted.count === 0) {
+          throw new Error(`INSUFFICIENT_MATERIAL:${component.inventory.stock.name}`);
+        }
+
+        const updatedInventory = await tx.floristInventory.findUnique({
           where: { id: component.inventory.id },
-          data: { quantity: newQty },
           include: { stock: true },
         });
+
+        if (!updatedInventory) {
+          throw new Error(`INSUFFICIENT_MATERIAL:${component.inventory.stock.name}`);
+        }
+
+        const newQty = updatedInventory.quantity;
 
         inventoryUpdates.push({
           material: updatedInventory.stock.name,
@@ -164,6 +182,20 @@ export async function POST(
 
     if (error instanceof NextResponse) {
       return error;
+    }
+
+    if (
+      error instanceof Error &&
+      error.message.startsWith("INSUFFICIENT_MATERIAL:")
+    ) {
+      const materialName = error.message.split(":")[1] || "bahan baku";
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Stok ${materialName} tidak mencukupi untuk produksi`,
+        },
+        { status: 400 },
+      );
     }
 
     reportServerError("[Produce Error]", error);

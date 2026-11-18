@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
+import { formatDate, formatRupiah } from "@/lib/utils/formatters";
 
 // Props interface untuk komponen card display order
 interface OrderCardProps {
@@ -59,12 +60,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
             {order.orderNumber}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {new Date(order.createdAt).toLocaleDateString("id-ID", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+            {formatDate(order.createdAt)}
           </p>
         </div>
         <span
@@ -128,7 +124,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
             Total belanja · {order.itemCount} item
           </p>
           <p className="text-base font-semibold tabular-nums text-foreground">
-            Rp {order.totalAmount.toLocaleString("id-ID")}
+            {formatRupiah(order.totalAmount)}
           </p>
         </div>
         <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">

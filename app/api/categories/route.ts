@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { isPrismaUniqueError } from "@/lib/prisma-errors";
 import { reportServerError } from "@/lib/server-error-report";
 import {
   adminCategoryQuerySchema,
@@ -8,15 +9,6 @@ import {
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "P2002"
-  );
-}
 
 // Handler HTTP GET untuk mengambil daftar kategori bunga beserta filter dan paginasi
 export async function GET(request: Request) {
@@ -181,7 +173,7 @@ export async function POST(request: Request) {
     if (error instanceof NextResponse) {
       return error;
     }
-    if (isUniqueConstraintError(error)) {
+    if (isPrismaUniqueError(error)) {
       return NextResponse.json(
         { success: false, message: "Nama atau slug kategori sudah terdaftar" },
         { status: 409 },

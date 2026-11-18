@@ -1,5 +1,9 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import {
+  B2B_STEM_WEIGHT_GRAMS,
+  MIN_B2B_WEIGHT_GRAMS,
+} from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { getBiteshipClient, mapBiteshipStatus } from "@/lib/biteship";
 import {
@@ -196,7 +200,10 @@ export async function POST(request: Request) {
     const destCity = floristAddress.city;
     const destPhone = floristAddress.phone || floristUser.phone || "";
 
-    const weightInGrams = Math.max(1000, quantity * 100);
+    const weightInGrams = Math.max(
+      MIN_B2B_WEIGHT_GRAMS,
+      quantity * B2B_STEM_WEIGHT_GRAMS,
+    );
 
     // 3. Susun Permintaan ke Biteship — sama persis dengan pola florist/shipments/auto-create
     const biteshipPayload: BiteshipOrderRequest = {
@@ -246,15 +253,11 @@ export async function POST(request: Request) {
     try {
       biteshipOrder = await biteshipClient.createOrder(biteshipPayload);
     } catch (biteshipError: unknown) {
-      reportServerError("[SUPPLIER_BITESHIP_CREATE_ERROR]");
-      const axiosErr = biteshipError as {
-        response?: { data?: { message?: string } };
-        message?: string;
-      };
+      reportServerError("[SUPPLIER_BITESHIP_CREATE_ERROR]", biteshipError);
       return NextResponse.json(
         {
           success: false,
-          message: `Biteship API error: ${axiosErr?.response?.data?.message || axiosErr?.message || "Gagal membuat shipment"}`,
+          message: "Gagal membuat shipment melalui layanan Biteship",
         },
         { status: 502 },
       );
@@ -394,10 +397,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Gagal membuat pengiriman otomatis Biteship",
+        message: "Gagal membuat pengiriman otomatis Biteship",
       },
       { status: 500 },
     );

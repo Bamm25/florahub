@@ -20,6 +20,7 @@ import {
 } from "@/lib/api/customer";
 import { createAddress } from "@/lib/api/addresses";
 import { LoadingSpinner } from "@/components/ui";
+import { formatRupiah } from "@/lib/utils/formatters";
 import { Truck, AlertCircle, MapPin, Plus, Loader2 } from "lucide-react";
 
 // Halaman checkout dengan address selector, ringkasan, dan Midtrans payment
@@ -95,6 +96,7 @@ export default function CheckoutPage() {
         code: couponCode.trim(),
         subtotal: total,
         shippingCost,
+        productIds: items.map((item) => item.productId),
       });
 
       setAppliedCoupon({
@@ -257,6 +259,8 @@ export default function CheckoutPage() {
       const checkoutResponse = await createCheckoutOrder({
         addressId: selectedAddressId!,
         shippingCost,
+        courier: selectedShipping?.courier,
+        service: selectedShipping?.service,
         couponCode: appliedCoupon ? appliedCoupon.code : undefined,
         notes: notes.trim() || undefined,
         items: items.map((item) => ({
@@ -266,8 +270,17 @@ export default function CheckoutPage() {
         })),
       });
 
+      const createdOrder = checkoutResponse.data.order;
+      const orderId = createdOrder.id;
+
+      // Pesanan Rp 0 dari kupon diskon 100% langsung terbayar tanpa Midtrans Snap
+      if (createdOrder.status === "PAID" || createdOrder.totalAmount === 0) {
+        clearCart();
+        router.push(`/orders/${orderId}`);
+        return;
+      }
+
       // Get Midtrans snap token untuk payment popup
-      const orderId = checkoutResponse.data.order.id;
       const paymentResponse = await createPaymentToken(orderId);
       const snapToken = paymentResponse.data.token;
 
@@ -480,7 +493,7 @@ export default function CheckoutPage() {
                             </p>
                           </div>
                           <p className="text-sm font-extrabold text-foreground">
-                            Rp {rate.price.toLocaleString("id-ID")}
+                            {formatRupiah(rate.price)}
                           </p>
                         </button>
                       );
@@ -493,7 +506,7 @@ export default function CheckoutPage() {
                       <p className="text-xs text-muted-foreground">Estimasi tiba: 1-2 hari kerja</p>
                     </div>
                     <p className="font-bold text-foreground">
-                      Rp {shippingCost.toLocaleString("id-ID")}
+                      {formatRupiah(shippingCost)}
                     </p>
                   </div>
                 )}

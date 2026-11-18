@@ -14,29 +14,13 @@ export function calculateEstimatedDays(
   const floristCity = floristLocation.city.toLowerCase().trim();
   const floristProvince = floristLocation.province.toLowerCase().trim();
 
-  // Check if locations are in Jawa Timur
-  const isCustomerJatim =
-    customerProvince.includes("jawa timur") ||
-    customerProvince.includes("east java");
-  const isFloristJatim =
-    floristProvince.includes("jawa timur") ||
-    floristProvince.includes("east java");
-
-  // Customer not in Jawa Timur - default to 3 days
-  if (!isCustomerJatim) {
-    return 3;
+  if (customerCity && floristCity && customerCity === floristCity && customerProvince === floristProvince) {
+    return 1;
   }
 
-  // Both in Jawa Timur
-  if (isFloristJatim) {
-    // Same city within Jawa Timur
-    if (customerCity === floristCity) {
-      return 1;
-    }
-    // Different city, same province (Jawa Timur)
+  if (customerProvince && floristProvince && customerProvince === floristProvince) {
     return 2;
   }
 
-  // Customer in Jawa Timur, florist outside
   return 3;
 }

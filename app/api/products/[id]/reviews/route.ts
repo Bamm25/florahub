@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { buildPaginationMeta, parsePaginationParams } from "@/lib/config/domain";
 import { NextResponse } from "next/server";
 import { createReviewSchema } from "@/lib/validations/schemas";
 import { z } from "zod";
@@ -14,9 +15,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { id: productId } = await params;
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams, 10, 100);
 
     // Pastikan produk yang akan diambil ulasannya ditemukan
     const product = await prisma.product.findUnique({
@@ -34,8 +33,8 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Ambil ulasan produk dengan pagination dan hitung total ulasan
-    const [reviews, total] = await Promise.all([
+    // Ambil ulasan produk dengan pagination dan agregasi rating langsung di SQL
+    const [reviews, total, ratingAggregate] = await Promise.all([
       prisma.review.findMany({
         where: { productId },
         include: {
@@ -51,21 +50,19 @@ export async function GET(request: Request, { params }: RouteParams) {
           createdAt: "desc",
         },
         take: limit,
-        skip: skip,
+        skip,
       }),
       prisma.review.count({ where: { productId } }),
+      prisma.review.aggregate({
+        where: { productId },
+        _avg: { rating: true },
+      }),
     ]);
 
-    // Hitung rata-rata rating dari seluruh ulasan produk
-    let averageRating = 0;
-    if (total > 0) {
-      const allReviews = await prisma.review.findMany({
-        where: { productId },
-        select: { rating: true },
-      });
-      const sumRating = allReviews.reduce((sum, item) => sum + item.rating, 0);
-      averageRating = Number((sumRating / total).toFixed(1));
-    }
+    const averageRating =
+      total > 0 && ratingAggregate._avg.rating !== null
+        ? Number(ratingAggregate._avg.rating.toFixed(1))
+        : 0;
 
     return NextResponse.json({
       success: true,
@@ -80,12 +77,7 @@ export async function GET(request: Request, { params }: RouteParams) {
           averageRating,
         },
         items: reviews,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        pagination: buildPaginationMeta(page, limit, total),
       },
     });
   } catch (error) {

@@ -131,7 +131,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Gagal mengambil daftar bahan baku",
+        message: "Gagal mengambil daftar bahan baku",
       },
       { status: 500 },
     );
@@ -171,7 +171,7 @@ export async function POST(request: Request) {
           pricePerUnit: pricePerUnit,
           harvestDate: new Date(),
           location: location?.trim() || null,
-          isAvailable: true,
+          isAvailable: false,
         },
       });
 
@@ -226,7 +226,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Gagal menambahkan bahan baku",
+        message: "Gagal menambahkan bahan baku",
       },
       { status: 500 },
     );

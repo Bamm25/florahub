@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { MIDTRANS_API_HOST, MIDTRANS_TIMEOUT_MS } from "@/lib/config/domain";
 import { Prisma } from "@prisma/client";
 
 export type MidtransPayment = {
@@ -30,13 +31,16 @@ export function finalPaymentDeadline(orderDeadline: Date, harvestDate: Date): Da
 export async function fetchMidtransPayment(transactionId: string): Promise<MidtransPayment> {
   if (!process.env.MIDTRANS_SERVER_KEY) throw new Error("MIDTRANS_SERVER_KEY missing");
   if (!/^[\w-]{1,100}$/.test(transactionId)) throw new Error("Invalid transaction ID");
-  const host = process.env.MIDTRANS_IS_PRODUCTION === "true"
-    ? "api.midtrans.com" : "api.sandbox.midtrans.com";
-  const response = await fetch(`https://${host}/v2/${encodeURIComponent(transactionId)}/status`, {
-    headers: { Authorization: `Basic ${Buffer.from(`${process.env.MIDTRANS_SERVER_KEY}:`).toString("base64")}` },
-    cache: "no-store",
-    signal: AbortSignal.timeout(10000),
-  });
+  const response = await fetch(
+    `https://${MIDTRANS_API_HOST}/v2/${encodeURIComponent(transactionId)}/status`,
+    {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${process.env.MIDTRANS_SERVER_KEY}:`).toString("base64")}`,
+      },
+      cache: "no-store",
+      signal: AbortSignal.timeout(MIDTRANS_TIMEOUT_MS),
+    },
+  );
   if (!response.ok) throw new Error(`Midtrans status unavailable (${response.status})`);
   const payment = await response.json() as MidtransPayment;
   if (payment.transaction_id !== transactionId && payment.order_id !== transactionId) {
@@ -62,7 +66,13 @@ export function matchesPayment(payment: MidtransPayment, kind: "DP" | "FINAL" | 
 export async function settlePreorder(payment: MidtransPayment, kind: "DP" | "FINAL", id: string) {
   if (!isSettled(payment)) return { changed: false, reason: "Payment not settled" };
   return prisma.$transaction(async (tx) => {
-    const order = await tx.harvestPreOrder.findUnique({ where: { id }, include: { announcement: true, florist: true } });
+    const order = await tx.harvestPreOrder.findUnique({
+      where: { id },
+      include: {
+        announcement: true,
+        florist: { select: { id: true, name: true } },
+      },
+    });
     if (!order) return { changed: false, reason: "Pre-order not found" };
     const amount = kind === "DP" ? order.depositAmount : order.remainingAmount;
     if (!amount || !matchesPayment(payment, kind, id, amount)) return { changed: false, reason: "Payment identity or amount mismatch" };

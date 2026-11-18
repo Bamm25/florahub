@@ -217,10 +217,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Gagal memperbarui status pengiriman",
+        message: "Gagal memperbarui status pengiriman",
       },
       { status: 500 },
     );

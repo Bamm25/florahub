@@ -29,6 +29,7 @@ import {
   type RawMaterialStats,
 } from "@/lib/api/florist";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
+import { PRODUCT_LOW_STOCK_THRESHOLD } from "@/lib/config/domain";
 import { formatRupiah } from "@/lib/utils/formatters";
 
 interface FinishedProduct {
@@ -39,7 +40,7 @@ interface FinishedProduct {
   isActive: boolean;
 }
 
-const LOW_STOCK_THRESHOLD = 5;
+const LOW_STOCK_THRESHOLD = PRODUCT_LOW_STOCK_THRESHOLD;
 
 const CATEGORY_OPTIONS = [
   "ALL",

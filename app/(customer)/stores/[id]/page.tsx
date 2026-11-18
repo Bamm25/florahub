@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Flower2, MapPin, Store } from "lucide-react";
+import { formatRupiah } from "@/lib/utils/formatters";
 
 export async function generateMetadata({
   params,
@@ -181,7 +182,7 @@ export default async function PublicStorePage({ params }: { params: Promise<{ id
                   <div>
                     <span className="text-xs text-muted-foreground">Harga</span>
                     <p className="text-lg font-bold tabular-nums text-foreground">
-                      Rp {product.price.toLocaleString("id-ID")}
+                      {formatRupiah(product.price)}
                     </p>
                   </div>
                   <div>

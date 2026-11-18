@@ -1,155 +1,64 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { checkRateLimit } from "@/lib/rate-limit";
 import prisma from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { CouponValidationError, validateAndCalculateCoupon } from "@/lib/coupons";
+import { reportServerError } from "@/lib/server-error-report";
 import { validateCouponSchema } from "@/lib/validations/schemas";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 
 // Handler HTTP POST untuk memvalidasi kupon diskon dan menghitung potongan harga
 export async function POST(request: Request) {
   try {
-    // Validasi sesi pengguna dan parse muatan permintaan
-    const { userId } = await requireAuth(request);
+    const { userId } = await requireAuth(request, ["CUSTOMER"]);
+
+    const limitCheck = checkRateLimit(`coupon-validate:${userId}`, 20, 60_000);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Terlalu banyak percobaan validasi kupon. Coba lagi nanti.",
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limitCheck.retryAfterSec) },
+        },
+      );
+    }
+
     const body = await request.json();
     const validated = validateCouponSchema.parse(body);
-    const { code, subtotal, shippingCost = 0 } = validated;
+    const { code, subtotal, shippingCost = 0, productIds } = validated;
 
-    // Normalisasi kode kupon menjadi huruf kapital
-    const normalizedCode = code.trim().toUpperCase();
-
-    // Cari data kupon berdasarkan kode unik
-    const coupon = await prisma.coupon.findUnique({
-      where: { code: normalizedCode },
-    });
-
-    // Validasi keberadaan kupon di basis data
-    if (!coupon) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Kode kupon tidak ditemukan atau tidak valid",
-        },
-        { status: 404 },
-      );
+    let categoryIds: string[] | undefined;
+    if (productIds && productIds.length > 0) {
+      const matchedProducts = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { categoryId: true },
+      });
+      categoryIds = [...new Set(matchedProducts.map((p) => p.categoryId))];
     }
 
-    // Pastikan status kupon masih aktif
-    if (!coupon.isActive) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Kupon promosi ini sudah tidak aktif",
-        },
-        { status: 400 },
-      );
-    }
-
-    const now = new Date();
-    // Validasi periode kupon jika masa berlakunya belum dimulai
-    if (now < coupon.validFrom) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Kupon ini baru dapat digunakan mulai tanggal ${coupon.validFrom.toLocaleDateString("id-ID")}`,
-        },
-        { status: 400 },
-      );
-    }
-
-    // Validasi periode kupon jika sudah kedaluwarsa
-    if (now > coupon.validUntil) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Kupon promosi ini telah kadaluarsa",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Validasi apakah kuota penggunaan global kupon sudah tercapai
-    if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Kuota penggunaan kupon ini telah habis",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Hitung riwayat frekuensi pemakaian kupon oleh pengguna saat ini
-    const userUsageCount = await prisma.couponUsage.count({
-      where: {
-        couponId: coupon.id,
+    const { coupon, discountAmount } = await validateAndCalculateCoupon(
+      prisma,
+      {
+        code,
         userId,
+        subtotal,
+        shippingCost,
+        productIds,
+        categoryIds,
       },
-    });
+    );
 
-    // Validasi batasan kuota pemakaian per pengguna
-    if (userUsageCount >= coupon.usagePerUser) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Anda telah mencapai batas maksimal penggunaan kupon ini (${coupon.usagePerUser}x pakai)`,
-        },
-        { status: 400 },
-      );
-    }
-
-    // Validasi syarat minimum nominal belanja
-    if (coupon.minPurchase !== null && subtotal < coupon.minPurchase) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Minimal belanja untuk menggunakan kupon ini adalah Rp ${coupon.minPurchase.toLocaleString("id-ID")}`,
-        },
-        { status: 400 },
-      );
-    }
-
-    let discountAmount = 0;
-
-    // Hitung potongan harga untuk jenis diskon persentase
-    if (coupon.type === "PERCENTAGE") {
-      const calculatedDiscount = (subtotal * coupon.value) / 100;
-      if (
-        coupon.maxDiscount !== null &&
-        calculatedDiscount > coupon.maxDiscount
-      ) {
-        discountAmount = coupon.maxDiscount;
-      } else {
-        discountAmount = calculatedDiscount;
-      }
-    } else if (coupon.type === "FIXED") {
-      // Hitung potongan harga untuk jenis potongan nominal tetap
-      discountAmount = Math.min(coupon.value, subtotal);
-    } else if (coupon.type === "FREE_SHIPPING") {
-      // Hitung potongan biaya pengiriman untuk jenis gratis ongkir
-      const maxShippingDiscount =
-        coupon.maxDiscount || coupon.value || shippingCost;
-      discountAmount = Math.min(shippingCost, maxShippingDiscount);
-    }
-
-    // Bulatkan hasil perhitungan nilai diskon
-    discountAmount = Math.round(discountAmount);
-
-    // Hitung total akhir pembayaran setelah dipotong diskon
     const totalOrderAmount = subtotal + shippingCost;
     const finalAmount = Math.max(0, totalOrderAmount - discountAmount);
 
-    // Kirim respons berhasil beserta rincian kalkulasi kupon
     return NextResponse.json({
       success: true,
       message: "Kupon berhasil diterapkan",
       data: {
-        coupon: {
-          id: coupon.id,
-          code: coupon.code,
-          name: coupon.name,
-          description: coupon.description,
-          type: coupon.type,
-          value: coupon.value,
-        },
+        coupon,
         calculation: {
           subtotal,
           shippingCost,
@@ -160,7 +69,18 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    // Tangani galat validasi skema masukan
+    if (error instanceof NextResponse) {
+      return error;
+    }
+    if (error instanceof CouponValidationError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: error.message,
+        },
+        { status: error.status },
+      );
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -171,10 +91,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    // Tangani galat otentikasi pengguna
-    if (error instanceof NextResponse) {
-      return error;
-    }
+    reportServerError("[COUPON_VALIDATE_ERROR]", error);
     return NextResponse.json(
       {
         success: false,

@@ -101,10 +101,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Gagal mengambil label pengiriman",
+        message: "Gagal mengambil label pengiriman",
       },
       { status: 500 },
     );

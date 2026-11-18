@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { isPrismaUniqueError } from "@/lib/prisma-errors";
 import { reportServerError } from "@/lib/server-error-report";
+import { maskEmail } from "@/lib/utils/masking";
 import { updateCouponSchema } from "@/lib/validations/schemas";
 import type { CouponType } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -9,23 +11,6 @@ import { z } from "zod";
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
-
-function maskEmail(email: string): string {
-  const parts = email.split("@");
-  if (parts.length !== 2) return "***";
-  const [local, domain] = parts;
-  const visible = local.slice(0, Math.min(2, local.length));
-  return `${visible}***@${domain}`;
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "P2002"
-  );
-}
 
 // Handler HTTP GET untuk mengambil detail data kupon berdasarkan ID (dengan masking PII)
 export async function GET(request: Request, { params }: RouteParams) {
@@ -326,7 +311,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (error instanceof NextResponse) {
       return error;
     }
-    if (isUniqueConstraintError(error)) {
+    if (isPrismaUniqueError(error)) {
       return NextResponse.json(
         { success: false, message: "Kode kupon sudah terdaftar" },
         { status: 409 },

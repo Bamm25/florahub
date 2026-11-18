@@ -1,3 +1,5 @@
+const MAX_PAGES = 100;
+
 // Fungsi untuk mengambil seluruh halaman data terpaginasi dari endpoint API
 export async function fetchPaginatedCollection<T>(
   path: string,
@@ -5,7 +7,7 @@ export async function fetchPaginatedCollection<T>(
   fetcher: typeof fetch = fetch,
 ): Promise<T[]> {
   const results: T[] = [];
-  for (let page = 1; ; page++) {
+  for (let page = 1; page <= MAX_PAGES; page++) {
     const query = new URLSearchParams(path.split("?")[1] || "");
     query.set("page", String(page));
     query.set("limit", "100");

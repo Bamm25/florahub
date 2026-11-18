@@ -93,3 +93,80 @@ export async function getPublicStore<
     },
   });
 }
+
+// Fungsi untuk mengambil seluruh toko florist aktif yang memiliki produk aktif
+export async function getAllPublicStores<
+  StoreSummary extends {
+    id: string;
+    name: string;
+    image: string | null;
+    floristProfile: {
+      shopName: string;
+      shopDescription: string | null;
+      logo: string | null;
+      banner: string | null;
+      defaultAddress: { city: string; province: string } | null;
+    } | null;
+    _count: { products: number };
+  },
+>(db: {
+  user: {
+    findMany: (args: {
+      where: {
+        role: "FLORIST";
+        isActive: true;
+        floristProfile: { isActive: true };
+        products: { some: { isActive: true } };
+      };
+      select: {
+        id: true;
+        name: true;
+        image: true;
+        floristProfile: {
+          select: {
+            shopName: true;
+            shopDescription: true;
+            logo: true;
+            banner: true;
+            defaultAddress: { select: { city: true; province: true } };
+          };
+        };
+        _count: {
+          select: {
+            products: { where: { isActive: true } };
+          };
+        };
+      };
+      orderBy: { createdAt: "asc" };
+    }) => Promise<StoreSummary[]>;
+  };
+}): Promise<StoreSummary[]> {
+  return db.user.findMany({
+    where: {
+      role: "FLORIST",
+      isActive: true,
+      floristProfile: { isActive: true },
+      products: { some: { isActive: true } },
+    },
+    select: {
+      id: true,
+      name: true,
+      image: true,
+      floristProfile: {
+        select: {
+          shopName: true,
+          shopDescription: true,
+          logo: true,
+          banner: true,
+          defaultAddress: { select: { city: true, province: true } },
+        },
+      },
+      _count: {
+        select: {
+          products: { where: { isActive: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}

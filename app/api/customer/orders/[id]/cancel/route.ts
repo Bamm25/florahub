@@ -1,19 +1,18 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { releaseCouponUsageInTx } from "@/lib/coupons";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
-// Handler HTTP POST untuk membatalkan pesanan berstatus PENDING dan mengembalikan kuota stok
+// Handler HTTP POST atomik untuk membatalkan pesanan berstatus PENDING dan mengembalikan kuota stok & kupon
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Validasi sesi pengguna dan ambil ID pesanan dari parameter rute
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { id } = await params;
 
-    // Validasi keberadaan parameter ID pesanan
     if (!id) {
       return NextResponse.json(
         { success: false, message: "Order ID tidak ditemukan" },
@@ -21,19 +20,15 @@ export async function POST(
       );
     }
 
-    // Ambil data pesanan beserta item produk untuk pemulihan stok
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
         items: {
-          include: {
-            product: { select: { id: true, stock: true } },
-          },
+          select: { productId: true, quantity: true },
         },
       },
     });
 
-    // Validasi keberadaan data pesanan
     if (!order) {
       return NextResponse.json(
         { success: false, message: "Order tidak ditemukan" },
@@ -41,7 +36,6 @@ export async function POST(
       );
     }
 
-    // Validasi hak kepemilikan pesanan oleh pengguna
     if (order.userId !== userId) {
       return NextResponse.json(
         { success: false, message: "Forbidden: Order ini bukan milik Anda" },
@@ -49,7 +43,6 @@ export async function POST(
       );
     }
 
-    // Pastikan pesanan masih berstatus PENDING sebelum dibatalkan
     if (order.status !== "PENDING") {
       return NextResponse.json(
         {
@@ -60,37 +53,54 @@ export async function POST(
       );
     }
 
-    // Eksekusi pembatalan pesanan dan pemulihan stok dalam transaksi basis data
-    await prisma.$transaction(async (tx) => {
-      // Perbarui status pesanan menjadi CANCELLED
-      await tx.order.update({
-        where: { id },
-        data: { status: "CANCELLED" },
+    const cancelled = await prisma.$transaction(async (tx) => {
+      // Transisi kondisional atomik mencegah race condition double-restock atau menimpa pesanan yang sudah PAID
+      const transitioned = await tx.order.updateMany({
+        where: { id, userId, status: "PENDING" },
+        data: {
+          status: "CANCELLED",
+          cancelReason: "Dibatalkan oleh pelanggan",
+        },
       });
 
-      // Perbarui status pembayaran menjadi FAILED
+      if (transitioned.count === 0) {
+        return false;
+      }
+
       await tx.payment.updateMany({
-        where: { orderId: id },
+        where: { orderId: id, status: "PENDING" },
         data: { status: "FAILED" },
       });
 
-      // Kembalikan stok untuk setiap item produk dalam pesanan
-      for (const item of order.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { increment: item.quantity } },
-        });
-      }
+      await Promise.all(
+        order.items.map((item) =>
+          tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          }),
+        ),
+      );
+
+      await releaseCouponUsageInTx(tx, id);
+      return true;
     });
 
-    // Kirim respons berhasil pembatalan pesanan
+    if (!cancelled) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Pesanan tidak lagi berstatus PENDING",
+        },
+        { status: 409 },
+      );
+    }
+
     return NextResponse.json({
       success: true,
       message: "Pesanan berhasil dibatalkan dan stok telah dikembalikan",
       data: { orderId: id },
     });
   } catch (error) {
-    // Tangani galat otentikasi pengguna
     if (error instanceof NextResponse) {
       return error;
     }

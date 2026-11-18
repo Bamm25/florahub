@@ -106,6 +106,10 @@ export async function createAuditLog({
   const safeOldValue = sanitizeAuditPayload(oldValue);
   const safeNewValue = sanitizeAuditPayload(newValue);
 
+  const normalizedIp = ipAddress
+    ? ipAddress.split(",")[0]?.trim().slice(0, 45) || null
+    : null;
+
   try {
     await prisma.auditLog.create({
       data: {
@@ -115,8 +119,8 @@ export async function createAuditLog({
         entityId,
         oldValue: safeOldValue ?? Prisma.JsonNull,
         newValue: safeNewValue ?? Prisma.JsonNull,
-        ipAddress: ipAddress || null,
-        userAgent: userAgent || null,
+        ipAddress: normalizedIp,
+        userAgent: userAgent ? userAgent.slice(0, 500) : null,
       },
     });
   } catch (error) {

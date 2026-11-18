@@ -1,29 +1,10 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { reportServerError } from "@/lib/server-error-report";
+import { maskEmail, maskPhone } from "@/lib/utils/masking";
 import { adminOrderQuerySchema } from "@/lib/validations/schemas";
 import type { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-
-// Fungsi pembantu untuk menyamarkan email agar tidak membocorkan PII utuh di tabel admin
-function maskEmail(email: string): string {
-  const parts = email.split("@");
-  if (parts.length !== 2) return "***";
-  const [local, domain] = parts;
-  const visible = local.slice(0, Math.min(2, local.length));
-  return `${visible}***@${domain}`;
-}
-
-// Fungsi pembantu untuk menyamarkan nomor telepon pelanggan
-function maskPhone(phone: string | null | undefined): string | null {
-  if (!phone) return null;
-  const trimmed = phone.trim();
-  if (trimmed.length <= 4) return "****";
-  if (trimmed.length <= 8) {
-    return `${trimmed.slice(0, 2)}****${trimmed.slice(-2)}`;
-  }
-  return `${trimmed.slice(0, 4)}****${trimmed.slice(-4)}`;
-}
 
 // Evaluasi konsistensi antara status pesanan, status pembayaran Midtrans, dan resi Biteship
 function evaluateB2CAnomaly(order: {

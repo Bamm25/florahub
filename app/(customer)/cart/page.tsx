@@ -3,6 +3,7 @@
 import CartTable from "@/components/customer/CartTable";
 import { useCartStore } from "@/lib/stores/cartStore";
 import { LoadingSpinner } from "@/components/ui";
+import { formatRupiah } from "@/lib/utils/formatters";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ShieldCheck, Truck, Sparkles } from "lucide-react";
 
@@ -99,7 +100,7 @@ export default function CartPage() {
                   <div className="flex items-center justify-between text-white/70">
                     <dt>Subtotal ({itemCount} tangkai)</dt>
                     <dd className="font-semibold text-white">
-                      Rp {total.toLocaleString("id-ID")}
+                      {formatRupiah(total)}
                     </dd>
                   </div>
                   <div className="flex items-center justify-between text-white/70">
@@ -124,7 +125,7 @@ export default function CartPage() {
                     <p className="text-xs text-white/40">Belum termasuk ongkir</p>
                   </div>
                   <p className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                    Rp {total.toLocaleString("id-ID")}
+                    {formatRupiah(total)}
                   </p>
                 </div>
 

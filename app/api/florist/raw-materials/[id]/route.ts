@@ -51,7 +51,7 @@ export async function GET(
       return error;
     }
     return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : "Gagal mengambil data" },
+      { success: false, message: "Gagal mengambil data" },
       { status: 500 },
     );
   }
@@ -97,6 +97,18 @@ export async function PUT(
         newQuantity = Math.max(0, newQuantity - amount);
       } else if (type === "SET") {
         newQuantity = Math.max(0, amount);
+      }
+
+      // Stok dari pasokan supplier B2B tidak boleh dinaikkan sepihak tanpa transaksi & penerimaan
+      if (inventory.stock.supplierId !== userId && newQuantity > inventory.quantity) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Penambahan stok pasokan supplier hanya dapat dilakukan melalui penerimaan pesanan B2B",
+          },
+          { status: 403 },
+        );
       }
 
       // Mutasi penyesuaian kuantitas dalam transaksi database atomic
@@ -198,7 +210,7 @@ export async function PUT(
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Gagal memperbarui bahan baku",
+        message: "Gagal memperbarui bahan baku",
       },
       { status: 500 },
     );
@@ -273,7 +285,7 @@ export async function DELETE(
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Gagal menghapus bahan baku",
+        message: "Gagal menghapus bahan baku",
       },
       { status: 500 },
     );

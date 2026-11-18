@@ -1,5 +1,9 @@
 import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import {
+  parsePaginationParams,
+  SUPPLIER_LOW_STOCK_THRESHOLD,
+} from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { createStockSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
@@ -12,9 +16,7 @@ export async function GET(request: Request) {
     const { userId } = await requireAuth(request, ["SUPPLIER"]);
     // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams, 20, 100);
 
     // Ambil daftar stok dan total data milik supplier
     const [stocks, total] = await Promise.all([
@@ -29,8 +31,10 @@ export async function GET(request: Request) {
       }),
     ]);
 
-    // Hitung jumlah item dengan stok menipis (di bawah 50)
-    const lowStockCount = stocks.filter((stock) => stock.quantity < 50).length;
+    // Hitung jumlah item dengan stok menipis
+    const lowStockCount = stocks.filter(
+      (stock) => stock.quantity < SUPPLIER_LOW_STOCK_THRESHOLD,
+    ).length;
 
     // Kembalikan respon sukses beserta data paginasi stok
     return NextResponse.json({

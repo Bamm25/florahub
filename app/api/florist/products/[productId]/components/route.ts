@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { parsePaginationParams } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { createProductComponentSchema } from "@/lib/validations/schemas";
@@ -49,9 +50,7 @@ export async function GET(
 
     // Ambil parameter paginasi dari query string
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams, 50, 100);
 
     // Ambil daftar komponen produk beserta relasi inventaris dan stok supplier
     const [components, total] = await Promise.all([

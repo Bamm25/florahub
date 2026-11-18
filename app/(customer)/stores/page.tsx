@@ -1,4 +1,5 @@
-import { getAllPublicStores } from "@/lib/stores";
+import prisma from "@/lib/prisma";
+import { getAllPublicStores } from "@/lib/public-store";
 import { Store, MapPin, Package, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,7 +11,7 @@ export const metadata = {
 
 // Halaman daftar direktori toko florist rekanan terpercaya
 export default async function StoresPage() {
-  const stores = await getAllPublicStores();
+  const stores = await getAllPublicStores(prisma);
 
   return (
     <div className="pb-16 sm:pb-24">
@@ -77,7 +78,7 @@ export default async function StoresPage() {
               const banner = store.floristProfile?.banner;
               const description = store.floristProfile?.shopDescription;
               const location = store.floristProfile?.defaultAddress;
-              const productCount = store.products.length;
+              const productCount = store._count.products;
 
               return (
                 <Link

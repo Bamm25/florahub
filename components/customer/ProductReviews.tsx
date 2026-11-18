@@ -2,8 +2,7 @@
 
 import { Star, CheckCircle2 } from "lucide-react";
 import type { Review } from "@/lib/api/products";
-import { formatDistanceToNow } from "date-fns";
-import { id } from "date-fns/locale";
+import { formatRelativeTime } from "@/lib/utils/formatters";
 import ReviewForm from "./ReviewForm";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -105,10 +104,7 @@ export default function ProductReviews({
                       {review.user.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(review.createdAt), {
-                        addSuffix: true,
-                        locale: id,
-                      })}
+                      {formatRelativeTime(review.createdAt)}
                     </p>
                   </div>
                 </div>

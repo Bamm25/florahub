@@ -1,7 +1,7 @@
 import { fetchJson } from "./client";
 
 // Interface representasi data alamat pelanggan
-interface Address {
+export interface Address {
   id: string;
   label: string;
   recipientName: string;
@@ -16,7 +16,7 @@ interface Address {
 }
 
 // Interface respons API untuk daftar alamat pelanggan dengan paginasi
-interface AddressesResponse {
+export interface AddressesResponse {
   success: boolean;
   message: string;
   data: {

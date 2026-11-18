@@ -1,23 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { updateAddressSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-// Skema validasi pembaruan data alamat florist
-const updateAddressSchema = z.object({
-  label: z.string().min(1).max(50).optional(),
-  recipientName: z.string().min(1).max(200).optional(),
-  phone: z.string().min(10).max(20).optional(),
-  fullAddress: z.string().min(10).optional(),
-  city: z.string().min(1).max(100).optional(),
-  province: z.string().min(1).max(100).optional(),
-  postalCode: z
-    .string()
-    .regex(/^\d{5}$/, "Kode pos harus 5 digit")
-    .optional(),
-  latitude: z.number().optional().nullable(),
-  longitude: z.number().optional().nullable(),
-});
 
 // Handler HTTP PUT untuk memperbarui data alamat florist berdasarkan ID
 export async function PUT(

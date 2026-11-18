@@ -1,4 +1,5 @@
 import { Lock } from "lucide-react";
+import { formatRupiah } from "@/lib/utils/formatters";
 
 // Props interface untuk komponen ringkasan pembayaran checkout
 interface CheckoutSummaryProps {
@@ -50,13 +51,13 @@ export function CheckoutSummary({
         <div className="flex items-center justify-between text-white/70">
           <dt>Subtotal Produk</dt>
           <dd className="font-semibold tabular-nums text-white">
-            Rp {subtotal.toLocaleString("id-ID")}
+            {formatRupiah(subtotal)}
           </dd>
         </div>
         <div className="flex items-center justify-between text-white/70">
           <dt>Ongkos Kirim</dt>
           <dd className="font-semibold tabular-nums text-white">
-            Rp {shippingCost.toLocaleString("id-ID")}
+            {formatRupiah(shippingCost)}
           </dd>
         </div>
         {discount > 0 && appliedCoupon && (
@@ -65,7 +66,7 @@ export function CheckoutSummary({
               Diskon ({appliedCoupon.code})
             </dt>
             <dd className="font-bold tabular-nums">
-              -Rp {discount.toLocaleString("id-ID")}
+              -{formatRupiah(discount)}
             </dd>
           </div>
         )}
@@ -79,7 +80,7 @@ export function CheckoutSummary({
           <p className="text-xs text-white/40">Termasuk ongkir & diskon</p>
         </div>
         <p className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-          Rp {finalTotal.toLocaleString("id-ID")}
+          {formatRupiah(finalTotal)}
         </p>
       </div>
 

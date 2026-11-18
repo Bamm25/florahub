@@ -14,4 +14,16 @@ const prisma = globalForPrisma.prisma || new PrismaClient({ adapter });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
+export const SAFE_USER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  role: true,
+  image: true,
+  isActive: true,
+} as const;
+
+export { isPrismaUniqueError } from "./prisma-errors";
+
 export default prisma;

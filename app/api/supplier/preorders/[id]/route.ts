@@ -1,5 +1,9 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import {
+  PREORDER_DEPOSIT_DEADLINE_DAYS,
+  PREORDER_DEPOSIT_RATE,
+} from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
 import { HarvestPreOrderStatus, Prisma } from "@prisma/client";
@@ -16,7 +20,7 @@ type RouteParams = {
 // Handler HTTP PATCH untuk memperbarui status pre-order panen oleh supplier
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
-    const { userId } = await requireAuth(request, ["SUPPLIER"]);
+    const { userId, session } = await requireAuth(request, ["SUPPLIER"]);
     // Ambil parameter ID pre-order dari URL
     const { id: preOrderId } = await params;
     // Cari data pre-order beserta pengumuman dan informasi florist
@@ -90,22 +94,23 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     // Perbarui status pre-order di database
     const now = new Date();
     const isConfirming = status === "CONFIRMED";
+    const depositWindowMs =
+      PREORDER_DEPOSIT_DEADLINE_DAYS * 24 * 60 * 60 * 1000;
     if (
       isConfirming &&
-      now.getTime() + 3 * 24 * 60 * 60 * 1000 >
+      now.getTime() + depositWindowMs >
         harvestDayEndWib(existingPreOrder.announcement.harvestDate).getTime()
     ) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Tidak dapat menyetujui: batas DP 3 hari melampaui hari panen. Perbarui jadwal panen sebelum menerima pesanan.",
+          message: `Tidak dapat menyetujui: batas DP ${PREORDER_DEPOSIT_DEADLINE_DAYS} hari melampaui hari panen. Perbarui jadwal panen sebelum menerima pesanan.`,
         },
         { status: 409 },
       );
     }
 
-    // Hitung rincian DP 50% dan tenggat waktu 3 hari saat konfirmasi
+    // Hitung rincian DP dan tenggat waktu saat konfirmasi
     let updateData: Prisma.HarvestPreOrderUpdateInput = {
       status: status as HarvestPreOrderStatus,
       confirmedAt: isConfirming ? now : null,
@@ -117,9 +122,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     };
 
     if (isConfirming) {
-      const depositAmount = Math.round(existingPreOrder.totalPrice * 0.5);
+      const depositAmount = Math.round(
+        existingPreOrder.totalPrice * PREORDER_DEPOSIT_RATE,
+      );
       const remainingAmount = existingPreOrder.totalPrice - depositAmount;
-      const depositDeadline = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 hari kalender
+      const depositDeadline = new Date(now.getTime() + depositWindowMs);
       const finalDeadline = harvestDayEndWib(
         existingPreOrder.announcement.harvestDate,
       );
@@ -227,19 +234,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     let notificationTitle = "";
     let notificationMessage = "";
-
-    // Cari informasi nama supplier untuk notifikasi
-    const supplier = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true },
-    });
+    const dpPercentLabel = `${Math.round(PREORDER_DEPOSIT_RATE * 100)}%`;
 
     // Susun pesan notifikasi informatif untuk florist sesuai perubahan status
     if (isConfirming) {
       const dpRupiah = formatRupiah(updatedPreOrder.depositAmount || 0);
       const deadlineStr = formatDate(updatedPreOrder.depositDeadline);
       notificationTitle = "Pre-Order Panen Dikonfirmasi — Wajib Bayar DP";
-      notificationMessage = `Supplier ${supplier?.name || "Petani"} telah menyetujui pesanan Anda (${updatedPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName}). Silakan bayar DP 50% (${dpRupiah}) paling lambat ${deadlineStr}.`;
+      notificationMessage = `Supplier ${session.user?.name || "Petani"} telah menyetujui pesanan Anda (${updatedPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName}). Silakan bayar DP ${dpPercentLabel} (${dpRupiah}) paling lambat ${deadlineStr}.`;
     } else if (status === "CANCELLED") {
       notificationTitle = "Pre-Order Dibatalkan Supplier";
       notificationMessage = `Pre-order Anda untuk ${existingPreOrder.quantity} tangkai ${existingPreOrder.announcement.flowerName} dibatalkan oleh supplier${cancelReason ? `. Alasan: ${cancelReason.trim()}` : ""}.`;
@@ -263,7 +265,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json({
       success: true,
       message: isConfirming
-        ? `Pre-order dikonfirmasi. Florist wajib membayar DP 50% (${formatRupiah(updatedPreOrder.depositAmount || 0)}) dalam 3 hari.`
+        ? `Pre-order dikonfirmasi. Florist wajib membayar DP ${dpPercentLabel} (${formatRupiah(updatedPreOrder.depositAmount || 0)}) dalam ${PREORDER_DEPOSIT_DEADLINE_DAYS} hari.`
         : `Pre-order berhasil dibatalkan.`,
       data: { preOrder: updatedPreOrder },
     });
@@ -286,8 +288,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          error instanceof Error ? error.message : "Internal server error",
+        message: "Internal server error",
       },
       { status: 500 },
     );

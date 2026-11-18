@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -73,6 +74,7 @@ scripts/
 !/tests/admin-audit-logs.test.ts
 !/tests/admin-portal-acceptance.test.ts
 !/tests/auth-rfc7519-jwt.test.ts
+!/tests/security-redundancy-audit.test.ts
 
 # IDE and tool states
 .agents/

@@ -1,5 +1,6 @@
 import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { parsePaginationParams } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import type { Prisma, ShipmentStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -215,8 +216,7 @@ export async function GET(request: Request) {
     const { userId: floristId } = await requireAuth(request, ["FLORIST"]);
     // Ambil parameter filter dan paginasi dari query string
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+    const { page, limit, skip } = parsePaginationParams(searchParams, 50, 100);
     const status = searchParams.get("status");
     const orderId = searchParams.get("orderId");
     const trackingNumber = searchParams.get("trackingNumber");
@@ -263,7 +263,7 @@ export async function GET(request: Request) {
           },
         },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
+        skip,
         take: limit,
       }),
       prisma.shipment.count({ where: whereClause }),

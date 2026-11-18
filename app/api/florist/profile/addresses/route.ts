@@ -1,21 +1,8 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { createAddressSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-
-// Skema validasi pembuatan data alamat baru florist
-const createAddressSchema = z.object({
-  label: z.string().min(1).max(50),
-  recipientName: z.string().min(1).max(200),
-  phone: z.string().min(10).max(20),
-  fullAddress: z.string().min(10),
-  city: z.string().min(1).max(100),
-  province: z.string().min(1).max(100),
-  postalCode: z.string().regex(/^\d{5}$/, "Kode pos harus 5 digit"),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  isDefault: z.boolean().optional(),
-});
 
 // Handler HTTP POST untuk menambahkan alamat penjemputan baru florist
 export async function POST(request: Request) {

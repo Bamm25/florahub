@@ -38,8 +38,8 @@ export async function GET(request: Request) {
     const twelveMonthsAgo = new Date();
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
 
-    // Ambil pesanan yang sudah selesai terkirim dalam 12 bulan terakhir
-    const orders = await prisma.order.findMany({
+    // Hitung total pengeluaran dan jumlah pesanan langsung di PostgreSQL
+    const orderStats = await prisma.order.aggregate({
       where: {
         userId: userId,
         status: "DELIVERED",
@@ -47,14 +47,16 @@ export async function GET(request: Request) {
           gte: twelveMonthsAgo,
         },
       },
-      select: {
+      _sum: {
         totalAmount: true,
+      },
+      _count: {
+        _all: true,
       },
     });
 
-    // Hitung total pengeluaran dan jumlah pesanan yang diselesaikan
-    const totalSpent = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const totalOrders = orders.length;
+    const totalSpent = orderStats._sum.totalAmount ?? 0;
+    const totalOrders = orderStats._count._all;
 
     // Kirim respons berhasil beserta data profil dan statistik belanja
     return NextResponse.json(

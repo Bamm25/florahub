@@ -1,5 +1,11 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import {
+  B2B_STEM_WEIGHT_GRAMS,
+  MIN_B2B_WEIGHT_GRAMS,
+  SUPPORTED_COURIER_LIST,
+} from "@/lib/config/domain";
+import { formatRupiah } from "@/lib/utils/formatters";
 import prisma from "@/lib/prisma";
 import { getBiteshipClient } from "@/lib/biteship";
 import type { BiteshipRateItem } from "@/lib/biteship";
@@ -124,7 +130,10 @@ export async function POST(request: Request) {
     const destinationPostalCode = floristAddress.postalCode;
 
     // 3. Spesifikasi barang untuk Biteship
-    const weightInGrams = Math.max(1000, quantity * 100); // minimal 1 kg untuk kurir ekspedisi
+    const weightInGrams = Math.max(
+      MIN_B2B_WEIGHT_GRAMS,
+      quantity * B2B_STEM_WEIGHT_GRAMS,
+    );
     const items: BiteshipRateItem[] = [
       {
         name: `Bunga Potong Segar - ${itemName}`,
@@ -140,10 +149,10 @@ export async function POST(request: Request) {
     // 4. Panggil Biteship Client
     const biteshipClient = getBiteshipClient();
     const ratesData = await biteshipClient.getRates(
-      parseInt(supplierAddress.postalCode, 10),
-      parseInt(destinationPostalCode, 10),
+      Number.parseInt(supplierAddress.postalCode, 10),
+      Number.parseInt(destinationPostalCode, 10),
       items,
-      ["jne", "jnt", "sicepat", "anteraja"],
+      SUPPORTED_COURIER_LIST,
     );
 
     const formattedRates = (ratesData.pricing || []).map((r) => ({
@@ -156,7 +165,7 @@ export async function POST(request: Request) {
       price: r.price,
       estimated_days: r.duration || r.shipment_duration_range,
       rate_id: `${r.courier_code || r.company}-${r.courier_service_code}`,
-      rate_name: `${r.courier_name} ${r.courier_service_name} (${r.duration || "1-2 hari"}) - Rp ${r.price.toLocaleString("id-ID")}`,
+      rate_name: `${r.courier_name} ${r.courier_service_name} (${r.duration || "1-2 hari"}) - ${formatRupiah(r.price)}`,
     }));
 
     return NextResponse.json({
@@ -181,10 +190,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Gagal menghitung tarif kurir Biteship",
+        message: "Gagal menghitung tarif kurir Biteship",
       },
       { status: 500 },
     );

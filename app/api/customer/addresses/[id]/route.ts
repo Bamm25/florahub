@@ -178,7 +178,7 @@ export async function PUT(request: Request, { params }: RouteParms) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Internal server error",
+        message: "Gagal memperbarui alamat",
       },
       { status: 500 },
     );

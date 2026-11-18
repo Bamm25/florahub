@@ -1,4 +1,5 @@
 import { reportServerError } from "@/lib/server-error-report";
+import { parsePaginationParams } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/middleware/requireAuth";
@@ -11,9 +12,7 @@ export async function GET(request: Request) {
     // Validasi sesi pengguna dan parameter paginasi
     const { userId } = await requireAuth(request, ["CUSTOMER"]);
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams, 50, 100);
 
     // Ambil data alamat dengan mendahulukan alamat utama
     const [addresses, total] = await Promise.all([
@@ -49,7 +48,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Internal server error",
+        message: "Gagal mengambil daftar alamat",
       },
       { status: 500 },
     );
@@ -139,7 +138,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Internal server error",
+        message: "Gagal menambahkan alamat",
       },
       { status: 500 },
     );

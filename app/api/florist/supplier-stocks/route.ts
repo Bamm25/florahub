@@ -1,5 +1,6 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { buildPaginationMeta, parsePaginationParams } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -12,13 +13,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
     const variety = searchParams.get("variety") || "ALL";
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 50);
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams, 20, 50);
 
     const whereClause: Prisma.StockWhereInput = {
       isAvailable: true,
       quantity: { gt: 0 },
+      supplier: { role: "SUPPLIER", isActive: true },
     };
 
     if (search.trim()) {
@@ -41,8 +41,6 @@ export async function GET(request: Request) {
             select: {
               id: true,
               name: true,
-              email: true,
-              phone: true,
               addresses: {
                 where: { isDefault: true },
                 take: 1,
@@ -77,9 +75,8 @@ export async function GET(request: Request) {
         supplier: {
           id: s.supplier.id,
           name: s.supplier.name,
-          email: s.supplier.email,
-          city: supplierAddr?.city || "Kota Batu",
-          province: supplierAddr?.province || "Jawa Timur",
+          city: supplierAddr?.city || null,
+          province: supplierAddr?.province || null,
         },
       };
     });
@@ -89,14 +86,7 @@ export async function GET(request: Request) {
       message: "Daftar pasokan bunga supplier berhasil diambil",
       data: {
         stocks: formattedStocks,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-          hasNext: page * limit < total,
-          hasPrev: page > 1,
-        },
+        pagination: buildPaginationMeta(page, limit, total),
       },
     });
   } catch (error) {

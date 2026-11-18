@@ -1,5 +1,6 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { SHIPMENT_STATUS_RANK } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { getBiteshipClient, mapBiteshipStatus } from "@/lib/biteship";
@@ -54,55 +55,65 @@ export async function GET(
 
     // Sinkronkan status pengiriman terkini dari Biteship bila belum berstatus terkirim
     let currentShipment = shipment;
-    if (shipment.biteshipOrderId && shipment.status !== "DELIVERED") {
+    let trackingDetails: {
+      status: string;
+      history: Array<{
+        note: string;
+        status: string;
+        updated_at: string;
+        service_type?: string;
+      }>;
+      link: string | null;
+    } | null = null;
+
+    if (shipment.biteshipOrderId) {
       try {
         const biteshipClient = getBiteshipClient();
         const biteshipOrder = await biteshipClient.getOrder(shipment.biteshipOrderId);
-        const newStatus = mapBiteshipStatus(biteshipOrder.status);
-        const waybillId = biteshipOrder.courier?.waybill_id || shipment.trackingNumber;
-
-        const STATUS_RANK: Record<string, number> = {
-          PENDING: 1,
-          PROCESSING: 2,
-          SHIPPED: 3,
-          DELIVERED: 4,
-          CANCELLED: 99,
+        trackingDetails = {
+          status: biteshipOrder.status,
+          history: biteshipOrder.courier?.history || [],
+          link: biteshipOrder.courier?.link || null,
         };
 
-        const currentRank = STATUS_RANK[shipment.status] || 0;
-        const nextRank = STATUS_RANK[newStatus] || 0;
-        // Hanya perbarui status jika status baru lebih lanjut dari status saat ini
-        const shouldUpdateStatus = nextRank > currentRank;
-        const finalStatus = shouldUpdateStatus ? newStatus : shipment.status;
-        const isTrackingChanged = waybillId && waybillId !== shipment.trackingNumber;
+        if (shipment.status !== "DELIVERED") {
+          const newStatus = mapBiteshipStatus(biteshipOrder.status);
+          const waybillId = biteshipOrder.courier?.waybill_id || shipment.trackingNumber;
 
-        if (shouldUpdateStatus || isTrackingChanged) {
-          currentShipment = await prisma.shipment.update({
-            where: { id: shipment.id },
-            data: {
-              status: finalStatus,
-              trackingNumber: waybillId,
-              shippedAt: finalStatus === "SHIPPED" && !shipment.shippedAt ? new Date() : undefined,
-              deliveredAt: finalStatus === "DELIVERED" && !shipment.deliveredAt ? new Date() : undefined,
-            },
-            include: {
-              order: {
-                select: {
-                  id: true,
-                  orderNumber: true,
-                  userId: true,
-                  totalAmount: true,
-                  status: true,
+          const currentRank = SHIPMENT_STATUS_RANK[shipment.status] || 0;
+          const nextRank = SHIPMENT_STATUS_RANK[newStatus] || 0;
+          const shouldUpdateStatus = nextRank > currentRank;
+          const finalStatus = shouldUpdateStatus ? newStatus : shipment.status;
+          const isTrackingChanged = waybillId && waybillId !== shipment.trackingNumber;
+
+          if (shouldUpdateStatus || isTrackingChanged) {
+            currentShipment = await prisma.shipment.update({
+              where: { id: shipment.id },
+              data: {
+                status: finalStatus,
+                trackingNumber: waybillId,
+                shippedAt: finalStatus === "SHIPPED" && !shipment.shippedAt ? new Date() : undefined,
+                deliveredAt: finalStatus === "DELIVERED" && !shipment.deliveredAt ? new Date() : undefined,
+              },
+              include: {
+                order: {
+                  select: {
+                    id: true,
+                    orderNumber: true,
+                    userId: true,
+                    totalAmount: true,
+                    status: true,
+                  },
                 },
               },
-            },
-          });
+            });
 
-          if (finalStatus === "SHIPPED" && shipment.order.status === "PROCESSING") {
-            await prisma.order.update({ where: { id: shipment.orderId }, data: { status: "SHIPPED" } });
-          }
-          if (finalStatus === "DELIVERED" && shipment.order.status !== "DELIVERED") {
-            await prisma.order.update({ where: { id: shipment.orderId }, data: { status: "DELIVERED" } });
+            if (finalStatus === "SHIPPED" && shipment.order.status === "PROCESSING") {
+              await prisma.order.update({ where: { id: shipment.orderId }, data: { status: "SHIPPED" } });
+            }
+            if (finalStatus === "DELIVERED" && shipment.order.status !== "DELIVERED") {
+              await prisma.order.update({ where: { id: shipment.orderId }, data: { status: "DELIVERED" } });
+            }
           }
         }
       } catch (syncErr) {
@@ -114,7 +125,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       message: "Informasi pengiriman berhasil diambil",
-      data: { shipment: currentShipment },
+      data: {
+        shipment: currentShipment,
+        tracking: trackingDetails,
+      },
     });
   } catch (error) {
     // Tangani galat otentikasi pengguna

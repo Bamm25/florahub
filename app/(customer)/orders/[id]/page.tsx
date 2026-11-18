@@ -15,6 +15,7 @@ import {
 } from "@/lib/api/orders";
 import { createPaymentToken } from "@/lib/api/customer";
 import { LoadingSpinner, ErrorState } from "@/components/ui";
+import { formatDateTime, formatRupiah } from "@/lib/utils/formatters";
 import {
   ArrowLeft,
   RefreshCw,
@@ -446,11 +447,11 @@ export default function OrderDetailPage({
                       {item.product.name}
                     </p>
                     <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                      {item.quantity} × Rp {item.price.toLocaleString("id-ID")}
+                      {item.quantity} × {formatRupiah(item.price)}
                     </p>
                   </div>
                   <p className="text-sm font-semibold tabular-nums text-foreground">
-                    Rp {item.subtotal.toLocaleString("id-ID")}
+                    {formatRupiah(item.subtotal)}
                   </p>
                 </li>
               ))}
@@ -528,10 +529,10 @@ export default function OrderDetailPage({
                   </dt>
                   <dd className="font-medium text-foreground">
                     {shipment.status === "PENDING" && "Menunggu Pickup"}
-                    {shipment.status === "PICKED_UP" && "Sudah Diambil Kurir"}
-                    {shipment.status === "IN_TRANSIT" && "Dalam Perjalanan"}
+                    {shipment.status === "PROCESSING" && "Sedang Diproses"}
+                    {shipment.status === "SHIPPED" && "Dalam Perjalanan"}
                     {shipment.status === "DELIVERED" && "Sudah Diterima"}
-                    {shipment.status === "FAILED" && "Pengiriman Gagal"}
+                    {shipment.status === "CANCELLED" && "Pengiriman Dibatalkan"}
                   </dd>
                 </div>
                 {shipment.estimatedDays && (
@@ -565,27 +566,27 @@ export default function OrderDetailPage({
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Subtotal produk</dt>
                   <dd className="font-medium tabular-nums text-foreground">
-                    Rp {order.subtotal.toLocaleString("id-ID")}
+                    {formatRupiah(order.subtotal)}
                   </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Ongkos kirim</dt>
                   <dd className="font-medium tabular-nums text-foreground">
-                    Rp {order.shippingCost.toLocaleString("id-ID")}
+                    {formatRupiah(order.shippingCost)}
                   </dd>
                 </div>
                 {order.discount > 0 && (
                   <div className="flex justify-between">
                     <dt className="text-success">Diskon</dt>
                     <dd className="font-medium tabular-nums text-success">
-                      -Rp {order.discount.toLocaleString("id-ID")}
+                      -{formatRupiah(order.discount)}
                     </dd>
                   </div>
                 )}
                 <div className="flex items-baseline justify-between border-t border-border pt-3 text-base">
                   <dt className="font-bold text-foreground">Total</dt>
                   <dd className="text-xl font-bold tabular-nums text-foreground">
-                    Rp {order.totalAmount.toLocaleString("id-ID")}
+                    {formatRupiah(order.totalAmount)}
                   </dd>
                 </div>
               </dl>
@@ -598,8 +599,7 @@ export default function OrderDetailPage({
                   </p>
                   {order.payment.paidAt && (
                     <p className="mt-2 text-muted-foreground">
-                      Dibayar pada{" "}
-                      {new Date(order.payment.paidAt).toLocaleString("id-ID")}
+                      Dibayar pada {formatDateTime(order.payment.paidAt)}
                     </p>
                   )}
                 </div>

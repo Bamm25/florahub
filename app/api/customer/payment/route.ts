@@ -72,7 +72,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Pastikan pesanan belum pernah dibayar sebelumnya
+    // Pastikan pesanan masih berstatus PENDING dan belum dibayar
+    if (order.status !== "PENDING") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Hanya pesanan berstatus PENDING yang dapat dibayar (status saat ini: ${order.status})`,
+        },
+        { status: 400 },
+      );
+    }
+
     if (order.payment.status === "PAID") {
       return NextResponse.json(
         {
@@ -111,10 +121,15 @@ export async function POST(request: Request) {
       });
     }
 
+    // Gunakan order_id unik saat retry jika Snap sebelumnya pernah gagal/kedaluwarsa
+    const midtransOrderId = order.payment.transactionId
+      ? `${order.orderNumber}-R${Date.now().toString(36).slice(-4).toUpperCase()}`
+      : order.orderNumber;
+
     // Buat sesi transaksi pembayaran melalui Midtrans Snap
     const transaction = await snap.createTransaction({
       transaction_details: {
-        order_id: order.orderNumber,
+        order_id: midtransOrderId,
         gross_amount: order.totalAmount,
       },
       item_details: itemDetails,
@@ -130,7 +145,7 @@ export async function POST(request: Request) {
       where: { orderId },
       data: {
         method: "midtrans",
-        transactionId: order.orderNumber,
+        transactionId: midtransOrderId,
         paymentUrl: transaction.redirect_url,
       },
     });

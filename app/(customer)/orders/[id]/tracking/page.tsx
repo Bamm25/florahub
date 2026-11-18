@@ -8,6 +8,7 @@ import {
   getOrderDetail,
   getOrderShipment,
   type Shipment,
+  type ShipmentTrackingDetails,
 } from "@/lib/api/orders";
 import { ArrowLeft, Copy, Check } from "lucide-react";
 
@@ -64,6 +65,8 @@ export default function OrderTrackingPage({
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [shipment, setShipment] = useState<Shipment | null>(null);
+  const [trackingDetails, setTrackingDetails] =
+    useState<ShipmentTrackingDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedResi, setCopiedResi] = useState(false);
@@ -90,8 +93,10 @@ export default function OrderTrackingPage({
         try {
           const shipRes = await getOrderShipment(orderId);
           setShipment(shipRes.data.shipment);
+          setTrackingDetails(shipRes.data.tracking ?? null);
         } catch {
           setShipment(null);
+          setTrackingDetails(null);
         }
       } catch (error) {
         setErrorMessage(
@@ -155,8 +160,8 @@ export default function OrderTrackingPage({
     );
   }
 
-  const customerCity = order.address?.city || "Surabaya";
-  const courierName = shipment?.courier || "FloraHub Jatim Express";
+  const customerCity = order.address?.city || "Alamat Tujuan";
+  const courierName = shipment?.courier || "Menunggu Penugasan Kurir";
 
   const createdDate = new Date(order.createdAt);
   const estDays = shipment?.estimatedDays || 2;
@@ -169,12 +174,12 @@ export default function OrderTrackingPage({
     month: "long",
   });
 
-  const isCancelled = order.status === "CANCELLED";
+  const isCancelled =
+    order.status === "CANCELLED" || shipment?.status === "CANCELLED";
   const isDelivered =
     order.status === "DELIVERED" || shipment?.status === "DELIVERED";
   const isShipped =
     shipment?.status === "SHIPPED" ||
-    shipment?.status === "IN_TRANSIT" ||
     (order.status === "SHIPPED" &&
       shipment?.status !== "PENDING" &&
       shipment?.status !== "PROCESSING");
@@ -188,7 +193,7 @@ export default function OrderTrackingPage({
     activeStep = 3;
   } else if (isShipped) {
     activeStep = 2;
-  } else if (isProcessing) {
+  } else if (isProcessing || order.status === "PAID") {
     activeStep = 1;
   }
 
@@ -202,113 +207,109 @@ export default function OrderTrackingPage({
     }),
   });
 
-  // Perhitungan timeline waktu realistis & strictly ascending
-  const startMs = createdDate.getTime();
-  const deliveryDate = isDelivered
-    ? shipment?.deliveredAt
-      ? new Date(shipment.deliveredAt)
-      : new Date()
-    : null;
-  const currentElapsedMs =
-    isDelivered && deliveryDate
-      ? Math.max(deliveryDate.getTime() - startMs, 60 * 1000)
-      : Math.max(new Date(order.updatedAt || order.createdAt).getTime() - startMs, 60 * 1000);
+  const remoteHistory = trackingDetails?.history ?? [];
 
-  // Titik waktu perantara diproporsikan dari waktu riil agar selalu urut kronologis
-  const processDate = new Date(startMs + Math.round(currentElapsedMs * 0.15));
-  const firstMileDate = new Date(startMs + Math.round(currentElapsedMs * 0.4));
-  const transitDate = new Date(startMs + Math.round(currentElapsedMs * 0.65));
-  const outDate = new Date(startMs + Math.round(currentElapsedMs * 0.88));
+  if (remoteHistory.length > 0) {
+    const sortedRemote = [...remoteHistory].sort(
+      (a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    );
+    sortedRemote.forEach((entry, idx) => {
+      const eventDate = new Date(entry.updated_at || order.updatedAt);
+      const { dateStr, timeStr } = formatEventDate(
+        Number.isNaN(eventDate.getTime()) ? createdDate : eventDate,
+      );
+      const stepCategory: TimelineEvent["stepCategory"] =
+        entry.status === "delivered"
+          ? "delivered"
+          : entry.status === "dropping_off"
+            ? "delivering"
+            : entry.status === "picked"
+              ? "transit"
+              : "created";
 
-  // Build timeline events berdasarkan order & shipment status aktual
-  if (isCancelled) {
-    const cancelDate = new Date(order.updatedAt);
-    const { dateStr, timeStr } = formatEventDate(cancelDate);
-    events.push({
-      id: "ev-cancelled",
-      dateStr,
-      timeStr,
-      statusTitle: "Pesanan Dibatalkan",
-      description:
-        "Pesanan telah dibatalkan. Jika Anda sudah melakukan pembayaran, dana akan dikembalikan dalam 3-7 hari kerja.",
-      isLatest: true,
-      stepCategory: "created",
+      events.push({
+        id: `biteship-${idx}`,
+        dateStr,
+        timeStr,
+        statusTitle: entry.status.replace(/_/g, " ").toUpperCase(),
+        description: entry.note || `Pembaruan kurir ${courierName}`,
+        isLatest: idx === 0,
+        stepCategory,
+      });
     });
-  }
+  } else {
+    if (isCancelled) {
+      const cancelDate = new Date(order.updatedAt);
+      const { dateStr, timeStr } = formatEventDate(cancelDate);
+      events.push({
+        id: "ev-cancelled",
+        dateStr,
+        timeStr,
+        statusTitle: "Pesanan Dibatalkan",
+        description:
+          "Pesanan telah dibatalkan. Pengembalian dana diproses sesuai metode pembayaran yang digunakan.",
+        isLatest: true,
+        stepCategory: "created",
+      });
+    }
 
-  if (isDelivered && deliveryDate) {
-    const { dateStr, timeStr } = formatEventDate(deliveryDate);
-    events.push({
-      id: "ev-delivered",
-      dateStr,
-      timeStr,
-      statusTitle: "Pesanan Tiba di Alamat Tujuan",
-      description: `Pesanan telah diterima oleh penerima (${order.address?.recipientName || "Penerima"}). Paket selesai diantar.`,
-      isLatest: events.length === 0,
-      stepCategory: "delivered",
-    });
-  }
+    if (isDelivered) {
+      const deliveredDate = shipment?.deliveredAt
+        ? new Date(shipment.deliveredAt)
+        : new Date(order.updatedAt);
+      const { dateStr, timeStr } = formatEventDate(deliveredDate);
+      events.push({
+        id: "ev-delivered",
+        dateStr,
+        timeStr,
+        statusTitle: "Pesanan Tiba di Alamat Tujuan",
+        description: `Pesanan telah diterima di ${customerCity} (${order.address?.recipientName || "Penerima"}).`,
+        isLatest: events.length === 0,
+        stepCategory: "delivered",
+      });
+    }
 
-  if (isDelivered || isShipped) {
-    const { dateStr: outD, timeStr: outT } = formatEventDate(outDate);
-    events.push({
-      id: "ev-out",
-      dateStr: outD,
-      timeStr: outT,
-      statusTitle: "Pesanan Dalam Proses Pengantaran",
-      description: `Kurir ${courierName} sedang membawa paket menuju alamat tujuan Anda di Kota ${customerCity}.`,
-      isLatest: events.length === 0,
-      stepCategory: "delivering",
-    });
+    if ((isDelivered || isShipped) && shipment?.shippedAt) {
+      const shippedDate = new Date(shipment.shippedAt);
+      const { dateStr, timeStr } = formatEventDate(shippedDate);
+      events.push({
+        id: "ev-shipped",
+        dateStr,
+        timeStr,
+        statusTitle: "Diserahkan ke Kurir Ekspedisi",
+        description: `Paket telah diserahkan kepada kurir ${courierName}${shipment.trackingNumber ? ` dengan nomor resi ${shipment.trackingNumber}` : ""}.`,
+        isLatest: events.length === 0,
+        stepCategory: "transit",
+      });
+    } else if (shipment?.trackingNumber) {
+      const shipDate = new Date(shipment.createdAt || order.updatedAt);
+      const { dateStr, timeStr } = formatEventDate(shipDate);
+      events.push({
+        id: "ev-awb-created",
+        dateStr,
+        timeStr,
+        statusTitle: "Nomor Resi Diterbitkan",
+        description: `Nomor resi ${shipment.trackingNumber} (${courierName}) menunggu pembaruan status dari kurir.`,
+        isLatest: events.length === 0,
+        stepCategory: "transit",
+      });
+    }
 
-    const { dateStr: trDate, timeStr: trTime } = formatEventDate(transitDate);
-    events.push({
-      id: "ev-hub-2",
-      dateStr: trDate,
-      timeStr: trTime,
-      statusTitle: "Tiba di Hub Transit Jawa Timur",
-      description:
-        "Diproses di Hub Logistik Jawa Timur (Hub Surabaya Waru / Sidoarjo Gateway).",
-      isLatest: events.length === 0,
-      stepCategory: "transit",
-    });
-
-    const { dateStr: fmDate, timeStr: fmTime } = formatEventDate(firstMileDate);
-    events.push({
-      id: "ev-hub-1",
-      dateStr: fmDate,
-      timeStr: fmTime,
-      statusTitle: "Diserahkan ke Jasa Kirim",
-      description: `Paket bunga segar telah diserahkan oleh Florist ke ${courierName} First Mile Hub.`,
-      isLatest: events.length === 0,
-      stepCategory: "transit",
-    });
-  } else if (shipment?.trackingNumber) {
-    const shipDate = new Date(("createdAt" in (shipment || {}) ? (shipment as { createdAt?: string }).createdAt : undefined) || createdDate);
-    const { dateStr, timeStr } = formatEventDate(shipDate);
-    events.push({
-      id: "ev-awb-created",
-      dateStr,
-      timeStr,
-      statusTitle: "Nomor Resi Diterbitkan & Menunggu Kurir",
-      description: `Nomor resi ${shipment.trackingNumber} (${courierName}) telah diterbitkan. Paket bunga segar menunggu penjemputan oleh kurir.`,
-      isLatest: events.length === 0,
-      stepCategory: "transit",
-    });
-  }
-
-  if (isDelivered || isShipped || isProcessing || order.status !== "PENDING") {
-    const { dateStr, timeStr } = formatEventDate(processDate);
-    events.push({
-      id: "ev-proc",
-      dateStr,
-      timeStr,
-      statusTitle: "Bunga Sedang Dirangkai & Dikemas",
-      description:
-        "Florist telah memotong dan merangkai bunga segar dengan kemasan berpendingin.",
-      isLatest: events.length === 0,
-      stepCategory: "created",
-    });
+    if (order.payment?.paidAt) {
+      const paidDate = new Date(order.payment.paidAt);
+      const { dateStr, timeStr } = formatEventDate(paidDate);
+      events.push({
+        id: "ev-paid",
+        dateStr,
+        timeStr,
+        statusTitle: "Pembayaran Terverifikasi",
+        description:
+          "Pembayaran diterima dan florist sedang menyiapkan rangkaian bunga Anda.",
+        isLatest: events.length === 0,
+        stepCategory: "created",
+      });
+    }
   }
 
   const { dateStr: crDate, timeStr: crTime } = formatEventDate(createdDate);
@@ -316,9 +317,8 @@ export default function OrderTrackingPage({
     id: "ev-created",
     dateStr: crDate,
     timeStr: crTime,
-    statusTitle: "Pesanan Berhasil Dibuat",
-    description:
-      "Pesanan telah dikonfirmasi dan pembayaran telah berhasil diverifikasi.",
+    statusTitle: "Pesanan Dibuat",
+    description: `Order #${order.orderNumber} tercatat pada sistem FloraHub.`,
     isLatest: events.length === 0,
     stepCategory: "created",
   });

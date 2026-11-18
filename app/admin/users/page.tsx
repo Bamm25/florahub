@@ -23,6 +23,7 @@ import {
   type AdminUsersPage,
 } from "@/lib/api/admin";
 import { formatDate } from "@/lib/utils/formatters";
+import { maskEmail } from "@/lib/utils/masking";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -44,14 +45,6 @@ const reasons: Array<{ code: AdminUserStatusReason; label: string }> = [
   { code: "USER_REQUEST", label: "Permintaan pengguna" },
   { code: "ACCOUNT_RECOVERY", label: "Pemulihan akun" },
 ];
-
-function maskEmail(email: string): string {
-  const parts = email.split("@");
-  if (parts.length !== 2) return "***";
-  const [local, domain] = parts;
-  const visible = local.slice(0, Math.min(2, local.length));
-  return `${visible}***@${domain}`;
-}
 
 export default function AdminUsersPage() {
   const { data: session } = useSession();

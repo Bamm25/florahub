@@ -2,10 +2,10 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X, Bell } from "lucide-react";
-import { getNotifications } from "@/lib/api/notifications";
+import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { LoadingSpinner } from "@/components/ui";
 
 // Struktur menu navigasi sidebar operasional florist
@@ -44,32 +44,18 @@ export default function FloristLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Polling unread count notifikasi florist
-  const fetchUnreadCount = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const data = await getNotifications({ unreadOnly: true, limit: 1 }, signal);
-      if (!signal?.aborted) {
-        setUnreadCount(data.unreadCount ?? 0);
-      }
-    } catch {
-      // Abaikan error polling
-    }
-  }, []);
+  const unreadCount = useUnreadNotificationCount(status, pathname);
 
   useEffect(() => {
-    if (status === "authenticated") {
-      const controller = new AbortController();
-      const initial = window.setTimeout(() => void fetchUnreadCount(controller.signal), 0);
-      const interval = window.setInterval(() => void fetchUnreadCount(controller.signal), 30000);
-      return () => {
-        window.clearTimeout(initial);
-        window.clearInterval(interval);
-        controller.abort();
-      };
-    }
-  }, [status, fetchUnreadCount, pathname]);
+    if (!mobileMenuOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -93,11 +79,13 @@ export default function FloristLayout({
     );
   }
 
-  if (status === "authenticated" && session?.user) {
-    const userRole = (session.user as { role?: string }).role;
-    if (userRole !== "FLORIST" ) {
-      return null;
-    }
+  if (status !== "authenticated" || !session?.user) {
+    return null;
+  }
+
+  const userRole = (session.user as { role?: string }).role;
+  if (userRole !== "FLORIST" ) {
+    return null;
   }
 
   return (

@@ -145,98 +145,52 @@ export async function GET(request: Request, { params }: RouteParams) {
       location?: string;
     }> = [];
 
-    const isDelivered =
-      currentOrder.status === "DELIVERED" ||
-      newStatus === "DELIVERED" ||
-      Boolean(currentOrder.deliveredAt);
-    const isShipped =
-      isDelivered ||
-      currentOrder.status === "SHIPPED" ||
-      newStatus === "SHIPPED" ||
-      Boolean(currentOrder.shippedAt);
-
-    const createdMs = currentOrder.createdAt.getTime();
-
-    if (isDelivered) {
-      const deliveredMs = (currentOrder.deliveredAt || new Date()).getTime();
-      const spanMs = Math.max(deliveredMs - createdMs, 60 * 1000);
-      // Interpolasi strictly monotonic: createdMs < pickedMs < inTransitMs < deliveredMs
-      const pickedMs = createdMs + Math.round(spanMs * 0.35);
-      const inTransitMs = createdMs + Math.round(spanMs * 0.75);
-
-      // 1. Checkpoint Terakhir: Bunga Diterima oleh Florist (Paling Baru / Status Terkini)
-      historyItems.push({
-        status: "delivered",
-        note: `Paket bunga telah sampai di toko dan diterima dengan baik oleh ${floristName}. Transaksi selesai & ${currentOrder.quantity} tangkai ${flowerName} otomatis masuk ke inventaris toko.`,
-        updated_at: new Date(deliveredMs).toISOString(),
-        location: "Toko Florist Penerima",
-      });
-
-      // 2. Checkpoint Sebelum Tiba: Kurir Sedang Mengantar ke Alamat Toko
-      historyItems.push({
-        status: "dropping_off",
-        note: `Kurir ${courierCode} sedang dalam perjalanan mengantarkan paket bunga menuju alamat toko ${floristName}.`,
-        updated_at: new Date(inTransitMs).toISOString(),
-        location: "Dalam Pengantaran ke Toko",
-      });
-
-      // 3. Checkpoint Awal Pengiriman: Kurir Menjemput di Kebun
-      historyItems.push({
-        status: "picked",
-        note: `Kurir ${courierCode} telah menjemput paket (${currentOrder.quantity} tangkai ${flowerName}) dari lokasi kebun ${supplierName}.`,
-        updated_at: new Date(pickedMs).toISOString(),
-        location: "Kebun Supplier Pengirim",
-      });
-    } else if (isShipped) {
-      const nowMs = Date.now();
-      const shippedMs = currentOrder.shippedAt ? currentOrder.shippedAt.getTime() : nowMs;
-      const spanMs = Math.max(nowMs - shippedMs, 60 * 1000);
-      const inTransitMs = shippedMs + Math.round(spanMs * 0.6);
-
-      // 1. Dalam Perjalanan
-      historyItems.push({
-        status: "dropping_off",
-        note: `Kurir ${courierCode} sedang dalam perjalanan mengantarkan paket bunga menuju alamat toko ${floristName}.`,
-        updated_at: new Date(inTransitMs).toISOString(),
-        location: "Dalam Pengantaran ke Toko",
-      });
-
-      // 2. Paket Dijemput
-      historyItems.push({
-        status: "picked",
-        note: `Kurir ${courierCode} telah menjemput paket (${currentOrder.quantity} tangkai ${flowerName}) dari lokasi kebun ${supplierName}.`,
-        updated_at: new Date(shippedMs).toISOString(),
-        location: "Kebun Supplier Pengirim",
-      });
-    }
-
-    // 4. Masukkan entri booking awal dari Biteship (posisi paling awal di kebun)
+    // Kembalikan riwayat autentik dari Biteship bila tersedia
     if (rawHistory.length > 0) {
       for (const h of rawHistory) {
         historyItems.push({
-          status: "confirmed",
-          note: h.note || `Pesanan kurir ${courierCode} dikonfirmasi. Pickup Number: ${waybillId || currentOrder.trackingNumber || "-"}`,
-          updated_at: new Date(createdMs).toISOString(),
-          location: "Sistem Logistik Biteship",
+          status: h.status || biteshipOrder.status || "confirmed",
+          note:
+            h.note ||
+            `Pembaruan status ${courierCode} (${h.status || biteshipOrder.status})`,
+          updated_at: h.updated_at || currentOrder.createdAt.toISOString(),
         });
       }
     } else {
+      // Fallback hanya ke stempel waktu database aktual (tanpa interpolasi palsu)
+      if (currentOrder.deliveredAt) {
+        historyItems.push({
+          status: "delivered",
+          note: `Paket ${flowerName} (${currentOrder.quantity} tangkai) diterima oleh ${floristName}.`,
+          updated_at: currentOrder.deliveredAt.toISOString(),
+          location: "Toko Florist Penerima",
+        });
+      }
+      if (currentOrder.shippedAt) {
+        historyItems.push({
+          status: "picked",
+          note: `Kurir ${courierCode} menjemput paket dari ${supplierName}${waybillId ? ` (Resi: ${waybillId})` : ""}.`,
+          updated_at: currentOrder.shippedAt.toISOString(),
+          location: "Kebun Supplier Pengirim",
+        });
+      }
       historyItems.push({
         status: "confirmed",
-        note: `Booking kurir ${courierCode} berhasil diterbitkan. Resi: ${waybillId || currentOrder.trackingNumber || "-"}. Menunggu penjemputan oleh kurir.`,
-        updated_at: new Date(createdMs).toISOString(),
-        location: "Sistem Logistik Biteship",
+        note: `Booking kurir ${courierCode} dibuat.${waybillId ? ` Resi: ${waybillId}.` : " Menunggu penjemputan kurir."}`,
+        updated_at: currentOrder.createdAt.toISOString(),
       });
     }
 
-    // Urutkan riwayat dari yang paling baru ke paling lama (Descending: index 0 = status terkini)
-    historyItems.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    historyItems.sort(
+      (a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+    );
 
     return NextResponse.json({
       success: true,
       data: {
         tracking: {
-          status: currentOrder.status === "DELIVERED" ? "delivered" : currentOrder.status === "SHIPPED" ? "dropping_off" : biteshipOrder.status,
+          status: biteshipOrder.status,
           courier: biteshipOrder.courier,
           history: historyItems,
           link: biteshipOrder.courier?.link || null,
@@ -251,8 +205,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          error instanceof Error ? error.message : "Gagal melacak pengiriman",
+        message: "Gagal melacak pengiriman",
       },
       { status: 500 },
     );

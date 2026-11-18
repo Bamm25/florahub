@@ -253,7 +253,21 @@ export async function PUT(
       updateData.categoryId = categoryId.trim();
     }
 
-    // Validasi URL gambar produk jika diperbarui
+    // Validasi URL gambar produk agar hanya menerima URL HTTPS aman (atau R2 terkonfigurasi)
+    const isSafeImageUrl = (raw: string): boolean => {
+      try {
+        const parsed = new URL(raw);
+        if (parsed.protocol !== "https:") return false;
+        const r2PublicUrl = process.env.R2_PUBLIC_URL?.trim().replace(/\/+$/, "");
+        if (r2PublicUrl) {
+          return raw.startsWith(`${r2PublicUrl}/`);
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     if (image !== undefined) {
       if (typeof image !== "string" || !image.trim()) {
         return NextResponse.json(
@@ -262,13 +276,13 @@ export async function PUT(
         );
       }
       const trimmedImage = image.trim();
-      const isValidUrl =
-        trimmedImage.startsWith("http://") ||
-        trimmedImage.startsWith("https://") ||
-        trimmedImage.startsWith("/uploads/");
-      if (!isValidUrl) {
+      if (!isSafeImageUrl(trimmedImage)) {
         return NextResponse.json(
-          { success: false, message: "URL gambar tidak valid" },
+          {
+            success: false,
+            message:
+              "URL gambar harus menggunakan HTTPS dari storage resmi produk",
+          },
           { status: 400 },
         );
       }
@@ -278,9 +292,19 @@ export async function PUT(
       }
     }
 
-    // Format daftar gambar tambahan jika ada
+    // Validasi daftar gambar tambahan jika disertakan
     if (images !== undefined && Array.isArray(images)) {
-      updateData.images = images;
+      const cleanedImages = images.map((url: string) => url.trim()).filter(Boolean);
+      if (!cleanedImages.every(isSafeImageUrl)) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Semua URL gambar tambahan harus menggunakan HTTPS yang valid",
+          },
+          { status: 400 },
+        );
+      }
+      updateData.images = cleanedImages;
     }
 
     // Format deskripsi produk jika ada

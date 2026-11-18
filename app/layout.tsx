@@ -4,6 +4,11 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import AuthProvider from "@/components/providers/AuthProvider";
 import Script from "next/script";
+import {
+  MIDTRANS_SNAP_SCRIPT_URL,
+  PUBLIC_SITE_URL,
+  SITE_AUTHOR,
+} from "@/lib/config/domain";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -18,9 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://florahub.com",
-  ),
+  metadataBase: new URL(PUBLIC_SITE_URL),
   title: {
     default: "FloraHub - Platform E-Commerce & Supply Chain untuk Bisnis Florikultura",
     template: "%s | FloraHub",
@@ -39,12 +42,12 @@ export const metadata: Metadata = {
     "Payment Gateway Midtrans",
     "Real-Time Tracking"
   ],
-  authors: [{ name: "Bambang Wijanarko" }],
-  creator: "Bambang Wijanarko",
+  authors: [{ name: SITE_AUTHOR }],
+  creator: SITE_AUTHOR,
   openGraph: {
     type: "website",
     locale: "id_ID",
-    url: "https://florahub.com",
+    url: PUBLIC_SITE_URL,
     title: "FloraHub - Platform E-Commerce & Supply Chain untuk Bisnis Florikultura",
     description: "Solusi digital untuk menghubungkan supplier, florist, dan customer. Pre-order, inventory management, dan e-commerce terintegrasi dalam satu platform.",
     siteName: "FloraHub",
@@ -99,7 +102,7 @@ export default function RootLayout({
 
         {/* Midtrans Snap Script */}
         <Script
-          src="https://app.sandbox.midtrans.com/snap/snap.js"
+          src={MIDTRANS_SNAP_SCRIPT_URL}
           data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
           strategy="afterInteractive"
         />

@@ -1,21 +1,25 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import {
+  APP_TIMEZONE,
+  buildPaginationMeta,
+  parsePaginationParams,
+} from "@/lib/config/domain";
 import { createHarvestAnnouncementSchema } from "@/lib/validations/schemas";
 import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
-// Handler HTTP GET untuk mengambil daftar pengumuman panen
+// Handler HTTP GET untuk mengambil daftar pengumuman panen (wajib terautentikasi B2B/Admin)
 export async function GET(request: Request) {
   try {
-    // Ambil parameter filter dan paginasi dari query string
+    await requireAuth(request, ["SUPPLIER", "FLORIST", "ADMIN"]);
+
     const { searchParams } = new URL(request.url);
     const supplierId = searchParams.get("supplierId");
     const activeOnly = searchParams.get("activeOnly");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePaginationParams(searchParams, 20, 100);
     // Susun kondisi filter pengumuman panen
     const whereClause: Prisma.HarvestAnnouncementWhereInput = {};
 
@@ -28,7 +32,7 @@ export async function GET(request: Request) {
       whereClause.isActive = true;
       whereClause.harvestDate = {
         gte: new Date(
-          new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" }) +
+          new Date().toLocaleDateString("en-CA", { timeZone: APP_TIMEZONE }) +
             "T00:00:00.000Z",
         ),
       };
@@ -43,7 +47,6 @@ export async function GET(request: Request) {
             select: {
               id: true,
               name: true,
-              email: true,
             },
           },
           _count: {
@@ -100,14 +103,7 @@ export async function GET(request: Request) {
           totalReservedQuantity:
             reservedByAnnouncement.get(announcement.id) ?? 0,
         })),
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-          hasNext: page * limit < total,
-          hasPrev: page > 1,
-        },
+        pagination: buildPaginationMeta(page, limit, total),
       },
     });
   } catch (error) {

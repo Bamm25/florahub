@@ -98,10 +98,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json(
       {
         success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Gagal mengonfirmasi penerimaan pre-order",
+        message: "Gagal mengonfirmasi penerimaan pre-order",
       },
       { status: 500 },
     );

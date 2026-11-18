@@ -1,6 +1,8 @@
 "use client";
 
 import { useCartStore } from "@/lib/stores/cartStore";
+import { PRODUCT_LOW_STOCK_THRESHOLD } from "@/lib/config/domain";
+import { formatRupiah } from "@/lib/utils/formatters";
 import type { Product } from "@/types";
 import Image from "next/image";
 import { Star } from "lucide-react";
@@ -16,7 +18,8 @@ export default function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem);
   // Determine status stok produk untuk badge dan disable button
   const isOutOfStock = product.stock === 0;
-  const isLowStock = product.stock > 0 && product.stock < 10;
+  const isLowStock =
+    product.stock > 0 && product.stock < PRODUCT_LOW_STOCK_THRESHOLD;
 
   // Add produk ke cart store tanpa navigate ke halaman lain
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -77,7 +80,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
         <p className="mt-2 text-xl font-bold text-foreground select-text">
-          Rp {product.price.toLocaleString("id-ID")}
+          {formatRupiah(product.price)}
         </p>
         {product.description && (
           <p className="mt-2 line-clamp-2 text-sm text-muted-foreground select-text">

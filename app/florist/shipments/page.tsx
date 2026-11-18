@@ -9,6 +9,7 @@ import { OutgoingShipmentTable } from "@/components/florist/OutgoingShipmentTabl
 import ShipmentStats from "@/components/florist/ShipmentStats";
 import ShipmentFilters from "@/components/florist/ShipmentFilters";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
+import { formatRupiah } from "@/lib/utils/formatters";
 import { ApiClientError } from "@/lib/api/client";
 import {
   trackFloristShipment,
@@ -609,11 +610,7 @@ export default function FloristShipmentsPage() {
                             </div>
                             <div className="text-right">
                               <p className="font-semibold text-primary">
-                                {new Intl.NumberFormat("id-ID", {
-                                  style: "currency",
-                                  currency: "IDR",
-                                  maximumFractionDigits: 0,
-                                }).format(rate.price)}
+                                {formatRupiah(rate.price)}
                               </p>
                             </div>
                           </label>
