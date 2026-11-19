@@ -119,9 +119,9 @@ export default function CustomerNotifications() {
       case "PAYMENT_SUCCESS":
         return <ShoppingCart className="h-4 w-4 text-primary" />;
       case "SHIPMENT_UPDATE":
-        return <Truck className="h-4 w-4 text-sky-500" />;
+        return <Truck className="h-4 w-4 text-info" />;
       case "LOW_STOCK_ALERT":
-        return <TrendingUp className="h-4 w-4 text-rose-500" />;
+        return <TrendingUp className="h-4 w-4 text-error" />;
       case "HARVEST_ANNOUNCEMENT":
         return <Calendar className="h-4 w-4 text-primary" />;
       default:
@@ -147,7 +147,7 @@ export default function CustomerNotifications() {
         )}
       </button>
       {open && (
-        <div role="dialog" aria-label="Notifikasi" className="absolute right-0 z-50 mt-2 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-xl">
+        <div role="dialog" aria-label="Notifikasi" className="absolute right-0 z-50 mt-2 w-[min(24rem,calc(100dvw-2rem))] overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-xs">
           <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface-container-low/50">
             <h2 className="font-semibold text-sm">Notifikasi</h2>
             {unreadCount > 0 && (

@@ -1,17 +1,26 @@
 "use client";
 
-import CartTable from "@/components/customer/CartTable";
-import { useCartStore } from "@/lib/stores/cartStore";
-import { LoadingSpinner } from "@/components/ui";
-import { formatRupiah } from "@/lib/utils/formatters";
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ShieldCheck, Truck, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Flower2,
+  Trash2,
+} from "lucide-react";
+import CartTable from "@/components/customer/CartTable";
+import { ConfirmDialog, LoadingSpinner } from "@/components/ui";
+import { useCartStore } from "@/lib/stores/cartStore";
+import { formatRupiah } from "@/lib/utils/formatters";
 
-// Halaman keranjang belanja dengan list items dan ringkasan
+// Halaman keranjang belanja editorial dengan guard satu florist dan ringkasan transparan
 export default function CartPage() {
   const items = useCartStore((state) => state.items);
   const hasHydrated = useCartStore((state) => state._hasHydrated);
   const total = useCartStore((state) => state.getTotal());
+  const clearCart = useCartStore((state) => state.clearCart);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   // Render loading saat belum terhidrasi untuk mencegah hydration mismatch
   if (!hasHydrated) {
@@ -23,150 +32,192 @@ export default function CartPage() {
   }
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const distinctFlorists = new Set(items.map((item) => item.floristId)).size;
+  const hasMultipleFlorists = distinctFlorists > 1;
 
   return (
-    <div className="pb-16 sm:pb-24">
-      {/* Masthead */}
-      <section className="border-b border-border bg-surface py-10 sm:py-14">
+    <main className="min-h-dvh bg-background pb-16 sm:pb-24">
+      {/* Full-Bleed Dark Editorial Masthead */}
+      <section className="border-b border-white/10 bg-surface-dark py-10 text-white sm:py-14">
         <div className="container-custom">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Langkah 1 dari 2 · Keranjang
-          </p>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+            <span className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-kicker">
+              1. Keranjang
+            </span>
+            <span className="text-white/40" aria-hidden="true">
+              →
+            </span>
+            <span className="inline-flex items-center rounded-full border border-white/10 px-3 py-1 text-white/55">
+              2. Checkout
+            </span>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                Keranjang Belanja
+              <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
+                Keranjang{" "}
+                <span className="font-display font-normal italic text-kicker">
+                  Belanja
+                </span>
               </h1>
-              <p className="mt-2 text-base text-muted-foreground">
+              <p className="mt-2 text-base text-white/70">
                 {items.length > 0
-                  ? `${items.length} jenis bunga (${itemCount} tangkai) siap diproses.`
-                  : "Keranjang belanja Anda saat ini masih kosong."}
+                  ? `${itemCount} produk siap dipesan.`
+                  : "Keranjang masih kosong."}
               </p>
             </div>
+
             {items.length > 0 && (
-              <Link
-                href="/products"
-                className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                Tambah bunga lainnya
-              </Link>
+              <div className="flex flex-wrap items-center gap-4">
+                <Link
+                  href="/products"
+                  className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-kicker underline-offset-4 hover:text-white hover:underline"
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  Tambah produk
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setConfirmClearOpen(true)}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/15 px-4 text-xs font-semibold text-white/80 transition-colors hover:border-error/40 hover:bg-error/10 hover:text-white"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Kosongkan
+                </button>
+              </div>
             )}
           </div>
         </div>
       </section>
 
       {/* Main Content */}
-      <div className="container-custom pt-8 sm:pt-10">
+      <div className="container-custom pt-8 sm:pt-12">
         {items.length === 0 ? (
           <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-8 text-center sm:p-12">
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface-container-low text-primary">
+              <Flower2 className="h-6 w-6" aria-hidden="true" />
+            </div>
             <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Mulai pilih bunga segar favorit Anda
+              Keranjang masih kosong
             </h2>
-            <p className="mt-3 text-base leading-7 text-muted-foreground">
-              Jelajahi ratusan bunga segar langsung dari florist lokal tepercaya di FloraHub.
+            <p className="mt-2.5 text-base text-muted-foreground">
+              Pilih bunga favorit Anda di katalog.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link href="/products" className="btn-primary">
-                Jelajahi Katalog Bunga
+                Lihat Katalog
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-              <Link
-                href="/stores"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-surface px-6 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-              >
-                Cari Toko Florist
+              <Link href="/stores" className="btn-secondary">
+                Lihat Toko
               </Link>
             </div>
           </div>
         ) : (
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:gap-14">
-            {/* Table Column */}
-            <div>
+            {/* Items Column */}
+            <div className="space-y-4">
+              {hasMultipleFlorists && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm text-foreground"
+                >
+                  <AlertCircle
+                    className="mt-0.5 h-5 w-5 shrink-0 text-warning"
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      Produk berasal dari {distinctFlorists} toko berbeda
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      Satu checkout hanya berlaku untuk 1 toko. Sisakan produk dari satu toko untuk melanjutkan.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <CartTable />
             </div>
 
-            {/* Sticky Summary Column */}
-            <div className="lg:sticky lg:top-24">
+            {/* Sticky Receipt Summary Column */}
+            <aside className="lg:sticky lg:top-24">
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-surface-dark p-6 text-white sm:p-7">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
-                  Ringkasan Pesanan
-                </p>
-                <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">
-                  Total Belanja
+                <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+                  Ringkasan Belanja
                 </h2>
 
-                <dl className="mt-6 space-y-4 border-t border-white/10 pt-6 text-sm">
-                  <div className="flex items-center justify-between text-white/70">
-                    <dt>Subtotal ({itemCount} tangkai)</dt>
-                    <dd className="font-semibold text-white">
+                <dl className="mt-5 space-y-3.5 border-t border-white/10 pt-5 text-sm">
+                  <div className="flex items-center justify-between text-white/75">
+                    <dt>Subtotal ({itemCount} produk)</dt>
+                    <dd className="font-semibold tabular-nums text-white">
                       {formatRupiah(total)}
                     </dd>
                   </div>
-                  <div className="flex items-center justify-between text-white/70">
-                    <dt>Biaya Pengiriman</dt>
+                  <div className="flex items-center justify-between text-white/75">
+                    <dt>Ongkos kirim</dt>
                     <dd className="text-xs text-white/60">
-                      Dihitung di checkout
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between text-white/70">
-                    <dt>Biaya Layanan</dt>
-                    <dd className="inline-flex items-center gap-1 font-semibold text-success">
-                      Gratis
+                      Dihitung saat checkout
                     </dd>
                   </div>
                 </dl>
 
                 <div className="mt-6 flex items-baseline justify-between border-t border-white/10 pt-6">
                   <div>
-                    <span className="text-xs uppercase tracking-wider text-white/60">
-                      Total sementara
+                    <span className="text-sm font-medium text-white/75">
+                      Total
                     </span>
-                    <p className="text-xs text-white/40">Belum termasuk ongkir</p>
+                    <p className="text-xs text-white/45">Belum termasuk ongkir</p>
                   </div>
-                  <p className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                  <p className="text-2xl font-extrabold tracking-tight tabular-nums text-white sm:text-3xl">
                     {formatRupiah(total)}
                   </p>
                 </div>
 
-                <Link
-                  href="/checkout"
-                  className="btn-primary mt-6 w-full text-base font-semibold"
-                >
-                  Lanjut ke Checkout
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
+                {hasMultipleFlorists ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="btn-primary mt-6 w-full cursor-not-allowed text-sm font-semibold opacity-60"
+                  >
+                    Pilih produk dari 1 toko
+                  </button>
+                ) : (
+                  <Link
+                    href="/checkout"
+                    className="btn-primary mt-6 w-full text-base font-semibold"
+                  >
+                    Checkout
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                )}
 
                 <Link
                   href="/products"
-                  className="mt-4 flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-white/70 transition-colors hover:text-white"
+                  className="mt-3 flex min-h-11 items-center justify-center gap-2 text-sm font-semibold text-white/75 transition-colors hover:text-white"
                 >
                   <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                   Lanjut Belanja
                 </Link>
               </div>
-
-              {/* Calm Trust Signals */}
-              <div className="mt-4 rounded-2xl border border-border bg-surface p-5 text-sm">
-                <ul className="space-y-3 text-muted-foreground">
-                  <li className="flex items-start gap-3">
-                    <Truck className="h-4 w-4 shrink-0 text-primary mt-0.5" aria-hidden="true" />
-                    <span>Pengiriman langsung dari florist terdekat kota tujuan Anda.</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <ShieldCheck className="h-4 w-4 shrink-0 text-primary mt-0.5" aria-hidden="true" />
-                    <span>Garansi kesegaran bunga dan keamanan pembayaran Midtrans.</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Sparkles className="h-4 w-4 shrink-0 text-primary mt-0.5" aria-hidden="true" />
-                    <span>Kemasan khusus florist agar tangkai tetap segar dan rapi.</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
+            </aside>
           </div>
         )}
       </div>
-    </div>
+
+      <ConfirmDialog
+        isOpen={confirmClearOpen}
+        onClose={() => setConfirmClearOpen(false)}
+        onConfirm={() => {
+          clearCart();
+          setConfirmClearOpen(false);
+        }}
+        title="Kosongkan keranjang?"
+        description="Semua produk di keranjang akan dihapus."
+        confirmLabel="Kosongkan"
+        cancelLabel="Batal"
+        variant="danger"
+      />
+    </main>
   );
 }

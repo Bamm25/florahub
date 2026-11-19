@@ -11,26 +11,18 @@ export default function Footer() {
           {/* Brand & Overview */}
           <div className="md:col-span-5">
             <Link href="/" className="inline-block text-2xl font-bold tracking-tight text-white">
-              Flora<span className="text-kicker">Hub</span>
+              Flora<span className="font-display font-normal italic text-kicker">Hub</span>
             </Link>
             <p className="mt-4 max-w-sm text-sm leading-6 text-white/70">
-              Platform florikultura modern yang menghubungkan kebun bunga, perangkai florist lokal, dan pelanggan dalam satu rantai pasok terintegrasi.
+              Belanja bunga segar langsung dari florist lokal.
             </p>
-            <div className="mt-6 flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 font-medium text-white/80">
-                Surabaya & Malang
-              </span>
-              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 font-medium text-success">
-                Bunga Segar Terkurasi
-              </span>
-            </div>
           </div>
 
           {/* Navigation Columns */}
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 md:col-span-7">
             {/* Belanja */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
+              <p className="text-xs font-medium tracking-[0.04em] text-kicker">
                 Belanja
               </p>
               <ul className="mt-4 space-y-3 text-sm text-white/70">
@@ -54,7 +46,7 @@ export default function Footer() {
 
             {/* Kemitraan */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
+              <p className="text-xs font-medium tracking-[0.04em] text-kicker">
                 Kemitraan
               </p>
               <ul className="mt-4 space-y-3 text-sm text-white/70">
@@ -83,7 +75,7 @@ export default function Footer() {
 
             {/* Akun & Bantuan */}
             <div className="col-span-2 sm:col-span-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
+              <p className="text-xs font-medium tracking-[0.04em] text-kicker">
                 Akun
               </p>
               <ul className="mt-4 space-y-3 text-sm text-white/70">
@@ -113,8 +105,9 @@ export default function Footer() {
         </div>
 
         {/* Baris Hak Cipta */}
-        <div className="mt-12 border-t border-white/10 pt-8 text-xs text-white/50">
-          <p>© {currentYear} FloraHub. Seluruh hak cipta dilindungi.</p>
+        <div className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-8 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
+          <p>© {currentYear} FloraHub.</p>
+          <p>Surabaya &amp; Malang</p>
         </div>
       </div>
     </footer>

@@ -1,34 +1,29 @@
 "use client";
 
-import { useCartStore } from "@/lib/stores/cartStore";
-import { formatRupiah } from "@/lib/utils/formatters";
-import { Trash2, Plus, Minus, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, Minus, Plus, Store, Trash2 } from "lucide-react";
+import { PRODUCT_LOW_STOCK_THRESHOLD } from "@/lib/config/domain";
+import { useCartStore } from "@/lib/stores/cartStore";
+import { formatRupiah } from "@/lib/utils/formatters";
 
-// Responsive table untuk display cart items dengan quantity controls
+// Daftar item keranjang belanja editorial dengan pengatur kuantitas dan tautan toko studio
 export default function CartTable() {
-  // Get cart state dan actions dari Zustand store
   const items = useCartStore((state) => state.items);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
 
-  // Tampilkan empty state dengan CTA ke catalog
   if (items.length === 0) {
     return (
-      <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-border p-8 text-center sm:p-12">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Keranjang kosong</p>
-        <h3 className="mt-3 text-2xl font-bold tracking-tight text-foreground">
-          Belum ada bunga di keranjang
+      <div className="flex min-h-[280px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center sm:p-12">
+        <h3 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+          Keranjang masih kosong
         </h3>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-          Pilih bunga segar dari katalog untuk menambahkannya ke keranjang belanja Anda.
+          Pilih bunga dari katalog untuk mulai belanja.
         </p>
-        <Link
-          href="/products"
-          className="btn-primary mt-6"
-        >
-          Lihat Katalog Bunga
+        <Link href="/products" className="btn-primary mt-6">
+          Lihat Katalog
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
@@ -36,24 +31,27 @@ export default function CartTable() {
   }
 
   return (
-    <div>
-      {/* Mobile: Card Layout */}
-      <div className="space-y-4 sm:hidden">
-        {items.map((item) => (
-          <div
+    <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+      {items.map((item) => {
+        const isOutOfStock = item.stock <= 0;
+        const isLowStock =
+          item.stock > 0 && item.stock < PRODUCT_LOW_STOCK_THRESHOLD;
+
+        return (
+          <article
             key={item.productId}
-            className="rounded-2xl border border-border bg-surface p-4"
+            className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
           >
-            {/* Product Info */}
-            <div className="flex gap-3">
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-muted">
+            {/* Left Media + Info */}
+            <div className="flex min-w-0 flex-1 items-start gap-4">
+              <div className="relative aspect-[4/5] w-20 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-container sm:w-24">
                 {item.image ? (
                   <Image
                     src={item.image}
                     alt={item.name}
                     fill
                     className="object-cover"
-                    sizes="80px"
+                    sizes="96px"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
@@ -61,22 +59,41 @@ export default function CartTable() {
                   </div>
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="truncate text-base font-semibold text-foreground">
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    href={`/stores/${item.floristId}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+                  >
+                    <Store className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>Lihat toko</span>
+                  </Link>
+                  {(isOutOfStock || isLowStock) && (
+                    <span className="inline-flex items-center rounded-full border border-border bg-surface-container-low px-2.5 py-0.5 text-xs font-semibold tabular-nums text-warning">
+                      {isOutOfStock ? "Stok habis" : `Sisa ${item.stock}`}
+                    </span>
+                  )}
+                </div>
+
+                <h2 className="mt-1.5 text-base font-bold leading-snug text-foreground sm:text-lg">
                   {item.name}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Stok: {item.stock} tangkai
-                </p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {formatRupiah(item.price)}
-                </p>
+                </h2>
+
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm tabular-nums text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {formatRupiah(item.price)}
+                  </span>
+                  <span>·</span>
+                  <span>Stok {item.stock}</span>
+                </div>
               </div>
             </div>
 
-            {/* Quantity & Actions */}
-            <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-              <div className="flex items-center gap-1.5">
+            {/* Right Controls: Stepper, Line Subtotal, Remove */}
+            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/80 pt-4 sm:border-t-0 sm:pt-0 sm:justify-end">
+              {/* Quantity Stepper */}
+              <div className="flex items-center rounded-xl border border-border bg-surface p-0.5">
                 <button
                   type="button"
                   onClick={() =>
@@ -86,27 +103,27 @@ export default function CartTable() {
                     )
                   }
                   disabled={item.quantity <= 1}
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label={`Kurangi jumlah ${item.name}`}
                 >
                   <Minus className="h-4 w-4" aria-hidden="true" />
                 </button>
                 <input
                   type="number"
-                  min="1"
+                  min={1}
                   max={item.stock}
                   value={item.quantity}
                   aria-label={`Jumlah untuk ${item.name}`}
                   onChange={(e) => {
-                    const newQty = parseInt(e.target.value, 10);
-                    if (!isNaN(newQty)) {
+                    const newQty = Number.parseInt(e.target.value, 10);
+                    if (!Number.isNaN(newQty)) {
                       updateQuantity(
                         item.productId,
                         Math.min(Math.max(1, newQty), item.stock),
                       );
                     }
                   }}
-                  className="h-11 w-14 rounded-xl border border-border bg-input text-center text-sm font-semibold text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="h-11 w-14 border-x border-border/60 bg-transparent text-center text-sm font-semibold tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <button
                   type="button"
@@ -117,160 +134,35 @@ export default function CartTable() {
                     )
                   }
                   disabled={item.quantity >= item.stock}
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label={`Tambah jumlah ${item.name}`}
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => removeItem(item.productId)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-error/10 hover:text-error"
-                aria-label={`Hapus ${item.name} dari keranjang`}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </button>
+              {/* Line Subtotal + Remove */}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground sm:hidden">Subtotal</p>
+                  <p className="text-base font-bold tabular-nums text-foreground sm:min-w-[115px] sm:text-lg">
+                    {formatRupiah(item.price * item.quantity)}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => removeItem(item.productId)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-colors hover:border-error/20 hover:bg-error/10 hover:text-error"
+                  aria-label={`Hapus ${item.name} dari keranjang`}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
-
-            {/* Subtotal */}
-            <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">Subtotal</span>
-              <span className="text-base font-bold text-foreground">
-                {formatRupiah(item.price * item.quantity)}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Desktop: Table Layout */}
-      <div className="hidden sm:block overflow-hidden rounded-2xl border border-border bg-surface">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-border bg-muted/40">
-              <th scope="col" className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Produk
-              </th>
-              <th scope="col" className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Harga
-              </th>
-              <th scope="col" className="px-4 py-4 text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Jumlah
-              </th>
-              <th scope="col" className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Subtotal
-              </th>
-              <th scope="col" className="px-4 py-4 text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                <span className="sr-only">Aksi</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {items.map((item) => (
-              <tr key={item.productId} className="transition-colors hover:bg-muted/20">
-                <td className="px-6 py-5">
-                  <div className="flex items-center gap-4">
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-muted">
-                      {item.image ? (
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                          sizes="64px"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-                          Tanpa foto
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-base font-semibold text-foreground">
-                        {item.name}
-                      </h3>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Stok tersedia: {item.stock}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-
-                <td className="px-4 py-5 text-right text-sm font-medium text-foreground whitespace-nowrap">
-                  {formatRupiah(item.price)}
-                </td>
-
-                <td className="px-4 py-5">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateQuantity(
-                          item.productId,
-                          Math.max(1, item.quantity - 1),
-                        )
-                      }
-                      disabled={item.quantity <= 1}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label={`Kurangi jumlah ${item.name}`}
-                    >
-                      <Minus className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
-                    <input
-                      type="number"
-                      min="1"
-                      max={item.stock}
-                      value={item.quantity}
-                      aria-label={`Jumlah untuk ${item.name}`}
-                      onChange={(e) => {
-                        const newQty = parseInt(e.target.value, 10);
-                        if (!isNaN(newQty)) {
-                          updateQuantity(
-                            item.productId,
-                            Math.min(Math.max(1, newQty), item.stock),
-                          );
-                        }
-                      }}
-                      className="h-9 w-14 rounded-lg border border-border bg-input text-center text-sm font-semibold text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateQuantity(
-                          item.productId,
-                          Math.min(item.quantity + 1, item.stock),
-                        )
-                      }
-                      disabled={item.quantity >= item.stock}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label={`Tambah jumlah ${item.name}`}
-                    >
-                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
-                  </div>
-                </td>
-
-                <td className="px-4 py-5 text-right text-base font-bold text-foreground whitespace-nowrap">
-                  {formatRupiah(item.price * item.quantity)}
-                </td>
-
-                <td className="px-4 py-5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item.productId)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-error/10 hover:text-error"
-                    aria-label={`Hapus ${item.name} dari keranjang`}
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          </article>
+        );
+      })}
     </div>
   );
 }

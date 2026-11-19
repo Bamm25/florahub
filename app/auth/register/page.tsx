@@ -3,52 +3,146 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, CheckCircle, Eye, EyeOff, Flower2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  CheckCircle,
+  Eye,
+  EyeOff,
+  Flower2,
+  ShoppingBag,
+  Sprout,
+  Store,
+} from "lucide-react";
 import { registerUser } from "@/lib/api/customer";
 import { ApiClientError } from "@/lib/api/client";
 
 const labelClass = "mb-2 block text-sm font-semibold text-foreground";
-const hintTextClass = "mt-2 text-sm text-muted-foreground";
-const errorTextClass = "mt-2 text-sm font-medium text-error";
+const errorTextClass = "mt-1.5 text-xs font-medium text-error";
+
 type PublicRole = "CUSTOMER" | "FLORIST" | "SUPPLIER";
-const roleOptions: { value: PublicRole; title: string; description: string }[] = [
-  { value: "CUSTOMER", title: "Pembeli", description: "Cari bunga dan pantau pesanan." },
-  { value: "FLORIST", title: "Florist", description: "Jual produk dan kelola pesanan." },
-  { value: "SUPPLIER", title: "Supplier", description: "Sediakan stok dan rencana panen." },
+
+const roleOptions: {
+  value: PublicRole;
+  title: string;
+  description: string;
+  icon: typeof ShoppingBag;
+}[] = [
+  {
+    value: "CUSTOMER",
+    title: "Pembeli",
+    description: "Cari bunga & pantau pesanan",
+    icon: ShoppingBag,
+  },
+  {
+    value: "FLORIST",
+    title: "Florist",
+    description: "Jual rangkaian & kelola toko",
+    icon: Store,
+  },
+  {
+    value: "SUPPLIER",
+    title: "Supplier",
+    description: "Pasok bunga & jadwal panen",
+    icon: Sprout,
+  },
 ];
 
-function BrandPanel() {
-  return (
-    <aside className="hidden flex-col justify-between rounded-[32px] bg-black p-12 text-white lg:flex">
-      <Link href="/" className="inline-flex items-center gap-3 self-start">
-        <Flower2 className="h-6 w-6" aria-hidden="true" />
-        <span className="text-xl font-bold tracking-tight">FloraHub</span>
-      </Link>
+const ROLE_BRIEFING: Record<
+  PublicRole,
+  {
+    kicker: string;
+    leadStart: string;
+    leadItalic: string;
+    points: string[];
+  }
+> = {
+  CUSTOMER: {
+    kicker: "Pembeli",
+    leadStart: "Bunga segar ",
+    leadItalic: "langsung dari florist",
+    points: [
+      "Pilih rangkaian dari berbagai toko florist lokal.",
+      "Cek stok asli sebelum memesan.",
+      "Pantau status pesanan hingga tiba.",
+    ],
+  },
+  FLORIST: {
+    kicker: "Florist",
+    leadStart: "Kelola toko ",
+    leadItalic: "bunga Anda",
+    points: [
+      "Tampilkan katalog produk di halaman toko sendiri.",
+      "Atur stok rangkaian dan bahan baku harian.",
+      "Terima pesanan pelanggan dari satu tempat.",
+    ],
+  },
+  SUPPLIER: {
+    kicker: "Supplier",
+    leadStart: "Pasok bunga potong ",
+    leadItalic: "langsung ke florist",
+    points: [
+      "Catat stok bunga segar siap kirim setiap hari.",
+      "Buka jadwal panen lebih awal untuk florist.",
+      "Kelola pesanan masuk dengan rapi.",
+    ],
+  },
+};
 
-      <div className="max-w-md">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
-          Platform Florikultura
-        </p>
-        <p className="mt-4 text-5xl font-extrabold leading-[1.1] tracking-[-0.024em]">
-          Kirim bunga untuk momen yang berarti.
-        </p>
-        <ol className="mt-10 space-y-4 text-base text-white/80">
-          <li className="flex gap-4 border-t border-white/15 pt-4">
-            <span className="font-semibold text-white">01</span>
-            Pilih peran Anda: pembeli, florist, atau supplier.
-          </li>
-          <li className="flex gap-4 border-t border-white/15 pt-4">
-            <span className="font-semibold text-white">02</span>
-            Kelola kebutuhan Anda dalam satu tempat.
-          </li>
-          <li className="flex gap-4 border-t border-white/15 pt-4">
-            <span className="font-semibold text-white">03</span>
-            Terhubung dari pasokan hingga pesanan.
-          </li>
-        </ol>
+function BrandPanel({ activeRole }: { activeRole: PublicRole }) {
+  const briefing = ROLE_BRIEFING[activeRole];
+
+  return (
+    <aside className="hidden flex-col justify-between border-r border-white/10 bg-surface-dark px-12 py-10 text-white lg:flex xl:px-16">
+      <div className="flex items-center justify-between gap-4">
+        <Link href="/" className="inline-flex items-center gap-2.5">
+          <Flower2 className="h-5 w-5 text-kicker" aria-hidden="true" />
+          <span className="text-xl font-bold tracking-tight text-white">
+            Flora<span className="font-display font-normal italic text-kicker">Hub</span>
+          </span>
+        </Link>
+        <Link
+          href="/"
+          className="inline-flex min-h-10 items-center gap-1.5 text-xs font-medium text-white/65 transition-colors hover:text-kicker"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+          Beranda
+        </Link>
       </div>
 
-      <p className="text-sm text-white/50">© {new Date().getFullYear()} FloraHub</p>
+      <div className="my-auto max-w-lg py-10">
+        <p className="text-xs font-medium tracking-[0.06em] text-kicker">
+          {briefing.kicker}
+        </p>
+        <h2 className="mt-4 text-4xl font-extrabold leading-[1.08] tracking-[-0.025em] text-white xl:text-5xl">
+          {briefing.leadStart}
+          <span className="font-display font-normal italic text-kicker">
+            {briefing.leadItalic}
+          </span>
+          .
+        </h2>
+
+        <ul className="mt-9 divide-y divide-white/10 rounded-2xl border border-white/12 bg-white/[0.04]">
+          {briefing.points.map((point) => (
+            <li
+              key={point}
+              className="flex items-start gap-3 p-4 text-sm leading-relaxed text-white/80 sm:px-5"
+            >
+              <CheckCircle
+                className="mt-0.5 h-4 w-4 shrink-0 text-kicker"
+                aria-hidden="true"
+              />
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-white/10 pt-5 text-xs text-white/50">
+        <span>© {new Date().getFullYear()} FloraHub</span>
+        <span>Surabaya · Malang</span>
+      </div>
     </aside>
   );
 }
@@ -57,7 +151,10 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedRole = searchParams.get("role");
-  const initialRole: PublicRole = requestedRole === "FLORIST" || requestedRole === "SUPPLIER" ? requestedRole : "CUSTOMER";
+  const initialRole: PublicRole =
+    requestedRole === "FLORIST" || requestedRole === "SUPPLIER"
+      ? requestedRole
+      : "CUSTOMER";
   const [role, setRole] = useState<PublicRole>(initialRole);
 
   const [name, setName] = useState("");
@@ -114,7 +211,9 @@ function RegisterForm() {
     setFormErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -141,9 +240,13 @@ function RegisterForm() {
       }, 1500);
     } catch (error) {
       if (error instanceof ApiClientError) {
-        setErrorMessage(error.message || "Pendaftaran gagal. Silakan coba lagi.");
+        setErrorMessage(
+          error.message || "Pendaftaran gagal. Silakan coba lagi.",
+        );
       } else {
-        setErrorMessage("Koneksi terputus saat mendaftar. Periksa internet Anda, lalu coba lagi.");
+        setErrorMessage(
+          "Koneksi terputus saat mendaftar. Periksa internet Anda, lalu coba lagi.",
+        );
       }
       setIsLoading(false);
     }
@@ -152,28 +255,62 @@ function RegisterForm() {
   const isDone = Boolean(successMessage);
 
   return (
-    <div className="min-h-screen bg-surface lg:grid lg:grid-cols-2 lg:gap-4 lg:p-4">
-      <BrandPanel />
+    <div className="min-h-dvh bg-background lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
+      <BrandPanel activeRole={role} />
 
-      <main className="flex min-h-screen flex-col justify-center px-5 py-12 sm:px-8 lg:min-h-0">
-        <div className="mx-auto w-full max-w-[420px]">
+      <main className="flex min-h-dvh flex-col justify-between px-5 py-6 sm:px-10 sm:py-8 lg:min-h-0">
+        {/* Top Utility Bar + Mode Switcher */}
+        <div className="flex items-center justify-between gap-4">
           <Link
             href="/"
-            className="mb-10 inline-flex items-center gap-2 text-foreground lg:hidden"
+            className="inline-flex items-center gap-2 text-foreground lg:hidden"
           >
-            <Flower2 className="h-5 w-5" aria-hidden="true" />
-            <span className="text-lg font-bold tracking-tight">FloraHub</span>
+            <Flower2 className="h-5 w-5 text-primary" aria-hidden="true" />
+            <span className="text-lg font-bold tracking-tight">
+              Flora<span className="font-display font-normal italic text-primary">Hub</span>
+            </span>
           </Link>
 
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-3xl lg:text-4xl">Buat akun FloraHub</h1>
-          <p className="mt-2 text-base text-muted-foreground">Pilih cara Anda menggunakan FloraHub, lalu isi data akun.</p>
+          <nav
+            aria-label="Navigasi akun"
+            className="ml-auto inline-flex items-center rounded-full border border-border bg-card p-1"
+          >
+            <Link
+              href="/auth/login"
+              className="inline-flex min-h-9 items-center rounded-full px-4 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Masuk
+            </Link>
+            <Link
+              href="/auth/register"
+              aria-current="page"
+              className="inline-flex min-h-9 items-center rounded-full bg-primary px-4 text-xs font-semibold text-primary-foreground"
+            >
+              Daftar
+            </Link>
+          </nav>
+        </div>
+
+        <div className="mx-auto my-auto w-full max-w-[460px] py-8">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            Buat akun{" "}
+            <span className="font-display font-normal italic text-primary">
+              FloraHub
+            </span>
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground sm:text-base">
+            Pilih peran akun Anda.
+          </p>
 
           {errorMessage && (
             <div
               role="alert"
-              className="mt-8 flex items-start gap-3 rounded-xl border border-error/40 bg-error/5 p-4 text-sm text-foreground"
+              className="mt-6 flex items-start gap-3 rounded-xl border border-error/40 bg-error/5 p-4 text-sm text-foreground"
             >
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-error" aria-hidden="true" />
+              <AlertCircle
+                className="mt-0.5 h-5 w-5 shrink-0 text-error"
+                aria-hidden="true"
+              />
               <span className="font-medium">{errorMessage}</span>
             </div>
           )}
@@ -181,51 +318,114 @@ function RegisterForm() {
           {successMessage && (
             <div
               role="status"
-              className="mt-8 flex items-start gap-3 rounded-xl border border-success/50 bg-secondary-container p-4 text-sm text-foreground"
+              className="mt-6 flex items-start gap-3 rounded-xl border border-success/50 bg-secondary-container p-4 text-sm text-foreground"
             >
-              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-success-foreground" aria-hidden="true" />
+              <CheckCircle
+                className="mt-0.5 h-5 w-5 shrink-0 text-success-foreground"
+                aria-hidden="true"
+              />
               <span className="font-medium">{successMessage}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-5">
+          <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-5">
             <fieldset>
               <legend className={labelClass}>Saya mendaftar sebagai</legend>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {roleOptions.map((option) => (
-                  <label key={option.value} className={`cursor-pointer rounded-xl border p-3 text-sm transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary ${role === option.value ? "border-primary bg-primary-container" : "border-border hover:border-primary/50"}`}>
-                    <input type="radio" name="role" value={option.value} checked={role === option.value} onChange={() => setRole(option.value)} className="sr-only" />
-                    <span className="block font-semibold text-foreground">{option.title}</span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.description}</span>
-                  </label>
-                ))}
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                {roleOptions.map((option) => {
+                  const Icon = option.icon;
+                  const isSelected = role === option.value;
+                  return (
+                    <label
+                      key={option.value}
+                      className={`relative cursor-pointer rounded-xl border p-3.5 text-sm transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary ${
+                        isSelected
+                          ? "border-primary bg-primary-container"
+                          : "border-border bg-card hover:border-outline"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="role"
+                        value={option.value}
+                        checked={isSelected}
+                        onChange={() => setRole(option.value)}
+                        className="sr-only"
+                      />
+                      <div className="flex items-center justify-between gap-2">
+                        <Icon
+                          className={`h-4 w-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`}
+                          aria-hidden="true"
+                        />
+                        {isSelected && (
+                          <Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                        )}
+                      </div>
+                      <span className="mt-2.5 block font-semibold text-foreground">
+                        {option.title}
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">
+                        {option.description}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Akun admin dikelola oleh pengelola platform, bukan melalui pendaftaran umum.</p>
             </fieldset>
-            <div>
-              <label htmlFor="name" className={labelClass}>
-                Nama lengkap
-              </label>
-              <input
-                id="name"
-                type="text"
-                required
-                autoComplete="name"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  clearFieldError("name");
-                }}
-                placeholder="Contoh: Siti Rahma"
-                aria-invalid={Boolean(formErrors.name)}
-                aria-describedby={formErrors.name ? "name-error" : undefined}
-                className={`input-field h-12 ${formErrors.name ? "border-error" : ""}`}
-              />
-              {formErrors.name && (
-                <p id="name-error" className={errorTextClass}>
-                  {formErrors.name}
-                </p>
-              )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="name" className={labelClass}>
+                  Nama lengkap
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    clearFieldError("name");
+                  }}
+                  placeholder="Contoh: Siti Rahma"
+                  aria-invalid={Boolean(formErrors.name)}
+                  aria-describedby={formErrors.name ? "name-error" : undefined}
+                  className={`input-field h-12 bg-card ${formErrors.name ? "border-error" : ""}`}
+                />
+                {formErrors.name && (
+                  <p id="name-error" className={errorTextClass}>
+                    {formErrors.name}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="phone" className={labelClass}>
+                  Nomor HP / WhatsApp
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  required
+                  autoComplete="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    clearFieldError("phone");
+                  }}
+                  placeholder="08123456789"
+                  aria-invalid={Boolean(formErrors.phone)}
+                  aria-describedby={formErrors.phone ? "phone-error" : undefined}
+                  className={`input-field h-12 bg-card ${formErrors.phone ? "border-error" : ""}`}
+                />
+                {formErrors.phone && (
+                  <p id="phone-error" className={errorTextClass}>
+                    {formErrors.phone}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div>
@@ -246,42 +446,11 @@ function RegisterForm() {
                 placeholder="nama@email.com"
                 aria-invalid={Boolean(formErrors.email)}
                 aria-describedby={formErrors.email ? "email-error" : undefined}
-                className={`input-field h-12 ${formErrors.email ? "border-error" : ""}`}
+                className={`input-field h-12 bg-card ${formErrors.email ? "border-error" : ""}`}
               />
               {formErrors.email && (
                 <p id="email-error" className={errorTextClass}>
                   {formErrors.email}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="phone" className={labelClass}>
-                Nomor HP / WhatsApp
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                required
-                autoComplete="tel"
-                inputMode="numeric"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  clearFieldError("phone");
-                }}
-                placeholder="08123456789"
-                aria-invalid={Boolean(formErrors.phone)}
-                aria-describedby={formErrors.phone ? "phone-error" : "phone-hint"}
-                className={`input-field h-12 ${formErrors.phone ? "border-error" : ""}`}
-              />
-              {formErrors.phone ? (
-                <p id="phone-error" className={errorTextClass}>
-                  {formErrors.phone}
-                </p>
-              ) : (
-                <p id="phone-hint" className={hintTextClass}>
-                  Dipakai florist dan kurir untuk konfirmasi pengiriman.
                 </p>
               )}
             </div>
@@ -304,13 +473,19 @@ function RegisterForm() {
                   }}
                   placeholder="Minimal 8 karakter"
                   aria-invalid={Boolean(formErrors.password)}
-                  aria-describedby={formErrors.password ? "password-error" : "password-hint"}
-                  className={`input-field h-12 pr-12 ${formErrors.password ? "border-error" : ""}`}
+                  aria-describedby={
+                    formErrors.password ? "password-error" : undefined
+                  }
+                  className={`input-field h-12 bg-card pr-12 ${formErrors.password ? "border-error" : ""}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                  aria-label={
+                    showPassword
+                      ? "Sembunyikan kata sandi"
+                      : "Tampilkan kata sandi"
+                  }
                   aria-pressed={showPassword}
                   className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-muted-foreground hover:text-foreground"
                 >
@@ -321,30 +496,30 @@ function RegisterForm() {
                   )}
                 </button>
               </div>
-              {formErrors.password ? (
+              {formErrors.password && (
                 <p id="password-error" className={errorTextClass}>
                   {formErrors.password}
-                </p>
-              ) : (
-                <p id="password-hint" className={hintTextClass}>
-                  Gunakan minimal 8 karakter.
                 </p>
               )}
             </div>
 
-            <div className="pt-3">
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={isLoading || isDone}
                 aria-busy={isLoading}
-                className="btn-primary h-14 w-full text-base hover:scale-100 active:scale-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="btn-primary h-14 w-full text-base disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isDone ? "Akun dibuat" : isLoading ? "Mendaftarkan…" : "Buat akun"}
+                {isDone
+                  ? "Akun dibuat"
+                  : isLoading
+                    ? "Mendaftarkan…"
+                    : "Buat akun"}
               </button>
             </div>
           </form>
 
-          <p className="mt-8 text-center text-base text-muted-foreground">
+          <p className="mt-6 text-center text-sm text-muted-foreground sm:text-base">
             Sudah punya akun?{" "}
             <Link
               href="/auth/login"
@@ -354,11 +529,23 @@ function RegisterForm() {
             </Link>
           </p>
         </div>
+
+        <div aria-hidden="true" />
       </main>
     </div>
   );
 }
 
 export default function RegisterPage() {
-  return <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-muted-foreground">Memuat pendaftaran…</div>}><RegisterForm /></Suspense>;
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-background text-muted-foreground">
+          Memuat pendaftaran…
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
+  );
 }

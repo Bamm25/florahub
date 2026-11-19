@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { buildPaginationMeta, parsePaginationParams } from "@/lib/config/domain";
-import type { Prisma } from "@prisma/client";
+import { getStarProducts, VALID_STAR_ORDER_STATUSES } from "@/lib/star-products";
+import type { OrderStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 // Handler HTTP GET publik untuk mengambil daftar produk atau detail produk berdasarkan slug
@@ -25,6 +26,7 @@ export async function GET(request: Request) {
               floristProfile: {
                 select: {
                   shopName: true,
+                  logo: true,
                   defaultAddress: { select: { city: true } },
                 },
               },
@@ -43,11 +45,40 @@ export async function GET(request: Request) {
         );
       }
 
-      const reviewStats = await prisma.review.aggregate({
-        where: { productId: product.id },
-        _avg: { rating: true },
-        _count: { _all: true },
-      });
+      const validStatuses: OrderStatus[] = [...VALID_STAR_ORDER_STATUSES];
+      const [reviewStats, salesStats, relatedProducts] = await Promise.all([
+        prisma.review.aggregate({
+          where: { productId: product.id },
+          _avg: { rating: true },
+          _count: { _all: true },
+        }),
+        prisma.orderItem.aggregate({
+          where: {
+            productId: product.id,
+            order: { status: { in: validStatuses } },
+          },
+          _sum: { quantity: true },
+        }),
+        prisma.product.findMany({
+          where: {
+            floristId: product.floristId,
+            id: { not: product.id },
+            isActive: true,
+            florist: { isActive: true },
+          },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            stock: true,
+            image: true,
+            category: { select: { name: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 4,
+        }),
+      ]);
 
       const totalReviews = reviewStats._count._all;
       const averageRating =
@@ -72,6 +103,7 @@ export async function GET(request: Request) {
           id: product.florist.id,
           shopName:
             product.florist.floristProfile?.shopName || product.florist.name,
+          logo: product.florist.floristProfile?.logo || null,
           city: product.florist.floristProfile?.defaultAddress?.city || "",
         },
         category: {
@@ -80,11 +112,33 @@ export async function GET(request: Request) {
         },
         averageRating,
         totalReviews,
+        soldCount: salesStats._sum.quantity ?? 0,
+        relatedProducts,
       };
 
       return NextResponse.json({
         success: true,
         data: formattedProduct,
+      });
+    }
+
+    if (searchParams.get("featured") === "star") {
+      const rawLimit = Number.parseInt(searchParams.get("limit") || "5", 10);
+      const starLimit = Number.isFinite(rawLimit)
+        ? Math.max(1, Math.min(12, rawLimit))
+        : 5;
+      const { products, mode } = await getStarProducts(prisma, {
+        limit: starLimit,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "Daftar produk terlaris berhasil diambil",
+        data: {
+          products,
+          mode,
+          pagination: buildPaginationMeta(1, starLimit, products.length),
+        },
       });
     }
 

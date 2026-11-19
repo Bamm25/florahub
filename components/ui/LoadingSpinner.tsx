@@ -17,7 +17,7 @@ export default function LoadingSpinner({ message = "Memuat data...", size = "md"
 
   // Render wadah flexbox di tengah layar beserta teks pesan
   return (
-    <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-live="polite">
+    <div className="flex min-h-[60dvh] items-center justify-center" role="status" aria-live="polite">
       <div className="text-center">
         <div
           aria-hidden="true"

@@ -61,15 +61,15 @@ export default function ReviewForm({
 
   if (status === "unauthenticated") {
     return (
-      <div className="rounded-2xl border border-border bg-muted/30 p-6 text-center">
+      <div className="rounded-2xl border border-border bg-card p-6 text-center">
         <p className="text-sm text-muted-foreground">
-          Ingin memberikan ulasan?{" "}
           <Link
             href="/auth/login"
             className="font-semibold text-primary underline-offset-4 hover:underline"
           >
-            Masuk ke akun Anda
-          </Link>
+            Masuk
+          </Link>{" "}
+          untuk menulis ulasan.
         </p>
       </div>
     );
@@ -77,22 +77,22 @@ export default function ReviewForm({
 
   if (isCheckingPurchase) {
     return (
-      <div className="rounded-2xl border border-border bg-muted/20 p-6 text-center" role="status">
-        <p className="text-sm text-muted-foreground">Memeriksa riwayat pesanan Anda...</p>
+      <div className="rounded-2xl border border-border bg-card p-6 text-center" role="status">
+        <p className="text-sm text-muted-foreground">Memeriksa status pesanan...</p>
       </div>
     );
   }
 
   if (purchaseStatus && !purchaseStatus.canReview) {
     return (
-      <div className="rounded-2xl border border-border bg-muted/20 p-5">
+      <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-start gap-3">
           <ShoppingBag className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <div>
             <p className="text-sm font-semibold text-foreground">
               {purchaseStatus.status === "PENDING"
                 ? "Pesanan dalam proses"
-                : "Ulasan hanya untuk pembeli terverifikasi"}
+                : "Belum bisa menulis ulasan"}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {purchaseStatus.message}
@@ -146,7 +146,7 @@ export default function ReviewForm({
         comment: comment.trim(),
       });
 
-      setSuccessMessage("Terima kasih! Ulasan Anda berhasil dikirim.");
+      setSuccessMessage("Ulasan berhasil dikirim.");
       setComment("");
       setRating(5);
       onReviewSubmitted();
@@ -165,14 +165,11 @@ export default function ReviewForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl border border-border bg-surface p-6 sm:p-7"
+      className="rounded-2xl border border-border bg-card p-6 sm:p-7"
     >
       <div className="border-b border-border pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Bagikan pengalaman
-        </p>
-        <h3 className="mt-1 text-xl font-bold tracking-tight text-foreground">
-          Tulis Ulasan Produk
+        <h3 className="text-xl font-bold tracking-tight text-foreground">
+          Tulis Ulasan
         </h3>
       </div>
 
@@ -221,8 +218,8 @@ export default function ReviewForm({
               />
             </button>
           ))}
-          <span className="ml-2 text-sm font-semibold text-foreground">
-            {hoveredRating || rating} dari 5 bintang
+          <span className="ml-2 text-sm font-semibold tabular-nums text-foreground">
+            {hoveredRating || rating}/5
           </span>
         </div>
         {formErrors.rating && (
@@ -237,14 +234,13 @@ export default function ReviewForm({
         </label>
         <textarea
           id="review-comment"
-          rows={4}
           value={comment}
           onChange={(e) => {
             setComment(e.target.value);
             setFormErrors({ ...formErrors, comment: "" });
           }}
-          placeholder="Ceritakan kondisi bunga saat diterima, kesegaran, keharuman, atau kerapian rangkaian..."
-          className="mt-2 w-full rounded-xl border border-border bg-input p-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
+          placeholder="Tulis kesan Anda tentang kualitas dan kerapian bunga..."
+          className="input-field mt-2"
         />
         <div className="mt-1.5 flex items-center justify-between text-xs">
           <div>
@@ -252,8 +248,8 @@ export default function ReviewForm({
               <p className="text-error">{formErrors.comment}</p>
             )}
           </div>
-          <p className={characterCount > maxCharacters ? "text-error" : "text-muted-foreground"}>
-            {characterCount}/{maxCharacters} karakter (min. 10)
+          <p className={`tabular-nums ${characterCount > maxCharacters ? "text-error" : "text-muted-foreground"}`}>
+            {characterCount}/{maxCharacters}
           </p>
         </div>
       </div>

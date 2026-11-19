@@ -43,6 +43,25 @@ export interface Product {
   updatedAt: string;
   averageRating?: number;
   reviewCount?: number;
+  soldCount?: number;
+  orderCount?: number;
+  category?: {
+    id: string;
+    name: string;
+    slug?: string;
+  } | null;
+  florist?: {
+    id: string;
+    name: string;
+    floristProfile?: {
+      shopName: string;
+      logo?: string | null;
+      defaultAddress?: {
+        city: string;
+        province?: string;
+      } | null;
+    } | null;
+  } | null;
 }
 
 // Interface item produk di dalam keranjang belanja

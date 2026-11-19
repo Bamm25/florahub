@@ -4,22 +4,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* 
-  FloraHub Design System v2.0
-  FULL FUNDEDNEXT COLOR PALETTE IMPLEMENTATION
-  Updated: 2026-11-03 16:42 WIB
-  
-  Color Philosophy:
-  - Violet Primary (#635bff) - Confidence & Premium
-  - Success Green Secondary (#09e354) - Nature/Fresh flowers
-  - Blue Tertiary (#2e90fa) - Trust & Innovation
-  - Light theme with generous spacing for product showcase
+/*
+  FloraHub Botanical Design System
+  Warm alabaster & stone neutrals (90-95%) paired with deep botanical forest-moss (hue 156),
+  warm sage-brass kickers (hue 125), slate-teal info (hue 220), and terracotta-ochre alerts.
 */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
+  --font-display: var(--font-editorial), Georgia, serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   
@@ -35,19 +30,19 @@
   --color-surface-container-high: var(--surface-container-high);
   --color-surface-container-highest: var(--surface-container-highest);
   
-  /* Primary (Violet - FundedNext) */
+  /* Primary (Botanical Moss) */
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-container: var(--primary-container);
   --color-primary-container-foreground: var(--primary-container-foreground);
   
-  /* Secondary (Success Green - Nature/Fresh) */
+  /* Secondary (Fresh Foliage Green) */
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary-container: var(--secondary-container);
   --color-secondary-container-foreground: var(--secondary-container-foreground);
   
-  /* Tertiary (Blue - Trust) */
+  /* Tertiary (Calm Slate-Teal) */
   --color-tertiary: var(--tertiary);
   --color-tertiary-foreground: var(--tertiary-foreground);
   --color-tertiary-container: var(--tertiary-container);
@@ -96,190 +91,174 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   
-  /* Border Radius - FundedNext Scale (Organic feel) */
-  --radius-xs: 0.5rem;    /* 8px - small elements */
-  --radius-sm: 0.625rem;  /* 10px - inputs, badges */
-  --radius-md: 0.75rem;   /* 12px - buttons */
-  --radius-lg: 1rem;      /* 16px - cards */
-  --radius-xl: 1.25rem;   /* 20px - large cards */
-  --radius-2xl: 1.5rem;   /* 24px - feature panels */
-  --radius-3xl: 2rem;     /* 32px - hero sections */
-  --radius-4xl: 2.5rem;   /* 40px - modal */
-  --radius-full: 9999px;  /* pills, avatars */
+  /* Border Radius Scale */
+  --radius-xs: 0.5rem;
+  --radius-sm: 0.625rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+  --radius-4xl: 2.5rem;
+  --radius-full: 9999px;
 }
 
 :root {
-  /* ===== FUNDEDNEXT EXACT COLOR PALETTE ===== */
+  /* Base Surfaces - Warm Botanical Ivory & Stone */
+  --background: oklch(98.8% 0.005 88);
+  --foreground: oklch(18.5% 0.018 85);
   
-  /* Base Surfaces - Pure White Foundation */
-  --background: oklch(100% 0 0);           /* #ffffff - pure white */
-  --foreground: oklch(16.47% 0.028 260.91);  /* #181b26 - dark text */
+  /* Surface Stack */
+  --surface: oklch(100% 0 0);
+  --surface-dim: oklch(96.6% 0.007 88);
+  --surface-dark: oklch(19.5% 0.020 155);
+  --surface-darker: oklch(15.2% 0.016 155);
+  --kicker: oklch(82% 0.062 125);
+  --surface-container-lowest: oklch(100% 0 0);
+  --surface-container-low: oklch(96.6% 0.007 88);
+  --surface-container: oklch(94.8% 0.010 105);
+  --surface-container-high: oklch(92.8% 0.012 105);
+  --surface-container-highest: oklch(90.2% 0.012 95);
   
-  /* Surface Stack - Violet Tint (FundedNext Style) */
-  --surface: oklch(100% 0 0);                      /* #ffffff - base surface */
-  --surface-dim: oklch(97.25% 0.004 260.91);       /* #f6f7f9 - dimmed surface */
-  --surface-dark: oklch(18.5% 0.018 272);          /* #10121b - dark masthead & sidebar */
-  --surface-darker: oklch(14.5% 0.015 272);        /* #090a10 - dark footer & flow section */
-  --kicker: oklch(78% 0.115 282);                  /* #b4aeff - light indigo kicker on dark surfaces */
-  --surface-container-lowest: oklch(100% 0 0);     /* #ffffff - lowest elevation */
-  --surface-container-low: oklch(97.25% 0.004 260.91); /* #f6f7f9 - low elevation */
-  --surface-container: oklch(96.08% 0.028 283.75); /* #f3f2ff - violet tint container */
-  --surface-container-high: oklch(95.29% 0.024 283.75); /* #efedfb - high violet tint */
-  --surface-container-highest: oklch(92.55% 0.014 243.38); /* #e3e8ef - highest neutral */
+  /* Primary - Deep Botanical Moss (>7:1 on light foreground) */
+  --primary: oklch(40.5% 0.095 156);
+  --primary-foreground: oklch(99.5% 0.003 90);
+  --primary-container: oklch(93.8% 0.028 154);
+  --primary-container-foreground: oklch(26% 0.068 156);
   
-  /* Primary - VIOLET #635bff (FundedNext Signature Color) */
-  --primary: oklch(56.89% 0.238 283.75);              /* #635bff - violet primary */
-  --primary-foreground: oklch(100% 0 0);              /* #ffffff - white on violet */
-  --primary-container: oklch(96.08% 0.028 283.75);    /* #f3f2ff - violet light bg */
-  --primary-container-foreground: oklch(46.15% 0.208 283.75); /* #432ad8 - violet dark text */
+  /* Secondary - Natural Foliage Green */
+  --secondary: oklch(48% 0.125 152);
+  --secondary-foreground: oklch(99.5% 0.003 90);
+  --secondary-container: oklch(94.5% 0.035 150);
+  --secondary-container-foreground: oklch(24% 0.065 152);
   
-  /* Secondary - SUCCESS GREEN #09e354 (Nature/Fresh Flowers) */
-  --secondary: oklch(79.85% 0.238 145.35);            /* #09e354 - vibrant success green */
-  --secondary-foreground: oklch(20.39% 0.071 145.35); /* #023114 - dark green text */
-  --secondary-container: oklch(96.47% 0.071 145.35);  /* #d7ffe4 - light green bg */
-  --secondary-container-foreground: oklch(12.94% 0 0); /* #111111 - near black */
+  /* Tertiary - Calm Slate-Teal */
+  --tertiary: oklch(46% 0.088 220);
+  --tertiary-foreground: oklch(99.5% 0.003 90);
+  --tertiary-container: oklch(93.5% 0.024 220);
   
-  /* Tertiary - BLUE #2e90fa (Trust & Innovation) */
-  --tertiary: oklch(66.67% 0.158 245.51);             /* #2e90fa - blue tertiary */
-  --tertiary-foreground: oklch(12.94% 0 0);           /* #111111 - dark text */
-  --tertiary-container: oklch(91.76% 0.047 245.51);   /* #d7dfff - light blue bg */
-  
-  /* Semantic Colors (FundedNext Exact) */
-  --error: oklch(60.78% 0.238 27.33);                 /* #ff3844 - clear error red */
-  --error-foreground: oklch(12.94% 0 0);              /* #111111 - dark text */
-  --warning: oklch(76.86% 0.157 85.87);               /* #fbbf24 - amber warning */
-  --warning-foreground: oklch(12.94% 0 0);            /* #111111 - dark text */
-  --success: oklch(79.85% 0.238 145.35);              /* #09e354 - same as secondary */
-  --success-foreground: oklch(20.39% 0.071 145.35);   /* #023114 - dark green */
-  --info: oklch(66.67% 0.158 245.51);                 /* #2e90fa - blue info */
+  /* Semantic Status Colors */
+  --error: oklch(52% 0.175 28);
+  --error-foreground: oklch(99.5% 0.003 90);
+  --warning: oklch(58% 0.135 68);
+  --warning-foreground: oklch(18.5% 0.018 85);
+  --success: oklch(48% 0.125 152);
+  --success-foreground: oklch(99.5% 0.003 90);
+  --info: oklch(46% 0.088 220);
   
   /* Card & Popover */
-  --card: oklch(100% 0 0);                            /* #ffffff - pure white card */
-  --card-foreground: oklch(16.47% 0.028 260.91);      /* #181b26 - dark text */
-  --popover: oklch(100% 0 0);                         /* #ffffff - white popover */
-  --popover-foreground: oklch(16.47% 0.028 260.91);   /* #181b26 - dark text */
+  --card: oklch(100% 0 0);
+  --card-foreground: oklch(18.5% 0.018 85);
+  --popover: oklch(100% 0 0);
+  --popover-foreground: oklch(18.5% 0.018 85);
   
   /* Muted & Accent */
-  --muted: oklch(97.25% 0.004 260.91);                /* #f6f7f9 - muted background */
-  --muted-foreground: oklch(42.35% 0.024 252.63);     /* #4b5565 - muted text */
-  --accent: oklch(96.08% 0.028 283.75);               /* #f3f2ff - violet accent */
-  --accent-foreground: oklch(46.15% 0.208 283.75);    /* #432ad8 - dark violet */
+  --muted: oklch(96.2% 0.007 88);
+  --muted-foreground: oklch(43% 0.016 85);
+  --accent: oklch(94.2% 0.022 152);
+  --accent-foreground: oklch(26% 0.068 156);
   
   /* Destructive */
-  --destructive: oklch(60.78% 0.238 27.33);           /* #ff3844 - error red */
+  --destructive: oklch(52% 0.175 28);
   
   /* Borders & Inputs */
-  --border: oklch(85.49% 0.012 243.38);               /* #cdd5df - outline variant */
-  --input: oklch(97.25% 0.004 260.91);                /* #f6f7f9 - input background */
-  --ring: oklch(56.89% 0.238 283.75);                 /* #635bff - violet focus ring */
+  --border: oklch(88.5% 0.010 88);
+  --input: oklch(97.2% 0.006 88);
+  --ring: oklch(40.5% 0.095 156);
   
   /* Outline */
-  --outline: oklch(68.63% 0.019 243.38);              /* #9aa4b2 - outline */
-  --outline-variant: oklch(85.49% 0.012 243.38);      /* #cdd5df - light outline */
+  --outline: oklch(68% 0.014 88);
+  --outline-variant: oklch(88.5% 0.010 88);
   
-  /* Charts (FundedNext Palette) */
-  --chart-1: oklch(56.89% 0.238 283.75);              /* violet */
-  --chart-2: oklch(79.85% 0.238 145.35);              /* success green */
-  --chart-3: oklch(66.67% 0.158 245.51);              /* blue */
-  --chart-4: oklch(76.86% 0.157 85.87);               /* amber */
-  --chart-5: oklch(42.35% 0.024 252.63);              /* gray */
+  /* Charts */
+  --chart-1: oklch(40.5% 0.095 156);
+  --chart-2: oklch(48% 0.125 152);
+  --chart-3: oklch(46% 0.088 220);
+  --chart-4: oklch(58% 0.135 68);
+  --chart-5: oklch(45% 0.016 85);
   
-  /* Sidebar (Admin/Florist Dashboard) */
-  --sidebar: oklch(100% 0 0);                         /* #ffffff - white sidebar */
-  --sidebar-foreground: oklch(16.47% 0.028 260.91);   /* #181b26 - dark text */
-  --sidebar-primary: oklch(56.89% 0.238 283.75);      /* #635bff - violet */
-  --sidebar-primary-foreground: oklch(100% 0 0);      /* #ffffff */
-  --sidebar-accent: oklch(96.08% 0.028 283.75);       /* #f3f2ff - violet tint */
-  --sidebar-accent-foreground: oklch(46.15% 0.208 283.75); /* #432ad8 */
-  --sidebar-border: oklch(85.49% 0.012 243.38);       /* #cdd5df */
-  --sidebar-ring: oklch(56.89% 0.238 283.75);         /* #635bff */
+  /* Sidebar */
+  --sidebar: oklch(100% 0 0);
+  --sidebar-foreground: oklch(18.5% 0.018 85);
+  --sidebar-primary: oklch(40.5% 0.095 156);
+  --sidebar-primary-foreground: oklch(99.5% 0.003 90);
+  --sidebar-accent: oklch(94.2% 0.022 152);
+  --sidebar-accent-foreground: oklch(26% 0.068 156);
+  --sidebar-border: oklch(88.5% 0.010 88);
+  --sidebar-ring: oklch(40.5% 0.095 156);
 }
 
 .dark {
-  /* ===== DARK THEME (Optional for Admin Dashboard) ===== */
+  /* Dark Surfaces - Deep Forest-Charcoal */
+  --background: oklch(15.2% 0.014 155);
+  --foreground: oklch(96.5% 0.006 88);
   
-  /* Base Surfaces - Dark Foundation */
-  --background: oklch(12% 0 0);            /* #10121b - dark background */
-  --foreground: oklch(100% 0 0);           /* #ffffff - white text */
+  --surface: oklch(18.5% 0.016 155);
+  --surface-dim: oklch(13% 0.012 155);
+  --surface-dark: oklch(19.5% 0.020 155);
+  --surface-darker: oklch(15.2% 0.016 155);
+  --kicker: oklch(82% 0.062 125);
+  --surface-container-lowest: oklch(14% 0.012 155);
+  --surface-container-low: oklch(19.5% 0.018 155);
+  --surface-container: oklch(23% 0.020 155);
+  --surface-container-high: oklch(27% 0.022 155);
+  --surface-container-highest: oklch(32% 0.022 155);
   
-  /* Surface Stack - Dark Elevation */
-  --surface: oklch(12% 0 0);                       /* #10121b */
-  --surface-dim: oklch(8% 0 0);                    /* darker */
-  --surface-dark: oklch(18.5% 0.018 272);          /* #10121b - dark masthead & sidebar */
-  --surface-darker: oklch(14.5% 0.015 272);        /* #090a10 - dark footer & flow section */
-  --kicker: oklch(78% 0.115 282);                  /* #b4aeff - light indigo kicker on dark surfaces */
-  --surface-container-lowest: oklch(10% 0 0);      /* lowest */
-  --surface-container-low: oklch(15% 0 0);         /* low */
-  --surface-container: oklch(18% 0 0);             /* mid */
-  --surface-container-high: oklch(22% 0 0);        /* high */
-  --surface-container-highest: oklch(28% 0 0);     /* highest */
+  --primary: oklch(68% 0.115 154);
+  --primary-foreground: oklch(15% 0.018 155);
+  --primary-container: oklch(28% 0.065 156);
+  --primary-container-foreground: oklch(90% 0.045 154);
   
-  /* Primary - Lighter Violet for Dark Mode */
-  --primary: oklch(72% 0.20 283.75);               /* lighter violet */
-  --primary-foreground: oklch(12% 0 0);            /* dark text */
-  --primary-container: oklch(30% 0.15 283.75);     /* dark violet container */
-  --primary-container-foreground: oklch(85% 0.15 283.75); /* light text */
+  --secondary: oklch(72% 0.135 150);
+  --secondary-foreground: oklch(15% 0.018 155);
+  --secondary-container: oklch(26% 0.065 152);
+  --secondary-container-foreground: oklch(90% 0.050 150);
   
-  /* Secondary - Lighter Success Green */
-  --secondary: oklch(85% 0.20 145.35);             /* lighter green */
-  --secondary-foreground: oklch(12% 0 0);          /* dark text */
-  --secondary-container: oklch(25% 0.12 145.35);   /* dark green bg */
-  --secondary-container-foreground: oklch(90% 0.15 145.35); /* light text */
+  --tertiary: oklch(70% 0.095 220);
+  --tertiary-foreground: oklch(15% 0.018 220);
+  --tertiary-container: oklch(28% 0.060 220);
   
-  /* Tertiary - Lighter Blue */
-  --tertiary: oklch(75% 0.14 245.51);              /* lighter blue */
-  --tertiary-foreground: oklch(100% 0 0);          /* white */
-  --tertiary-container: oklch(28% 0.10 245.51);    /* dark blue bg */
+  --error: oklch(72% 0.155 28);
+  --error-foreground: oklch(15% 0.016 28);
+  --warning: oklch(78% 0.125 72);
+  --warning-foreground: oklch(16% 0.018 72);
+  --success: oklch(72% 0.135 150);
+  --success-foreground: oklch(15% 0.018 152);
+  --info: oklch(70% 0.095 220);
   
-  /* Semantic Colors - Dark Mode */
-  --error: oklch(75% 0.20 27.33);                  /* lighter red */
-  --error-foreground: oklch(100% 0 0);             /* white */
-  --warning: oklch(85% 0.13 85.87);                /* lighter amber */
-  --warning-foreground: oklch(15% 0 0);            /* dark */
-  --success: oklch(85% 0.20 145.35);               /* lighter green */
-  --success-foreground: oklch(12% 0 0);            /* dark */
-  --info: oklch(75% 0.14 245.51);                  /* lighter blue */
+  --card: oklch(18.5% 0.016 155);
+  --card-foreground: oklch(96.5% 0.006 88);
+  --popover: oklch(18.5% 0.016 155);
+  --popover-foreground: oklch(96.5% 0.006 88);
   
-  /* Card & Popover - Dark */
-  --card: oklch(15% 0 0);                          /* dark card */
-  --card-foreground: oklch(100% 0 0);              /* white text */
-  --popover: oklch(15% 0 0);                       /* dark popover */
-  --popover-foreground: oklch(100% 0 0);           /* white text */
+  --muted: oklch(23% 0.018 155);
+  --muted-foreground: oklch(70% 0.012 95);
+  --accent: oklch(26% 0.050 154);
+  --accent-foreground: oklch(92% 0.035 154);
   
-  /* Muted & Accent - Dark */
-  --muted: oklch(20% 0 0);                         /* dark muted */
-  --muted-foreground: oklch(65% 0 0);              /* gray text */
-  --accent: oklch(30% 0.15 283.75);                /* dark violet accent */
-  --accent-foreground: oklch(85% 0.15 283.75);     /* light text */
+  --destructive: oklch(72% 0.155 28);
   
-  /* Destructive - Dark */
-  --destructive: oklch(75% 0.20 27.33);            /* lighter red */
+  --border: oklch(100% 0 0 / 12%);
+  --input: oklch(100% 0 0 / 10%);
+  --ring: oklch(68% 0.115 154);
   
-  /* Borders & Inputs - Dark */
-  --border: oklch(100% 0 0 / 10%);                 /* subtle white border */
-  --input: oklch(100% 0 0 / 15%);                  /* subtle white input */
-  --ring: oklch(72% 0.20 283.75);                  /* lighter violet ring */
+  --outline: oklch(55% 0.015 155);
+  --outline-variant: oklch(34% 0.016 155);
   
-  /* Outline - Dark */
-  --outline: oklch(60% 0 0);                       /* gray outline */
-  --outline-variant: oklch(40% 0 0);               /* darker outline */
+  --chart-1: oklch(68% 0.115 154);
+  --chart-2: oklch(72% 0.135 150);
+  --chart-3: oklch(70% 0.095 220);
+  --chart-4: oklch(78% 0.125 72);
+  --chart-5: oklch(65% 0.012 95);
   
-  /* Charts - Dark Mode */
-  --chart-1: oklch(72% 0.20 283.75);               /* lighter violet */
-  --chart-2: oklch(85% 0.20 145.35);               /* lighter green */
-  --chart-3: oklch(75% 0.14 245.51);               /* lighter blue */
-  --chart-4: oklch(85% 0.13 85.87);                /* lighter amber */
-  --chart-5: oklch(60% 0 0);                       /* gray */
-  
-  /* Sidebar - Dark */
-  --sidebar: oklch(15% 0 0);                       /* dark sidebar */
-  --sidebar-foreground: oklch(100% 0 0);           /* white text */
-  --sidebar-primary: oklch(72% 0.20 283.75);       /* lighter violet */
-  --sidebar-primary-foreground: oklch(12% 0 0);    /* dark text */
-  --sidebar-accent: oklch(30% 0.15 283.75);        /* dark violet accent */
-  --sidebar-accent-foreground: oklch(85% 0.15 283.75); /* light text */
-  --sidebar-border: oklch(100% 0 0 / 10%);         /* subtle border */
-  --sidebar-ring: oklch(72% 0.20 283.75);          /* lighter violet */
+  --sidebar: oklch(18.5% 0.016 155);
+  --sidebar-foreground: oklch(96.5% 0.006 88);
+  --sidebar-primary: oklch(68% 0.115 154);
+  --sidebar-primary-foreground: oklch(15% 0.018 155);
+  --sidebar-accent: oklch(26% 0.050 154);
+  --sidebar-accent-foreground: oklch(92% 0.035 154);
+  --sidebar-border: oklch(100% 0 0 / 12%);
+  --sidebar-ring: oklch(68% 0.115 154);
 }
 
 @layer base {
@@ -287,10 +266,9 @@
     @apply border-border outline-ring/50;
   }
   
-  /* Prevent horizontal scroll on mobile */
+  /* Prevent horizontal scroll without breaking sticky positioning */
   html, body {
-    overflow-x: hidden;
-    max-width: 100vw;
+    overflow-x: clip;
   }
   
   body {
@@ -300,14 +278,23 @@
   
   html {
     @apply font-sans antialiased;
+    scrollbar-gutter: stable;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   
-  /* Typography Scale - FundedNext Inspired */
+  /* Typography Scale & Modern Text Wrapping */
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
+  }
+
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+  }
+
+  p, blockquote, li {
+    text-wrap: pretty;
   }
   
   h1 {
@@ -323,6 +310,65 @@
   h3 {
     @apply text-2xl sm:text-3xl;
     letter-spacing: -0.02em;
+  }
+
+  /* Native Top-Layer Modal Dialogs */
+  dialog {
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--card-foreground);
+    opacity: 0;
+    transition: opacity 180ms ease-out, transform 180ms ease-out, overlay 180ms ease-out, display 180ms ease-out;
+    transition-behavior: allow-discrete;
+  }
+
+  dialog:modal {
+    overscroll-behavior: contain;
+  }
+
+  dialog[open] {
+    opacity: 1;
+  }
+
+  @starting-style {
+    dialog[open] {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    dialog {
+      transform: translateY(6px) scale(0.985);
+    }
+    dialog[open] {
+      transform: translateY(0) scale(1);
+    }
+    @starting-style {
+      dialog[open] {
+        transform: translateY(6px) scale(0.985);
+      }
+    }
+  }
+
+  dialog::backdrop {
+    overflow: hidden;
+    overscroll-behavior: contain;
+    background-color: rgb(15 20 18 / 0);
+    backdrop-filter: blur(2px);
+    transition: background-color 180ms ease-out, overlay 180ms ease-out, display 180ms ease-out;
+    transition-behavior: allow-discrete;
+  }
+
+  dialog[open]::backdrop {
+    background-color: rgb(15 20 18 / 0.48);
+  }
+
+  @starting-style {
+    dialog[open]::backdrop {
+      background-color: rgb(15 20 18 / 0);
+    }
   }
   
   button, a, input, select, textarea {
@@ -341,26 +387,26 @@
   }
 }
 
-/* Custom Utility Classes - FundedNext Component Patterns */
+/* Custom Botanical Component Patterns & Quiet Tactile Motion */
 @layer components {
-  /* Button Primary (56px height, VIOLET CTA) */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-4 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-4 text-base font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
     height: 56px;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   
-  /* Button Secondary (Ghost style) */
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-transparent px-8 py-4 text-base font-semibold text-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-transparent px-8 py-4 text-base font-semibold text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
     height: 56px;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   
-  /* Neutral action; blue remains an informational state, not a competing CTA. */
   .btn-tertiary {
-    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-6 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-6 text-sm font-semibold text-foreground hover:bg-surface-container-low focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   
-  /* Flat card surface; interactive descendants define their own hover state. */
+  /* Flat card surface with hairline definition */
   .card-elevated {
     @apply rounded-2xl border border-border bg-card p-6;
   }
@@ -370,7 +416,15 @@
     @apply w-full rounded-xl border border-border bg-input px-4 py-3 text-base text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
-  /* Reusable screen framing: dark introduction, light working area. */
+  textarea.input-field {
+    field-sizing: content;
+    width: 100%;
+    height: auto;
+    min-block-size: 3lh;
+    max-block-size: 10lh;
+  }
+
+  /* Reusable screen framing: dark introduction, light working area */
   .page-intro {
     @apply rounded-[24px] bg-surface-dark px-6 py-9 text-white sm:px-9 sm:py-12;
   }
@@ -378,7 +432,7 @@
     color: #fff;
   }
   .page-intro-kicker {
-    @apply text-xs font-semibold uppercase tracking-[0.16em] text-kicker;
+    @apply text-xs font-medium tracking-[0.04em] text-kicker;
   }
   .page-intro-copy {
     @apply mt-3 max-w-2xl text-sm leading-6 text-white/70 sm:text-base;
@@ -402,19 +456,69 @@
     @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
     max-width: 1440px;
   }
+
+  .m-card {
+    transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease;
+  }
+
+  .m-zoom {
+    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
-/* Gradient Utilities - FundedNext Style */
+@keyframes flora-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+[data-enter] {
+  animation: flora-enter 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-enter] {
+    animation: none;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  .btn-tertiary:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active,
+  .btn-secondary:active,
+  .btn-tertiary:active {
+    transform: translateY(0) scale(0.985);
+  }
+
+  .m-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--outline);
+  }
+
+  .group:hover .m-zoom,
+  .m-card:hover .m-zoom {
+    transform: scale(1.03);
+  }
+}
+
+/* Botanical Surface Utilities */
 @layer utilities {
   .gradient-primary {
-    background: linear-gradient(135deg, oklch(56.89% 0.238 283.75) 0%, oklch(46.15% 0.208 283.75) 100%);
+    background: linear-gradient(135deg, oklch(40.5% 0.095 156) 0%, oklch(32% 0.075 156) 100%);
   }
   
   .gradient-surface {
-    background: linear-gradient(135deg, oklch(100% 0 0) 0%, oklch(97.25% 0.004 260.91) 50%, oklch(96.08% 0.028 283.75) 100%);
-  }
-  
-  .gradient-violet-to-blue {
-    background: linear-gradient(135deg, oklch(56.89% 0.238 283.75) 0%, oklch(66.67% 0.158 245.51) 100%);
+    background: linear-gradient(135deg, oklch(100% 0 0) 0%, oklch(96.6% 0.007 88) 55%, oklch(94.8% 0.010 105) 100%);
   }
 }

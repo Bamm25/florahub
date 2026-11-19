@@ -13,12 +13,15 @@ interface ProductDetailResponse {
     price: number;
     stock: number;
     image: string | null;
+    images?: string[];
+    tags?: string[];
     categoryId: string;
     floristId: string;
     createdAt: string;
     florist: {
       id: string;
       shopName: string;
+      logo?: string | null;
       city: string;
     };
     category: {
@@ -27,6 +30,16 @@ interface ProductDetailResponse {
     };
     averageRating: number;
     totalReviews: number;
+    soldCount?: number;
+    relatedProducts?: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      price: number;
+      stock: number;
+      image: string | null;
+      category?: { name: string } | null;
+    }>;
   };
 }
 
@@ -91,6 +104,36 @@ export async function getProducts(
     cache: "no-store",
     signal,
   });
+}
+
+export type StarProductsMode = "best-selling" | "featured-fallback";
+
+// Fungsi untuk mengambil produk bintang (paling sering dibeli lintas seluruh florist aktif)
+export async function getStarProducts(
+  limit = 5,
+  signal?: AbortSignal,
+): Promise<{ products: Product[]; mode: StarProductsMode }> {
+  const baseUrl = getBaseUrl();
+  const queryParams = new URLSearchParams({
+    featured: "star",
+    limit: String(limit),
+  });
+  const result = await fetchJson<{
+    success: boolean;
+    message: string;
+    data: {
+      products: Product[];
+      mode: StarProductsMode;
+    };
+  }>(`${baseUrl}/api/products?${queryParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+    signal,
+  });
+  return {
+    products: result.data.products,
+    mode: result.data.mode,
+  };
 }
 
 // Fungsi untuk mengambil data rincian produk berdasarkan slug

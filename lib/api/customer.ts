@@ -225,6 +225,7 @@ export async function getCustomerProducts<T>(
     search?: string;
     categoryId?: string;
     sortBy?: string;
+    inStock?: boolean;
   },
   signal?: AbortSignal,
 ): Promise<{
@@ -239,6 +240,7 @@ export async function getCustomerProducts<T>(
     searchParams.set("categoryId", params.categoryId);
   }
   if (params.sortBy) searchParams.set("sortBy", params.sortBy);
+  if (params.inStock) searchParams.set("inStock", "true");
 
   const result = await fetchJson<{
     success: boolean;
