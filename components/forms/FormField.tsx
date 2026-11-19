@@ -1,7 +1,7 @@
 import React from "react";
 
 // Tipe elemen input formulir
-type FormFieldType = "text" | "number" | "email" | "textarea" | "select" | "date";
+type FormFieldType = "text" | "number" | "email" | "tel" | "textarea" | "select" | "date";
 
 // Antarmuka properti komponen FormField
 interface FormFieldProps {
@@ -19,6 +19,8 @@ interface FormFieldProps {
   max?: number;
   step?: string;
   disabled?: boolean;
+  autoComplete?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
 }
 
 // Komponen input formulir reusable dengan label dan pesan kesalahan
@@ -37,13 +39,15 @@ export default function FormField({
   max,
   step,
   disabled = false,
+  autoComplete,
+  inputMode,
 }: FormFieldProps) {
   const errorId = `${name}-error`;
   const inputClasses = `input-field ${error ? "border-error" : ""}`;
 
   // Render elemen input sesuai tipe yang ditentukan
   const renderInput = () => {
-    // Render textarea untuk input teks multibaris
+    // Render textarea untuk input teks multibaris (field-sizing: content aktif lewat .input-field)
     if (type === "textarea") {
       return (
         <textarea
@@ -53,8 +57,9 @@ export default function FormField({
           onChange={(e) => onChange(e.target.value)}
           rows={rows}
           placeholder={placeholder}
-          className={`${inputClasses} resize-none`}
+          className={inputClasses}
           disabled={disabled}
+          autoComplete={autoComplete}
           aria-required={required || undefined}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
@@ -72,6 +77,7 @@ export default function FormField({
           onChange={(e) => onChange(e.target.value)}
           className={inputClasses}
           disabled={disabled}
+          autoComplete={autoComplete}
           aria-required={required || undefined}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
@@ -100,6 +106,8 @@ export default function FormField({
         max={max}
         step={step}
         disabled={disabled}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
         aria-required={required || undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}

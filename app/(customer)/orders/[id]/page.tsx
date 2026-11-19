@@ -1,74 +1,89 @@
 "use client";
 
-import { use, useEffect, useState, useCallback } from "react";
-
-
+import { use, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
 import {
+  Check,
+  CheckCircle2,
+  Copy,
+  CreditCard,
+  Flower2,
+  RefreshCw,
+  Store,
+  Truck,
+  XCircle,
+} from "lucide-react";
+import {
+  confirmOrderDelivery,
   getOrderDetail,
   getOrderShipment,
   cancelOrder,
+  type OrderDetail,
   type Shipment,
 } from "@/lib/api/orders";
 import { createPaymentToken } from "@/lib/api/customer";
-import { LoadingSpinner, ErrorState } from "@/components/ui";
+import { ConfirmDialog, LoadingSpinner, ErrorState } from "@/components/ui";
+import Modal from "@/components/forms/Modal";
 import { formatDateTime, formatRupiah } from "@/lib/utils/formatters";
-import {
-  ArrowLeft,
-  RefreshCw,
-  Truck,
-  CreditCard,
-  XCircle,
-  Package,
-} from "lucide-react";
 
-// Interface untuk data detail order lengkap dengan items, address, dan payment
-interface OrderDetail {
-  id: string;
-  orderNumber: string;
-  status: string;
-  notes: string | null;
-  subtotal: number;
-  shippingCost: number;
-  discount: number;
-  totalAmount: number;
-  createdAt: string;
-  items: Array<{
-    id: string;
-    quantity: number;
-    price: number;
-    subtotal: number;
-    product: {
-      id: string;
-      name: string;
-      image: string;
-      currentPrice: number;
-    };
-  }>;
-  address: {
-    id: string;
-    label: string;
-    recipientName: string;
-    phone: string;
-    fullAddress: string;
-    city: string;
-    province: string;
-    postalCode: string;
-  } | null;
-  payment: {
-    id: string;
-    amount: number;
-    method: string;
-    status: string;
-    transactionId: string | null;
-    paidAt: string | null;
-  } | null;
+const ORDER_STEPS = ["Dibuat", "Dibayar", "Diproses", "Dikirim", "Selesai"] as const;
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  bank_transfer: "Transfer Bank",
+  qris: "QRIS",
+  gopay: "GoPay",
+  shopeepay: "ShopeePay",
+  credit_card: "Kartu Kredit",
+  cstore: "Gerai Retail",
+  echannel: "Mandiri Bill",
+};
+
+function getOrderStepIndex(status: string): number {
+  switch (status) {
+    case "PENDING":
+      return 0;
+    case "PAID":
+      return 1;
+    case "PROCESSING":
+    case "READY_TO_SHIP":
+      return 2;
+    case "SHIPPED":
+      return 3;
+    case "DELIVERED":
+      return 4;
+    default:
+      return 0;
+  }
 }
 
-// Halaman detail pesanan dengan info lengkap dan tombol cancel
+function formatPaymentMethod(method: string): string {
+  const key = method.trim().toLowerCase();
+  return PAYMENT_METHOD_LABELS[key] ?? "Pembayaran Online";
+}
+
+function formatShipmentStatus(status: string): string {
+  switch (status) {
+    case "PENDING":
+      return "Menunggu Pickup";
+    case "PROCESSING":
+      return "Sedang Diproses";
+    case "READY_TO_SHIP":
+      return "Siap Dikirim";
+    case "SHIPPED":
+      return "Dalam Perjalanan";
+    case "DELIVERED":
+      return "Sudah Diterima";
+    case "CANCELLED":
+      return "Pengiriman Dibatalkan";
+    default:
+      return status;
+  }
+}
+
+// Halaman detail pesanan editorial dengan pelacakan progres, rincian produk, dan ringkasan pembayaran
 export default function OrderDetailPage({
   params,
 }: {
@@ -87,14 +102,30 @@ export default function OrderDetailPage({
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [paymentFeedback, setPaymentFeedback] = useState<string | null>(null);
   const [isPaying, setIsPaying] = useState(false);
+  const [copiedTracking, setCopiedTracking] = useState(false);
+  const [showConfirmDelivery, setShowConfirmDelivery] = useState(false);
+  const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
+  const [deliveryFeedback, setDeliveryFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleRetry = useCallback(() => {
     setRefreshKey((prev) => prev + 1);
   }, []);
 
-  // Redirect ke login jika belum auth, fetch order detail dan shipment info
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push(`/auth/login?callbackUrl=/orders/${orderId}`);
@@ -115,14 +146,12 @@ export default function OrderDetailPage({
         if (controller.signal.aborted) return;
         setOrder(response.data.order);
 
-        // Fetch shipment info jika tersedia, skip error jika belum ada
         try {
           const shipmentRes = await getOrderShipment(orderId, controller.signal);
           if (!controller.signal.aborted) {
             setShipment(shipmentRes.data.shipment);
           }
         } catch {
-          // Shipment belum tersedia untuk order ini
           if (!controller.signal.aborted) {
             setShipment(null);
           }
@@ -135,7 +164,7 @@ export default function OrderDetailPage({
           return;
         }
         setErrorMessage(
-          error instanceof Error ? error.message : "Gagal memuat pesanan",
+          error instanceof Error ? error.message : "Gagal memuat pesanan.",
         );
       } finally {
         if (!controller.signal.aborted) {
@@ -148,7 +177,6 @@ export default function OrderDetailPage({
     return () => controller.abort();
   }, [status, orderId, router, refreshKey]);
 
-  // Fungsi refresh manual untuk reload order status dari DB (no cache)
   const handleRefreshOrder = async () => {
     try {
       setIsRefreshing(true);
@@ -156,16 +184,23 @@ export default function OrderDetailPage({
       if (result.success) {
         setOrder(result.data.order);
       }
+      try {
+        const shipmentRes = await getOrderShipment(orderId);
+        setShipment(shipmentRes.data.shipment);
+      } catch {
+        // Pengiriman belum dibuat atau belum tersedia
+      }
     } catch {
-      // Abaikan error refresh manual sementara
+      // Abaikan gangguan sementara saat refresh manual
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  // Fungsi bayar sekarang untuk order PENDING via popup Midtrans
+  // Mulai transaksi Snap untuk pesanan PENDING
   const handlePayNow = async () => {
     if (!order) return;
+    setPaymentFeedback(null);
     try {
       setIsPaying(true);
       const res = await createPaymentToken(order.id);
@@ -173,451 +208,762 @@ export default function OrderDetailPage({
       if (typeof window !== "undefined" && window.snap) {
         window.snap.pay(snapToken, {
           onSuccess: function (): void {
-            handleRefreshOrder();
+            void handleRefreshOrder();
           },
           onPending: function (): void {
-            handleRefreshOrder();
+            void handleRefreshOrder();
           },
           onError: function (): void {
-            alert("Pembayaran gagal. Silakan coba lagi.");
+            setPaymentFeedback("Pembayaran gagal. Silakan coba lagi.");
           },
           onClose: function (): void {
-            // Popup ditutup oleh user
+            // Popup ditutup oleh pembeli
           },
         });
       } else {
-        alert(
-          "Script pembayaran Midtrans belum siap dimuat. Silakan refresh halaman.",
+        setPaymentFeedback(
+          "Layanan pembayaran belum siap. Muat ulang halaman lalu coba lagi.",
         );
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal menyiapkan pembayaran");
+      setPaymentFeedback(
+        err instanceof Error ? err.message : "Gagal menyiapkan pembayaran.",
+      );
     } finally {
       setIsPaying(false);
     }
   };
 
-  // Handle konfirmasi cancel order dan update state lokal
   const handleConfirmCancel = async () => {
+    if (!order) return;
     try {
       setIsCancelling(true);
       setCancelError(null);
-      await cancelOrder(order!.id);
+      await cancelOrder(order.id);
       setShowCancelModal(false);
       setOrder((prev) => (prev ? { ...prev, status: "CANCELLED" } : prev));
     } catch (error) {
       setCancelError(
-        error instanceof Error ? error.message : "Gagal membatalkan pesanan",
+        error instanceof Error ? error.message : "Gagal membatalkan pesanan.",
       );
     } finally {
       setIsCancelling(false);
     }
   };
 
-  // Render loading spinner untuk order detail
+  const handleConfirmDelivery = async () => {
+    if (!order) return;
+    try {
+      setIsConfirmingDelivery(true);
+      setDeliveryFeedback(null);
+      await confirmOrderDelivery(order.id);
+      setShowConfirmDelivery(false);
+      await handleRefreshOrder();
+      setDeliveryFeedback({
+        type: "success",
+        message:
+          "Pesanan selesai. Anda kini dapat menulis ulasan pada produk yang dibeli.",
+      });
+    } catch (error) {
+      setShowConfirmDelivery(false);
+      setDeliveryFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Gagal mengonfirmasi penerimaan pesanan.",
+      });
+    } finally {
+      setIsConfirmingDelivery(false);
+    }
+  };
+
+  const handleCopyTracking = async (trackingNumber: string) => {
+    try {
+      await navigator.clipboard.writeText(trackingNumber);
+      setCopiedTracking(true);
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = setTimeout(() => {
+        setCopiedTracking(false);
+      }, 2000);
+    } catch {
+      // Browser menolak akses clipboard
+    }
+  };
+
   if (status === "loading" || isLoading) {
     return (
-      <main className="container-custom section-spacing">
-        <LoadingSpinner message="Memuat detail pesanan..." />
+      <main className="min-h-dvh bg-background">
+        <div className="container-custom section-spacing">
+          <LoadingSpinner message="Memuat detail pesanan..." />
+        </div>
       </main>
     );
   }
 
-  // Render error state jika order tidak ditemukan
   if (errorMessage || !order) {
     return (
-      <main className="container-custom section-spacing space-y-4">
-        <ErrorState
-          title="Pesanan Belum Dapat Dimuat"
-          error={errorMessage || "Pesanan tidak ditemukan atau nomor referensi tidak valid."}
-          onRetry={handleRetry}
-        />
-        <div className="flex justify-center gap-3">
-          <Link href="/orders" className="btn-secondary h-10 px-5 text-sm">
-            Ke Riwayat Pesanan
-          </Link>
-          <Link href="/" className="btn-primary h-10 px-5 text-sm">
-            Beranda
-          </Link>
+      <main className="min-h-dvh bg-background">
+        <div className="container-custom section-spacing space-y-4">
+          <ErrorState
+            title="Pesanan Tidak Dapat Dimuat"
+            error={
+              errorMessage ||
+              "Pesanan tidak ditemukan atau nomor referensi tidak valid."
+            }
+            onRetry={handleRetry}
+          />
+          <div className="flex justify-center gap-3">
+            <Link href="/orders" className="btn-secondary h-10 px-5 text-sm">
+              Riwayat Pesanan
+            </Link>
+            <Link href="/" className="btn-primary h-10 px-5 text-sm">
+              Beranda
+            </Link>
+          </div>
         </div>
       </main>
     );
   }
 
   const statusMeta = getStatusMeta(order.status);
+  const showProgressTrack =
+    order.status !== "CANCELLED" && order.status !== "REFUNDED";
+  const currentStepIndex = getOrderStepIndex(order.status);
+  const activeShipment = shipment ?? order.shipment ?? null;
+  const canConfirmDelivery = order.status === "SHIPPED";
+  const canTrackShipment =
+    order.status !== "PENDING" &&
+    order.status !== "CANCELLED" &&
+    order.status !== "REFUNDED";
 
   return (
-    <main className="container-custom section-spacing">
-      {/* Breadcrumb / Back */}
-      <nav aria-label="Navigasi" className="mb-6">
-        <Link
-          href="/orders"
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Kembali ke Riwayat Pesanan
-        </Link>
-      </nav>
-
-      {/* Status Hero — aksen gelap elegan */}
+    <main className="min-h-dvh bg-background pb-16 sm:pb-24">
+      {/* Full-Bleed Dark Editorial Header Band */}
       <section
         aria-labelledby="order-status-heading"
-        className="mb-8 rounded-2xl bg-surface-dark p-6 text-white sm:p-8 border border-white/10"
+        className="border-b border-white/10 bg-surface-dark py-8 text-white sm:py-12"
       >
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur-xs">
-              <span className={`h-2 w-2 rounded-full ${statusMeta.dot}`} />
-              <span className="text-white">{statusMeta.label}</span>
-            </div>
-            <h1
-              id="order-status-heading"
-              className="mt-3 font-mono text-2xl font-bold tracking-tight text-white sm:text-3xl"
-            >
-              Order #{order.orderNumber}
-            </h1>
-            <p className="mt-1 text-xs text-white/70">
-              Dibuat pada{" "}
-              {new Date(order.createdAt).toLocaleDateString("id-ID", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-          </div>
+        <div className="container-custom">
+          <nav
+            aria-label="Navigasi"
+            className="flex flex-wrap items-center gap-2 text-xs text-white/60"
+          >
+            <Link href="/orders" className="transition-colors hover:text-white">
+              Pesanan
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span className="font-mono text-white/90">
+              #{order.orderNumber}
+            </span>
+          </nav>
 
-          {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {order.status === "PENDING" && (
-              <button
-                onClick={handlePayNow}
-                disabled={isPaying}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold">
+                <span
+                  className={`h-2 w-2 rounded-full ${statusMeta.dot}`}
+                  aria-hidden="true"
+                />
+                <span className="text-white">{statusMeta.label}</span>
+              </div>
+
+              <h1
+                id="order-status-heading"
+                className="mt-3 font-mono text-2xl font-bold tracking-tight text-white sm:text-3xl"
               >
-                {isPaying ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <CreditCard className="h-4 w-4" />
+                #{order.orderNumber}
+              </h1>
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/70">
+                <span>{formatDateTime(order.createdAt)}</span>
+                {order.florist && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <Link
+                      href={`/stores/${order.florist.id}`}
+                      className="inline-flex items-center gap-1.5 font-medium text-kicker underline-offset-4 hover:text-white hover:underline"
+                    >
+                      <Store className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{order.florist.shopName}</span>
+                      {order.florist.city ? (
+                        <span className="text-white/60">
+                          ({order.florist.city})
+                        </span>
+                      ) : null}
+                    </Link>
+                  </>
                 )}
-                <span>{isPaying ? "Menyiapkan..." : "Bayar Sekarang"}</span>
-              </button>
-            )}
+              </div>
+            </div>
 
-            {order.status !== "PENDING" && order.status !== "CANCELLED" && (
-              <Link
-                href={`/orders/${order.id}/tracking`}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[#10121b] transition-colors hover:bg-white/90"
-              >
-                <Truck className="h-4 w-4" />
-                <span>Lacak Pengiriman</span>
-              </Link>
-            )}
+            {/* Tombol Aksi */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {order.status === "PENDING" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handlePayNow}
+                    disabled={isPaying}
+                    className="btn-primary h-11 px-5 py-0 text-sm font-semibold disabled:opacity-50"
+                  >
+                    {isPaying ? (
+                      <span>Menyiapkan...</span>
+                    ) : (
+                      <>
+                        <CreditCard className="h-4 w-4" aria-hidden="true" />
+                        <span>Bayar Sekarang</span>
+                      </>
+                    )}
+                  </button>
 
-            <button
-              onClick={handleRefreshOrder}
-              disabled={isRefreshing}
-              className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:opacity-50"
-              title="Perbarui status pesanan dari sistem"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              <span>{isRefreshing ? "Memperbarui..." : "Perbarui"}</span>
-            </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelError(null);
+                      setShowCancelModal(true);
+                    }}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/20 px-4 text-sm font-medium text-white/85 transition-colors hover:border-error/40 hover:bg-error/10 hover:text-error"
+                  >
+                    <XCircle className="h-4 w-4" aria-hidden="true" />
+                    <span>Batalkan</span>
+                  </button>
+                </>
+              )}
 
-            {order.status === "PENDING" && (
+              {canConfirmDelivery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeliveryFeedback(null);
+                    setShowConfirmDelivery(true);
+                  }}
+                  className="btn-primary h-11 px-5 py-0 text-sm font-semibold"
+                >
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  <span>Pesanan Diterima</span>
+                </button>
+              )}
+
+              {canTrackShipment && (
+                <Link
+                  href={`/orders/${order.id}/tracking`}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-surface-dark transition-colors hover:bg-white/90"
+                >
+                  <Truck className="h-4 w-4" aria-hidden="true" />
+                  <span>Lacak Pengiriman</span>
+                </Link>
+              )}
+
               <button
-                onClick={() => {
-                  setCancelError(null);
-                  setShowCancelModal(true);
-                }}
-                className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-white/20 bg-transparent px-4 text-sm font-medium text-white/80 transition-colors hover:border-error/40 hover:bg-error/10 hover:text-error"
+                type="button"
+                onClick={handleRefreshOrder}
+                disabled={isRefreshing}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:opacity-50"
               >
-                <XCircle className="h-4 w-4" />
-                <span>Batalkan</span>
+                <RefreshCw
+                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+                <span>{isRefreshing ? "Memperbarui..." : "Perbarui"}</span>
               </button>
-            )}
+            </div>
           </div>
+
+          {/* 5-Step Progress Track */}
+          {showProgressTrack && (
+            <ol
+              aria-label="Progres pesanan"
+              className="mt-8 grid grid-cols-5 gap-2 border-t border-white/10 pt-6"
+            >
+              {ORDER_STEPS.map((label, idx) => {
+                const isDone = idx < currentStepIndex;
+                const isCurrent = idx === currentStepIndex;
+                return (
+                  <li
+                    key={label}
+                    aria-current={isCurrent ? "step" : undefined}
+                    className="flex flex-col gap-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold transition-colors ${
+                          isDone || isCurrent
+                            ? "border-kicker bg-kicker text-surface-dark"
+                            : "border-white/20 bg-white/5 text-white/45"
+                        }`}
+                      >
+                        {isDone ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          idx + 1
+                        )}
+                      </span>
+                      {idx < ORDER_STEPS.length - 1 && (
+                        <span
+                          aria-hidden="true"
+                          className={`hidden h-px flex-1 sm:block ${
+                            isDone ? "bg-kicker" : "bg-white/15"
+                          }`}
+                        />
+                      )}
+                    </div>
+                    <span
+                      className={`text-xs font-medium ${
+                        isCurrent
+                          ? "text-kicker"
+                          : isDone
+                            ? "text-white/90"
+                            : "text-white/45"
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </div>
       </section>
 
-      {/* Cancel Confirmation Modal */}
-      {showCancelModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-xs p-4"
-        >
-          <div
-            className="absolute inset-0"
-            onClick={() => !isCancelling && setShowCancelModal(false)}
-          />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-foreground">
-              Batalkan Pesanan?
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-              Pesanan{" "}
-              <span className="font-mono font-semibold text-foreground">
-                #{order.orderNumber}
-              </span>{" "}
-              akan dibatalkan dan stok produk akan dikembalikan.
-            </p>
-            <p className="mt-2 text-xs font-medium text-warning">
-              Tindakan ini tidak dapat dibatalkan.
-            </p>
-
-            {cancelError && (
-              <div
-                role="alert"
-                className="mt-4 rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error"
-              >
-                {cancelError}
-              </div>
-            )}
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                disabled={isCancelling}
-                className="btn-secondary h-11 flex-1 py-0 text-sm disabled:opacity-50"
-              >
-                Kembali
-              </button>
-              <button
-                onClick={handleConfirmCancel}
-                disabled={isCancelling}
-                className="h-11 flex-1 rounded-xl bg-error px-4 text-sm font-semibold text-white transition-colors hover:bg-error/90 disabled:opacity-50"
-              >
-                {isCancelling ? "Membatalkan..." : "Ya, Batalkan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Konten Utama */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Kolom Kiri: Produk & Pengiriman */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Detail Produk */}
-          <section
-            aria-labelledby="items-heading"
-            className="rounded-2xl border border-border bg-card p-6"
-          >
-            <div className="mb-4 flex items-baseline justify-between border-b border-border pb-3">
-              <h2
-                id="items-heading"
-                className="text-base font-semibold text-foreground"
-              >
-                Rincian produk
-              </h2>
-              <span className="text-xs text-muted-foreground">
-                {order.items.length} item
-              </span>
-            </div>
-            <ul className="divide-y divide-border">
-              {order.items.map((item) => (
-                <li
-                  key={item.id}
-                  className="flex items-center gap-4 py-3.5 first:pt-0 last:pb-0"
-                >
-                  {item.product.image ? (
-                    <Image
-                      src={item.product.image}
-                      alt={item.product.name}
-                      width={64}
-                      height={64}
-                      unoptimized
-                      className="h-16 w-16 shrink-0 rounded-xl border border-border object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-container-low text-muted-foreground"
-                      aria-hidden="true"
-                    >
-                      <Package className="h-6 w-6" />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {item.product.name}
-                    </p>
-                    <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                      {item.quantity} × {formatRupiah(item.price)}
-                    </p>
-                  </div>
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
-                    {formatRupiah(item.subtotal)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {/* Alamat Pengiriman */}
-          {order.address && (
-            <section
-              aria-labelledby="address-heading"
-              className="rounded-2xl border border-border bg-card p-6"
+      <div className="container-custom pt-8 sm:pt-10">
+        <div aria-live="polite" className="space-y-4">
+          {deliveryFeedback && (
+            <div
+              role={deliveryFeedback.type === "error" ? "alert" : "status"}
+              className={`mb-6 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+                deliveryFeedback.type === "error"
+                  ? "border-error/30 bg-error/10 text-error"
+                  : "border-primary/30 bg-primary/10 text-foreground"
+              }`}
             >
-              <h2
-                id="address-heading"
-                className="mb-3 border-b border-border pb-3 text-base font-semibold text-foreground"
+              <span>{deliveryFeedback.message}</span>
+              <button
+                type="button"
+                onClick={() => setDeliveryFeedback(null)}
+                className="text-xs font-semibold underline"
               >
-                Alamat pengiriman
-              </h2>
-              <p className="text-sm font-medium text-foreground">
-                {order.address.recipientName}
-                <span className="mx-1.5 text-muted-foreground">·</span>
-                <span className="font-normal tabular-nums text-muted-foreground">
-                  {order.address.phone}
-                </span>
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {order.address.fullAddress}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {order.address.city}, {order.address.province}{" "}
-                {order.address.postalCode}
-              </p>
-            </section>
+                Tutup
+              </button>
+            </div>
           )}
 
-          {/* Info Pengiriman */}
-          {shipment && (
+          {paymentFeedback && (
+            <div
+              role="alert"
+              className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error"
+            >
+              <span>{paymentFeedback}</span>
+              <button
+                type="button"
+                onClick={() => setPaymentFeedback(null)}
+                className="text-xs font-semibold underline"
+              >
+                Tutup
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start xl:gap-12">
+          {/* Kolom Kiri */}
+          <div className="space-y-6">
+            {/* Rincian Produk */}
             <section
-              aria-labelledby="shipment-heading"
+              aria-labelledby="items-heading"
               className="rounded-2xl border border-border bg-card p-6"
             >
-              <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+              <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-3">
                 <h2
-                  id="shipment-heading"
+                  id="items-heading"
                   className="text-base font-semibold text-foreground"
                 >
-                  Info kurir
+                  Rincian Produk
                 </h2>
-                <Link
-                  href={`/orders/${order.id}/tracking`}
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  Lihat pelacakan →
-                </Link>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  {order.florist && (
+                    <Link
+                      href={`/stores/${order.florist.id}`}
+                      className="font-medium text-foreground hover:text-primary hover:underline"
+                    >
+                      {order.florist.shopName}
+                    </Link>
+                  )}
+                  <span className="tabular-nums">{order.items.length} item</span>
+                </div>
               </div>
-              <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs text-muted-foreground">Kurir</dt>
-                  <dd className="font-medium uppercase text-foreground">
-                    {shipment.courier}
-                    {shipment.service ? ` (${shipment.service})` : ""}
-                  </dd>
-                </div>
-                {shipment.trackingNumber && (
-                  <div>
-                    <dt className="text-xs text-muted-foreground">No. Resi</dt>
-                    <dd className="font-mono text-xs font-semibold text-foreground">
-                      {shipment.trackingNumber}
-                    </dd>
-                  </div>
-                )}
-                <div>
-                  <dt className="text-xs text-muted-foreground">
-                    Status Pengiriman
-                  </dt>
-                  <dd className="font-medium text-foreground">
-                    {shipment.status === "PENDING" && "Menunggu Pickup"}
-                    {shipment.status === "PROCESSING" && "Sedang Diproses"}
-                    {shipment.status === "SHIPPED" && "Dalam Perjalanan"}
-                    {shipment.status === "DELIVERED" && "Sudah Diterima"}
-                    {shipment.status === "CANCELLED" && "Pengiriman Dibatalkan"}
-                  </dd>
-                </div>
-                {shipment.estimatedDays && (
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Estimasi</dt>
-                    <dd className="font-medium text-foreground">
-                      {shipment.estimatedDays} hari kerja
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            </section>
-          )}
-        </div>
 
-        {/* Kolom Kanan: Ringkasan Pembayaran */}
-        <aside className="lg:col-span-1">
-          <div className="sticky top-24 space-y-4">
+              <ul className="divide-y divide-border">
+                {order.items.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center gap-4 py-3.5 first:pt-0 last:pb-0"
+                  >
+                    {item.product.image ? (
+                      <div className="relative aspect-[4/5] h-20 w-16 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-container-low">
+                        <Image
+                          src={item.product.image}
+                          alt={item.product.name}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="flex aspect-[4/5] h-20 w-16 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-container-low text-muted-foreground"
+                        aria-hidden="true"
+                      >
+                        <Flower2 className="h-6 w-6" />
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      {item.product.slug ? (
+                        <Link
+                          href={`/products/${item.product.slug}`}
+                          className="block truncate text-sm font-medium text-foreground hover:text-primary hover:underline"
+                        >
+                          {item.product.name}
+                        </Link>
+                      ) : (
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {item.product.name}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                        {item.quantity} × {formatRupiah(item.price)}
+                      </p>
+                      {order.status === "DELIVERED" && item.product.slug && (
+                        <Link
+                          href={`/products/${item.product.slug}`}
+                          className="mt-1.5 inline-flex items-center text-xs font-semibold text-primary underline-offset-4 hover:underline"
+                        >
+                          Tulis Ulasan
+                          <span className="sr-only"> untuk {item.product.name}</span>
+                        </Link>
+                      )}
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                      {formatRupiah(item.subtotal)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            {/* Catatan Pesanan */}
+            {order.notes?.trim() && (
+              <section
+                aria-labelledby="notes-heading"
+                className="rounded-2xl border border-border bg-card p-6"
+              >
+                <h2
+                  id="notes-heading"
+                  className="mb-3 border-b border-border pb-3 text-base font-semibold text-foreground"
+                >
+                  Catatan Pesanan
+                </h2>
+                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground">
+                  {order.notes}
+                </p>
+              </section>
+            )}
+
+            {/* Alamat Pengiriman */}
+            {order.address && (
+              <section
+                aria-labelledby="address-heading"
+                className="rounded-2xl border border-border bg-card p-6"
+              >
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+                  <h2
+                    id="address-heading"
+                    className="text-base font-semibold text-foreground"
+                  >
+                    Alamat Pengiriman
+                  </h2>
+                  <span className="rounded-full border border-border bg-surface-container-low px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {order.address.label}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-foreground">
+                  {order.address.recipientName}
+                  <span className="mx-1.5 text-muted-foreground">·</span>
+                  <span className="font-normal tabular-nums text-muted-foreground">
+                    {order.address.phone}
+                  </span>
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  {order.address.fullAddress}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {order.address.city}, {order.address.province}{" "}
+                  {order.address.postalCode}
+                </p>
+              </section>
+            )}
+
+            {/* Info Pengiriman */}
+            {activeShipment && (
+              <section
+                aria-labelledby="shipment-heading"
+                className="rounded-2xl border border-border bg-card p-6"
+              >
+                <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+                  <h2
+                    id="shipment-heading"
+                    className="text-base font-semibold text-foreground"
+                  >
+                    Pengiriman
+                  </h2>
+                  <Link
+                    href={`/orders/${order.id}/tracking`}
+                    className="text-xs font-semibold text-primary underline-offset-4 hover:underline"
+                  >
+                    Lacak →
+                  </Link>
+                </div>
+
+                <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Kurir</dt>
+                    <dd className="mt-0.5 font-medium uppercase text-foreground">
+                      {activeShipment.courier}
+                      {activeShipment.service
+                        ? ` (${activeShipment.service})`
+                        : ""}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Status</dt>
+                    <dd className="mt-0.5 font-medium text-foreground">
+                      {formatShipmentStatus(activeShipment.status)}
+                    </dd>
+                  </div>
+
+                  {activeShipment.trackingNumber && (
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        No. Resi
+                      </dt>
+                      <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-foreground">
+                          {activeShipment.trackingNumber}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleCopyTracking(
+                              activeShipment.trackingNumber!,
+                            )
+                          }
+                          aria-label={`Salin nomor resi ${activeShipment.trackingNumber}`}
+                          className="inline-flex min-h-7 items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[11px] font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+                        >
+                          <Copy className="h-3 w-3" aria-hidden="true" />
+                          <span>Salin</span>
+                        </button>
+                        {copiedTracking && (
+                          <span
+                            role="status"
+                            className="text-xs font-medium text-primary"
+                          >
+                            Disalin
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+                  )}
+
+                  {activeShipment.estimatedDays && (
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        Estimasi
+                      </dt>
+                      <dd className="mt-0.5 font-medium tabular-nums text-foreground">
+                        {activeShipment.estimatedDays} hari kerja
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              </section>
+            )}
+          </div>
+
+          {/* Kolom Kanan: Ringkasan Pembayaran Gelap Sticky */}
+          <aside className="lg:sticky lg:top-24">
             <section
               aria-labelledby="summary-heading"
-              className="rounded-2xl border border-border bg-card p-6"
+              className="overflow-hidden rounded-2xl border border-white/10 bg-surface-dark p-6 text-white sm:p-7"
             >
               <h2
                 id="summary-heading"
-                className="mb-4 border-b border-border pb-3 text-base font-semibold text-foreground"
+                className="text-xl font-bold tracking-tight text-white"
               >
-                Ringkasan pembayaran
+                Ringkasan Pembayaran
               </h2>
 
-              <dl className="space-y-2.5 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Subtotal produk</dt>
-                  <dd className="font-medium tabular-nums text-foreground">
+              <dl className="mt-5 space-y-3 border-t border-white/10 pt-5 text-sm">
+                <div className="flex justify-between text-white/75">
+                  <dt>Subtotal</dt>
+                  <dd className="font-semibold tabular-nums text-white">
                     {formatRupiah(order.subtotal)}
                   </dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Ongkos kirim</dt>
-                  <dd className="font-medium tabular-nums text-foreground">
+                <div className="flex justify-between text-white/75">
+                  <dt>Ongkos kirim</dt>
+                  <dd className="font-semibold tabular-nums text-white">
                     {formatRupiah(order.shippingCost)}
                   </dd>
                 </div>
                 {order.discount > 0 && (
-                  <div className="flex justify-between">
-                    <dt className="text-success">Diskon</dt>
-                    <dd className="font-medium tabular-nums text-success">
+                  <div className="flex justify-between text-success">
+                    <dt>Diskon</dt>
+                    <dd className="font-semibold tabular-nums">
                       -{formatRupiah(order.discount)}
                     </dd>
                   </div>
                 )}
-                <div className="flex items-baseline justify-between border-t border-border pt-3 text-base">
-                  <dt className="font-bold text-foreground">Total</dt>
-                  <dd className="text-xl font-bold tabular-nums text-foreground">
+                <div className="flex items-baseline justify-between border-t border-white/10 pt-4 text-base">
+                  <dt className="font-medium text-white/75">Total</dt>
+                  <dd className="text-2xl font-extrabold tabular-nums text-white">
                     {formatRupiah(order.totalAmount)}
                   </dd>
                 </div>
               </dl>
 
               {order.payment && (
-                <div className="mt-5 rounded-xl bg-surface-container-low p-4 text-xs">
-                  <p className="text-muted-foreground">Metode Pembayaran</p>
-                  <p className="mt-0.5 font-semibold capitalize text-foreground">
-                    {order.payment.method}
+                <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4 text-xs">
+                  <p className="text-white/60">Metode Pembayaran</p>
+                  <p className="mt-0.5 font-semibold text-white">
+                    {formatPaymentMethod(order.payment.method)}
                   </p>
                   {order.payment.paidAt && (
-                    <p className="mt-2 text-muted-foreground">
-                      Dibayar pada {formatDateTime(order.payment.paidAt)}
+                    <p className="mt-2 tabular-nums text-white/60">
+                      Dibayar · {formatDateTime(order.payment.paidAt)}
                     </p>
                   )}
                 </div>
               )}
 
               {order.status === "PENDING" && (
-                <div className="mt-5 rounded-xl border border-warning/30 bg-warning/10 p-4 text-xs text-warning">
-                  <p className="text-sm font-bold">Menunggu Pembayaran</p>
-                  <p className="mt-1 text-muted-foreground">
-                    Gunakan tombol <strong>Bayar Sekarang</strong> di atas untuk
-                    segera menyelesaikan pembayaran Anda.
-                  </p>
+                <div className="mt-6 space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={handlePayNow}
+                    disabled={isPaying}
+                    className="btn-primary w-full text-sm font-semibold tabular-nums disabled:opacity-50"
+                  >
+                    {isPaying ? (
+                      <span>Menyiapkan...</span>
+                    ) : (
+                      <span>Bayar · {formatRupiah(order.totalAmount)}</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelError(null);
+                      setShowCancelModal(true);
+                    }}
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-white/15 px-4 text-xs font-semibold text-white/80 transition-colors hover:border-error/40 hover:bg-error/10 hover:text-error"
+                  >
+                    Batalkan Pesanan
+                  </button>
                 </div>
               )}
+
+              {canConfirmDelivery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeliveryFeedback(null);
+                    setShowConfirmDelivery(true);
+                  }}
+                  className="btn-primary mt-6 w-full text-sm font-semibold"
+                >
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  <span>Pesanan Diterima</span>
+                </button>
+              )}
+
+              {canTrackShipment && (
+                <Link
+                  href={`/orders/${order.id}/tracking`}
+                  className={`${canConfirmDelivery ? "mt-2.5" : "mt-6"} inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-surface-dark transition-colors hover:bg-white/90`}
+                >
+                  <Truck className="h-4 w-4" aria-hidden="true" />
+                  <span>Lacak Pengiriman</span>
+                </Link>
+              )}
             </section>
-          </div>
-        </aside>
+          </aside>
+        </div>
       </div>
+
+      {/* Modal Konfirmasi Batalkan Pesanan */}
+      <Modal
+        isOpen={showCancelModal}
+        onClose={() => !isCancelling && setShowCancelModal(false)}
+        title="Batalkan Pesanan?"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setShowCancelModal(false)}
+              disabled={isCancelling}
+              className="btn-secondary h-10 flex-1 py-0 text-sm disabled:opacity-50"
+            >
+              Kembali
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmCancel}
+              disabled={isCancelling}
+              className="h-10 flex-1 rounded-xl bg-error px-4 text-sm font-semibold text-white transition-colors hover:bg-error/90 disabled:opacity-50"
+            >
+              {isCancelling ? "Membatalkan..." : "Ya, Batalkan"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Pesanan{" "}
+            <span className="font-mono font-semibold text-foreground">
+              #{order.orderNumber}
+            </span>{" "}
+            akan dibatalkan dan stok produk dikembalikan.
+          </p>
+
+          {cancelError && (
+            <div
+              role="alert"
+              className="rounded-xl border border-error/30 bg-error/10 p-3 text-xs text-error"
+            >
+              {cancelError}
+            </div>
+          )}
+        </div>
+      </Modal>
+      <ConfirmDialog
+        isOpen={showConfirmDelivery}
+        onClose={() => !isConfirmingDelivery && setShowConfirmDelivery(false)}
+        onConfirm={handleConfirmDelivery}
+        title="Konfirmasi pesanan diterima?"
+        description="Pastikan bunga sudah diterima dengan baik. Setelah dikonfirmasi, pesanan selesai dan Anda dapat menulis ulasan."
+        confirmLabel="Ya, Sudah Diterima"
+        cancelLabel="Batal"
+        loading={isConfirmingDelivery}
+      />
     </main>
   );
 }
@@ -625,17 +971,21 @@ export default function OrderDetailPage({
 function getStatusMeta(status: string) {
   switch (status) {
     case "PENDING":
-      return { label: "Menunggu Pembayaran", dot: "bg-warning" };
+      return { label: "Belum Bayar", dot: "bg-warning" };
     case "PAID":
-      return { label: "Pembayaran Berhasil", dot: "bg-success" };
+      return { label: "Dibayar", dot: "bg-success" };
     case "PROCESSING":
-      return { label: "Sedang Diproses", dot: "bg-info" };
+      return { label: "Diproses", dot: "bg-info" };
+    case "READY_TO_SHIP":
+      return { label: "Siap Dikirim", dot: "bg-info" };
     case "SHIPPED":
-      return { label: "Sedang Dikirim", dot: "bg-tertiary" };
+      return { label: "Dikirim", dot: "bg-tertiary" };
     case "DELIVERED":
-      return { label: "Pesanan Selesai", dot: "bg-success" };
+      return { label: "Selesai", dot: "bg-success" };
     case "CANCELLED":
       return { label: "Dibatalkan", dot: "bg-error" };
+    case "REFUNDED":
+      return { label: "Dana Dikembalikan", dot: "bg-muted-foreground" };
     default:
       return { label: status, dot: "bg-muted-foreground" };
   }

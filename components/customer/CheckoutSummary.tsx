@@ -18,46 +18,57 @@ interface CheckoutSummaryProps {
   onCheckout: () => void;
   isProcessing?: boolean;
   isDisabled?: boolean;
+  isCalculatingShipping?: boolean;
+  hasMultipleFlorists?: boolean;
 }
 
-// Component ringkasan pembayaran dengan detail harga dan tombol checkout
+// Ringkasan pembayaran sticky gelap dengan total dan nominal tombol bayar eksplisit
 export function CheckoutSummary({
+  items,
   subtotal,
   shippingCost,
   appliedCoupon,
   onCheckout,
   isProcessing = false,
   isDisabled = false,
+  isCalculatingShipping = false,
+  hasMultipleFlorists = false,
 }: CheckoutSummaryProps) {
-  // Calculate discount dan total akhir
   const discount = appliedCoupon ? appliedCoupon.discountAmount : 0;
   const finalTotal = Math.max(0, subtotal + shippingCost - discount);
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const buttonDisabled =
+    isProcessing || isDisabled || isCalculatingShipping || hasMultipleFlorists;
 
   return (
     <section
       className="sticky top-24 overflow-hidden rounded-2xl border border-white/10 bg-surface-dark p-6 text-white sm:p-7"
       aria-labelledby="checkout-summary-heading"
     >
-      <div className="border-b border-white/10 pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
-          Pembayaran
-        </p>
-        <h2 id="checkout-summary-heading" className="mt-1 text-2xl font-bold tracking-tight text-white">
-          Ringkasan Pesanan
-        </h2>
-      </div>
+      <h2
+        id="checkout-summary-heading"
+        className="text-xl font-bold tracking-tight text-white sm:text-2xl"
+      >
+        Ringkasan Pembayaran
+      </h2>
 
-      <dl className="mt-6 space-y-3.5 border-b border-white/10 pb-6 text-sm">
-        <div className="flex items-center justify-between text-white/70">
-          <dt>Subtotal Produk</dt>
+      <dl className="mt-5 space-y-3.5 border-t border-white/10 pt-5 text-sm">
+        <div className="flex items-center justify-between text-white/75">
+          <dt>Subtotal ({itemCount} produk)</dt>
           <dd className="font-semibold tabular-nums text-white">
             {formatRupiah(subtotal)}
           </dd>
         </div>
-        <div className="flex items-center justify-between text-white/70">
-          <dt>Ongkos Kirim</dt>
+        <div className="flex items-center justify-between text-white/75">
+          <dt>Ongkos kirim</dt>
           <dd className="font-semibold tabular-nums text-white">
-            {formatRupiah(shippingCost)}
+            {isCalculatingShipping ? (
+              <span className="text-xs font-normal text-white/60">
+                Menghitung...
+              </span>
+            ) : (
+              formatRupiah(shippingCost)
+            )}
           </dd>
         </div>
         {discount > 0 && appliedCoupon && (
@@ -65,21 +76,16 @@ export function CheckoutSummary({
             <dt className="text-xs uppercase tracking-wider">
               Diskon ({appliedCoupon.code})
             </dt>
-            <dd className="font-bold tabular-nums">
+            <dd className="font-semibold tabular-nums">
               -{formatRupiah(discount)}
             </dd>
           </div>
         )}
       </dl>
 
-      <div className="mt-6 flex items-baseline justify-between">
-        <div>
-          <span className="text-xs uppercase tracking-wider text-white/60">
-            Total Bayar
-          </span>
-          <p className="text-xs text-white/40">Termasuk ongkir & diskon</p>
-        </div>
-        <p className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+      <div className="mt-6 flex items-baseline justify-between border-t border-white/10 pt-6">
+        <span className="text-sm font-medium text-white/75">Total</span>
+        <p className="text-2xl font-extrabold tracking-tight tabular-nums text-white sm:text-3xl">
           {formatRupiah(finalTotal)}
         </p>
       </div>
@@ -87,15 +93,19 @@ export function CheckoutSummary({
       <button
         type="button"
         onClick={onCheckout}
-        disabled={isProcessing || isDisabled}
+        disabled={buttonDisabled}
         className="btn-primary mt-6 w-full text-base font-semibold disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isProcessing ? (
-          <span>Memproses Pembayaran...</span>
+        {hasMultipleFlorists ? (
+          <span>Pilih produk dari 1 toko</span>
+        ) : isProcessing ? (
+          <span>Memproses...</span>
+        ) : finalTotal === 0 ? (
+          <span>Selesaikan Pesanan</span>
         ) : (
-          <span className="inline-flex items-center gap-2">
-            <Lock className="h-4 w-4" aria-hidden="true" />
-            Bayar Sekarang
+          <span className="inline-flex items-center gap-2 tabular-nums">
+            <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>Bayar · {formatRupiah(finalTotal)}</span>
           </span>
         )}
       </button>

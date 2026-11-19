@@ -73,6 +73,8 @@ export interface CartItem {
   quantity: number;
   stock: number;
   floristId: string;
+  floristName?: string;
+  slug?: string;
 }
 
 // Tipe status pesanan sesuai dengan enum database

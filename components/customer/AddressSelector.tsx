@@ -10,20 +10,19 @@ interface AddressSelectorProps {
   onSelect: (addressId: string) => void;
 }
 
-// Component untuk pilih alamat pengiriman dari list yang tersimpan
+// Choice cards untuk memilih alamat pengiriman tersimpan
 export default function AddressSelector({
   addresses,
   selectedId,
   onSelect,
 }: AddressSelectorProps) {
-  // Tampilkan empty state jika belum ada alamat
   if (addresses.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-surface-container-low p-6 text-center sm:p-8">
-        <h3 className="mt-4 text-sm font-semibold text-foreground">
+      <div className="rounded-2xl border border-dashed border-border bg-surface-container-low/60 p-6 text-center sm:p-8">
+        <p className="text-sm font-semibold text-foreground">
           Belum ada alamat tersimpan
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
           Tambahkan alamat pengiriman terlebih dahulu.
         </p>
       </div>
@@ -31,50 +30,65 @@ export default function AddressSelector({
   }
 
   return (
-    <div className="space-y-3" role="radiogroup" aria-label="Pilih alamat pengiriman">
+    <fieldset className="space-y-3">
+      <legend className="sr-only">Pilih alamat pengiriman</legend>
       {addresses.map((address) => {
         const isSelected = selectedId === address.id;
         return (
-          <button
+          <label
             key={address.id}
-            type="button"
-            role="radio"
-            aria-checked={isSelected}
-            onClick={() => onSelect(address.id)}
-            className={`relative w-full cursor-pointer rounded-2xl p-4 pr-12 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            className={`relative flex cursor-pointer items-start justify-between gap-4 rounded-2xl border-2 p-4 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring ${
               isSelected
-                ? "border-2 border-foreground bg-surface shadow-sm"
-                : "border border-border bg-surface hover:border-foreground/30 hover:bg-muted/20"
+                ? "border-foreground bg-surface-container-low/60"
+                : "border-border bg-card hover:border-foreground/30"
             }`}
           >
-            {isSelected && (
-              <div className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white" aria-hidden="true">
-                <Check className="h-3.5 w-3.5" />
-              </div>
-            )}
+            <input
+              type="radio"
+              name="shipping-address"
+              value={address.id}
+              checked={isSelected}
+              onChange={() => onSelect(address.id)}
+              className="sr-only"
+            />
 
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-bold text-foreground">
+                <span className="text-sm font-semibold text-foreground">
                   {address.label}
                 </span>
                 {address.isDefault && (
-                  <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="rounded-full border border-border bg-surface-container-low px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Utama
                   </span>
                 )}
               </div>
-              <p className="mt-1 break-words text-sm font-medium text-foreground">
-                {address.recipientName} • <span className="text-muted-foreground">{address.phone}</span>
+              <p className="mt-1 break-words text-sm text-foreground">
+                {address.recipientName}
+                <span className="mx-1.5 text-muted-foreground">·</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {address.phone}
+                </span>
               </p>
               <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
                 {address.fullAddress}, {address.city}, {address.province}{" "}
                 {address.postalCode}
               </p>
             </div>
-          </button>
+
+            <span
+              aria-hidden="true"
+              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                isSelected
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-transparent"
+              }`}
+            >
+              <Check className="h-3 w-3" />
+            </span>
+          </label>
         );
       })}
-    </div>
+    </fieldset>
   );
 }

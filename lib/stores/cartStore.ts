@@ -10,6 +10,8 @@ interface AddToCartProduct {
   image: string | null;
   stock: number;
   floristId: string;
+  floristName?: string;
+  slug?: string;
 }
 
 // Interface state dan aksi untuk store keranjang belanja
@@ -19,6 +21,11 @@ interface CartStore {
   setHasHydrated: (hydrated: boolean) => void;
   addItem: (product: AddToCartProduct, quantity?: number) => void;
   removeItem: (productId: string) => void;
+  removeItemsByFlorist: (floristId: string) => void;
+  keepOnlyFlorist: (floristId: string) => void;
+  hydrateItemMetadata: (
+    metaById: Record<string, { floristName?: string; slug?: string }>,
+  ) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   getTotal: () => number;
@@ -53,6 +60,8 @@ export const useCartStore = create<CartStore>()(
                       ...item,
                       stock: product.stock,
                       price: product.price,
+                      floristName: product.floristName ?? item.floristName,
+                      slug: product.slug ?? item.slug,
                       quantity: clampQuantity(
                         item.quantity + quantity,
                         product.stock,
@@ -71,6 +80,8 @@ export const useCartStore = create<CartStore>()(
             quantity: clampQuantity(quantity, product.stock),
             stock: product.stock,
             floristId: product.floristId,
+            floristName: product.floristName,
+            slug: product.slug,
           };
 
           return { items: [...state.items, newItem] };
@@ -81,6 +92,43 @@ export const useCartStore = create<CartStore>()(
         set((state) => ({
           items: state.items.filter((item) => item.productId !== productId),
         }));
+      },
+      // Hapus seluruh item milik satu florist tertentu dari keranjang
+      removeItemsByFlorist: (floristId: string) => {
+        set((state) => ({
+          items: state.items.filter((item) => item.floristId !== floristId),
+        }));
+      },
+      // Sisakan hanya item dari satu florist yang dipilih untuk checkout
+      keepOnlyFlorist: (floristId: string) => {
+        set((state) => ({
+          items: state.items.filter((item) => item.floristId === floristId),
+        }));
+      },
+      // Lengkapi metadata nama toko & slug pada item lama yang sudah tersimpan di localStorage
+      hydrateItemMetadata: (metaById) => {
+        set((state) => {
+          let changed = false;
+          const nextItems = state.items.map((item) => {
+            const meta = metaById[item.productId];
+            if (!meta) return item;
+            const nextFloristName = meta.floristName || item.floristName;
+            const nextSlug = meta.slug || item.slug;
+            if (
+              nextFloristName === item.floristName &&
+              nextSlug === item.slug
+            ) {
+              return item;
+            }
+            changed = true;
+            return {
+              ...item,
+              floristName: nextFloristName,
+              slug: nextSlug,
+            };
+          });
+          return changed ? { items: nextItems } : state;
+        });
       },
       // Perbarui kuantitas item produk tertentu di keranjang
       updateQuantity: (productId: string, quantity: number) => {

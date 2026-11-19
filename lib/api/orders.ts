@@ -1,7 +1,7 @@
 import { fetchJson } from "./client";
 
 // Interface rincian lengkap data pesanan beserta relasinya
-interface OrderDetail {
+export interface OrderDetail {
   id: string;
   orderNumber: string;
   status: string;
@@ -11,6 +11,13 @@ interface OrderDetail {
   discount: number;
   totalAmount: number;
   createdAt: string;
+  updatedAt?: string;
+  florist?: {
+    id: string;
+    shopName: string;
+    logo: string | null;
+    city: string | null;
+  } | null;
   items: Array<{
     id: string;
     quantity: number;
@@ -19,6 +26,7 @@ interface OrderDetail {
     product: {
       id: string;
       name: string;
+      slug?: string;
       image: string;
       currentPrice: number;
     };
@@ -33,6 +41,16 @@ interface OrderDetail {
     province: string;
     postalCode: string;
   } | null;
+  shipment?: {
+    id: string;
+    courier: string;
+    service: string | null;
+    trackingNumber: string | null;
+    status: string;
+    estimatedDays: number | null;
+    shippedAt: string | null;
+    deliveredAt: string | null;
+  } | null;
   payment: {
     id: string;
     amount: number;
@@ -41,7 +59,7 @@ interface OrderDetail {
     transactionId: string | null;
     paidAt: string | null;
   } | null;
-  user: {
+  user?: {
     name: string;
     email: string;
     phone: string | null;
@@ -58,25 +76,37 @@ interface OrderDetailResponse {
 }
 
 // Interface ringkasan data pesanan untuk riwayat belanja
-interface OrderSummary {
+export interface OrderSummary {
   id: string;
   orderNumber: string;
   totalAmount: number;
   status: string;
   itemCount: number;
   createdAt: string;
+  florist?: {
+    id: string;
+    shopName: string;
+    logo: string | null;
+  } | null;
   items: Array<{
     id: string;
     quantity?: number;
     product: {
       id: string;
       name: string;
+      slug?: string;
       image?: string;
     };
   }>;
   payment: {
     status: string;
   };
+  shipment?: {
+    id: string;
+    status: string;
+    courier: string;
+    trackingNumber: string | null;
+  } | null;
 }
 
 // Interface respons API untuk riwayat pesanan dengan paginasi
@@ -180,6 +210,22 @@ export async function cancelOrder(orderId: string): Promise<{
     message: string;
     data?: { orderId: string };
   }>(`/api/customer/orders/${encodeURIComponent(orderId)}/cancel`, {
+    method: "POST",
+    credentials: "include",
+  });
+}
+
+// Fungsi untuk mengonfirmasi pesanan telah diterima oleh pembeli (SHIPPED -> DELIVERED)
+export async function confirmOrderDelivery(orderId: string): Promise<{
+  success: boolean;
+  message: string;
+  data?: { orderId: string; status: string; deliveredAt: string };
+}> {
+  return fetchJson<{
+    success: boolean;
+    message: string;
+    data?: { orderId: string; status: string; deliveredAt: string };
+  }>(`/api/customer/orders/${encodeURIComponent(orderId)}/confirm-delivery`, {
     method: "POST",
     credentials: "include",
   });

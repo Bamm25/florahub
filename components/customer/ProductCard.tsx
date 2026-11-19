@@ -54,6 +54,8 @@ export default function ProductCard({
       image: product.image,
       stock: product.stock,
       floristId: product.floristId,
+      floristName: shopName,
+      slug: product.slug,
     });
     setJustAdded(true);
     if (timerRef.current !== null) {

@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import { Flower2 } from "lucide-react";
 import { formatRupiah } from "@/lib/utils/formatters";
 
 // Interface untuk item produk di keranjang checkout
@@ -8,43 +10,76 @@ interface CartItem {
   name: string;
   quantity: number;
   price: number;
+  image?: string | null;
+  floristName?: string;
 }
 
 // Props interface untuk komponen list produk yang dipesan
 interface OrderItemsProps {
   items: CartItem[];
+  stepNumber?: string;
 }
 
-// Component display list produk yang dipesan dengan harga
-export default function OrderItems({ items }: OrderItemsProps) {
+// Daftar produk yang dipesan dengan foto portrait dan rincian harga
+export default function OrderItems({ items, stepNumber = "03" }: OrderItemsProps) {
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+  const storeName = items.find((item) => item.floristName?.trim())?.floristName;
 
   return (
     <section
       className="rounded-2xl border border-border bg-card"
       aria-labelledby="order-items-heading"
     >
-      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-6 py-4">
-        <h2 id="order-items-heading" className="text-base font-semibold text-foreground">
-          Produk dipesan
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {items.length} produk · {totalQuantity} barang
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-6 py-4">
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-xs font-semibold tracking-wider text-muted-foreground">
+            {stepNumber}
+          </span>
+          <h2
+            id="order-items-heading"
+            className="text-base font-semibold text-foreground"
+          >
+            Produk Dipesan
+          </h2>
+        </div>
+        <p className="text-xs font-medium text-muted-foreground">
+          {storeName ? `${storeName} · ${totalQuantity} item` : `${totalQuantity} item`}
         </p>
       </header>
       <ul className="divide-y divide-border">
         {items.map((item) => (
           <li
             key={item.productId}
-            className="flex flex-wrap items-start justify-between gap-2 px-6 py-4"
+            className="flex items-center gap-4 px-6 py-4"
           >
+            {item.image ? (
+              <div className="relative aspect-[4/5] h-16 w-14 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-container-low">
+                <Image
+                  src={item.image}
+                  alt={item.name}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+              </div>
+            ) : (
+              <div
+                className="flex aspect-[4/5] h-16 w-14 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-container-low text-muted-foreground"
+                aria-hidden="true"
+              >
+                <Flower2 className="h-5 w-5" />
+              </div>
+            )}
+
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground">{item.name}</p>
-              <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+              <p className="truncate text-sm font-medium text-foreground">
+                {item.name}
+              </p>
+              <p className="mt-1 text-xs tabular-nums text-muted-foreground">
                 {item.quantity} × {formatRupiah(item.price)}
               </p>
             </div>
-            <p className="text-sm font-semibold tabular-nums text-foreground">
+            <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
               {formatRupiah(item.price * item.quantity)}
             </p>
           </li>

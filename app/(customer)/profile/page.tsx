@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { Bell, ChevronRight, MapPin, Package } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
 import { LoadingSpinner, ErrorState } from "@/components/ui";
@@ -14,7 +15,7 @@ import {
 } from "@/lib/api/customer";
 import { formatDate, formatRupiah } from "@/lib/utils/formatters";
 
-// Halaman profil user dengan info personal dan statistik orders
+// Halaman profil akun editorial dengan masthead gelap tunggal, ringkasan belanja, dan modal edit profil
 export default function ProfilePage() {
   const router = useRouter();
   const { status, update } = useSession();
@@ -24,7 +25,6 @@ export default function ProfilePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Fetch profile data dari API
   const loadProfile = useCallback(async (signal?: AbortSignal): Promise<void> => {
     try {
       setIsLoading(true);
@@ -41,7 +41,7 @@ export default function ProfilePage() {
         return;
       }
       setErrorMessage(
-        error instanceof Error ? error.message : "Gagal memuat profil",
+        error instanceof Error ? error.message : "Gagal memuat profil.",
       );
     } finally {
       if (!signal?.aborted) {
@@ -50,7 +50,6 @@ export default function ProfilePage() {
     }
   }, []);
 
-  // Redirect ke login jika belum auth, load profile data saat authenticated
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/login?callbackUrl=/profile");
@@ -71,178 +70,251 @@ export default function ProfilePage() {
     };
   }, [status, router, loadProfile]);
 
-  // Render loading spinner untuk profile page
   if (status === "loading" || isLoading) {
     return (
-      <main className="container-custom section-spacing">
-        <LoadingSpinner message="Memuat profil akun..." />
+      <main className="min-h-dvh bg-background">
+        <div className="container-custom section-spacing">
+          <LoadingSpinner message="Memuat profil..." />
+        </div>
       </main>
     );
   }
 
   if (errorMessage && !profile) {
     return (
-      <main className="container-custom section-spacing">
-        <ErrorState
-          title="Gagal Memuat Profil"
-          error={errorMessage}
-          onRetry={() => void loadProfile()}
-        />
+      <main className="min-h-dvh bg-background">
+        <div className="container-custom section-spacing">
+          <ErrorState
+            title="Gagal Memuat Profil"
+            error={errorMessage}
+            onRetry={() => void loadProfile()}
+          />
+        </div>
       </main>
     );
   }
 
+  const initialLetter = profile?.name
+    ? profile.name.charAt(0).toUpperCase()
+    : "U";
+
   return (
-    <main className="container-custom section-spacing">
-      {/* Header Halaman */}
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Akun Saya
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Profil Saya
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Kelola informasi data diri dan preferensi akun Anda.
-          </p>
-        </div>
-        <div className="flex gap-2.5">
-          <Link
-            href="/profile/addresses"
-            className="btn-secondary h-11 px-5 py-0 text-sm font-semibold"
-          >
-            Alamat Saya
-          </Link>
-          <button
-            onClick={() => setShowEditModal(true)}
-            className="btn-primary h-11 px-5 py-0 text-sm"
-          >
-            Ubah Profil
-          </button>
-        </div>
-      </header>
-
-      {errorMessage && (
-        <div
-          role="alert"
-          className="mb-6 rounded-xl border border-error/30 bg-error/5 p-4 text-sm text-error"
-        >
-          {errorMessage}
-        </div>
-      )}
-
-      {profile && (
-        <div className="space-y-6">
-          {/* Hero Banner: Inisial, Nama, Status */}
-          <section
-            aria-labelledby="profile-summary-heading"
-            className="rounded-2xl bg-surface-dark p-6 text-white sm:p-8 border border-white/10"
-          >
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+    <main className="min-h-dvh bg-background pb-16 sm:pb-24">
+      {/* Full-Bleed Dark Editorial Masthead */}
+      <section className="border-b border-white/10 bg-surface-dark py-10 text-white sm:py-14">
+        <div className="container-custom">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex items-center gap-5">
               <div
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 border border-white/15 text-xl font-bold text-white shadow-xs"
                 aria-hidden="true"
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 font-display text-2xl italic text-kicker"
               >
-                {profile.name ? profile.name.charAt(0).toUpperCase() : "U"}
+                {initialLetter}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2
-                    id="profile-summary-heading"
-                    className="truncate text-xl font-bold text-white sm:text-2xl"
-                  >
-                    {profile.name}
-                  </h2>
-                  {profile.emailVerified && (
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="truncate text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+                    {profile?.name || "Profil"}
+                  </h1>
+                  {profile?.emailVerified && (
                     <span className="rounded-full bg-success/20 px-2.5 py-0.5 text-xs font-semibold text-success">
                       Terverifikasi
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-white/70">
-                  {profile.email} · Anggota sejak {formatDate(profile.createdAt)}
-                </p>
+                {profile && (
+                  <p className="mt-1.5 text-sm text-white/70">
+                    {profile.email} · Bergabung {formatDate(profile.createdAt)}
+                  </p>
+                )}
               </div>
             </div>
-          </section>
 
-          {/* Data Detail & Statistik */}
-          <div className="grid gap-6 md:grid-cols-3">
-            {/* Informasi Pribadi */}
-            <section
-              aria-labelledby="personal-info-heading"
-              className="rounded-2xl border border-border bg-card p-6 md:col-span-2"
-            >
-              <h2
-                id="personal-info-heading"
-                className="border-b border-border pb-3 text-base font-semibold text-foreground"
+            <div className="flex flex-wrap gap-2.5">
+              <Link
+                href="/profile/addresses"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 text-sm font-semibold text-white transition-colors hover:bg-white/10"
               >
-                Data Kontak
-              </h2>
-
-              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs text-muted-foreground">Nama Lengkap</dt>
-                  <dd className="mt-0.5 text-sm font-medium text-foreground">
-                    {profile.name}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Email</dt>
-                  <dd className="mt-0.5 text-sm font-medium text-foreground">
-                    {profile.email}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">No. Telepon</dt>
-                  <dd className="mt-0.5 font-mono text-sm font-medium text-foreground">
-                    {profile.phone || "Belum diisi"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Bergabung</dt>
-                  <dd className="mt-0.5 text-sm font-medium text-foreground">
-                    {formatDate(profile.createdAt)}
-                  </dd>
-                </div>
-              </dl>
-            </section>
-
-            {/* Quick Stats */}
-            <aside
-              aria-labelledby="stats-heading"
-              className="space-y-4 md:col-span-1"
-            >
-              {profile.totalOrders !== undefined && (
-                <div className="rounded-2xl border border-border bg-card p-5">
-                  <p className="text-xs text-muted-foreground">Total Pesanan</p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-                    {profile.totalOrders}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Pesanan selesai
-                  </p>
-                </div>
-              )}
-
-              {profile.totalSpent !== undefined && (
-                <div className="rounded-2xl border border-border bg-card p-5">
-                  <p className="text-xs text-muted-foreground">Total Belanja</p>
-                  <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
-                    {formatRupiah(profile.totalSpent)}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Dalam 12 bulan terakhir
-                  </p>
-                </div>
-              )}
-            </aside>
+                Buku Alamat
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(true)}
+                className="btn-primary h-11 px-5 py-0 text-sm"
+              >
+                Ubah Profil
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Edit Profile Modal */}
+      <div className="container-custom pt-8 sm:pt-12">
+        {errorMessage && (
+          <div
+            role="alert"
+            className="mb-6 rounded-xl border border-error/30 bg-error/10 p-4 text-sm text-error"
+          >
+            {errorMessage}
+          </div>
+        )}
+
+        {profile && (
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start xl:gap-12">
+            {/* Kolom Kiri: Data Kontak & Akses Cepat */}
+            <div className="space-y-6">
+              <section
+                aria-labelledby="personal-info-heading"
+                className="rounded-2xl border border-border bg-card p-6 sm:p-7"
+              >
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <h2
+                    id="personal-info-heading"
+                    className="text-base font-semibold text-foreground"
+                  >
+                    Data Kontak
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(true)}
+                    className="min-h-9 rounded-lg px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                  >
+                    Ubah
+                  </button>
+                </div>
+
+                <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">
+                      Nama Lengkap
+                    </dt>
+                    <dd className="mt-1 text-sm font-medium text-foreground">
+                      {profile.name}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Email</dt>
+                    <dd className="mt-1 break-all text-sm font-medium text-foreground">
+                      {profile.email}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">
+                      No. Telepon
+                    </dt>
+                    <dd className="mt-1 font-mono text-sm font-medium tabular-nums text-foreground">
+                      {profile.phone || "Belum diisi"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Bergabung</dt>
+                    <dd className="mt-1 text-sm font-medium text-foreground">
+                      {formatDate(profile.createdAt)}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              {/* Akses Cepat */}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Link
+                  href="/orders"
+                  className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-foreground/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-low text-primary">
+                      <Package className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      Pesanan Saya
+                    </span>
+                  </div>
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Link>
+
+                <Link
+                  href="/profile/addresses"
+                  className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-foreground/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-low text-primary">
+                      <MapPin className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      Alamat
+                    </span>
+                  </div>
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Link>
+
+                <Link
+                  href="/notifications"
+                  className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-foreground/30"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-low text-primary">
+                      <Bell className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      Notifikasi
+                    </span>
+                  </div>
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Link>
+              </div>
+            </div>
+
+            {/* Kolom Kanan: Kartu Ringkasan Belanja Gelap Sticky */}
+            <aside className="lg:sticky lg:top-24" aria-labelledby="stats-heading">
+              <section className="overflow-hidden rounded-2xl border border-white/10 bg-surface-dark p-6 text-white sm:p-7">
+                <div className="flex items-baseline justify-between gap-2 border-b border-white/10 pb-4">
+                  <h2
+                    id="stats-heading"
+                    className="text-xl font-bold tracking-tight text-white"
+                  >
+                    Ringkasan Belanja
+                  </h2>
+                  <span className="text-xs text-white/60">12 bulan</span>
+                </div>
+
+                <dl className="mt-5 space-y-4 text-sm">
+                  <div className="flex items-baseline justify-between">
+                    <dt className="text-white/70">Pesanan selesai</dt>
+                    <dd className="text-2xl font-bold tabular-nums text-white">
+                      {profile.totalOrders ?? 0}
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline justify-between border-t border-white/10 pt-4">
+                    <dt className="text-white/70">Total belanja</dt>
+                    <dd className="text-xl font-extrabold tabular-nums text-kicker">
+                      {formatRupiah(profile.totalSpent ?? 0)}
+                    </dd>
+                  </div>
+                </dl>
+
+                <Link
+                  href="/orders"
+                  className="btn-primary mt-6 w-full text-sm font-semibold"
+                >
+                  Lihat Pesanan
+                </Link>
+              </section>
+            </aside>
+          </div>
+        )}
+      </div>
+
+      {/* Modal Ubah Profil */}
       {showEditModal && profile && (
         <EditProfileModal
           profile={profile}
@@ -251,7 +323,7 @@ export default function ProfilePage() {
             if (updatedName) {
               await update({ name: updatedName });
             }
-            loadProfile();
+            void loadProfile();
           }}
           onCancel={() => setShowEditModal(false)}
         />
@@ -260,14 +332,13 @@ export default function ProfilePage() {
   );
 }
 
-// Props interface untuk modal edit profil user
 interface EditProfileModalProps {
   profile: CustomerProfileData;
   onSuccess: (updatedName?: string) => void;
   onCancel: () => void;
 }
 
-// Modal untuk edit nama dan phone user
+// Modal untuk edit nama dan nomor telepon pengguna
 function EditProfileModal({
   profile,
   onSuccess,
@@ -282,7 +353,6 @@ function EditProfileModal({
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Validasi kelengkapan data formulir edit profil sebelum disimpan
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
@@ -307,7 +377,6 @@ function EditProfileModal({
     return Object.keys(errors).length === 0;
   };
 
-  // Handle submit edit profile dan refresh session
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -327,7 +396,7 @@ function EditProfileModal({
       onSuccess(formData.name.trim());
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Gagal memperbarui profil",
+        err instanceof Error ? err.message : "Gagal memperbarui profil.",
       );
     } finally {
       setIsSubmitting(false);
@@ -335,27 +404,24 @@ function EditProfileModal({
   };
 
   return (
-    <Modal
-      isOpen
-      onClose={onCancel}
-      title="Ubah profil"
-      subtitle="Perbarui nama lengkap dan nomor telepon aktif Anda."
-      size="md"
-    >
+    <Modal isOpen onClose={onCancel} title="Ubah Profil" size="md">
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        {error && (
-          <div
-            role="alert"
-            className="rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error"
-          >
-            {error}
-          </div>
-        )}
+        <div aria-live="polite">
+          {error && (
+            <div
+              role="alert"
+              className="rounded-xl border border-error/30 bg-error/10 p-3 text-xs text-error"
+            >
+              {error}
+            </div>
+          )}
+        </div>
 
         <FormField
           label="Nama Lengkap"
           name="name"
           type="text"
+          autoComplete="name"
           value={formData.name}
           onChange={(value) => {
             setFormData((prev) => ({ ...prev, name: value }));
@@ -363,23 +429,26 @@ function EditProfileModal({
           }}
           error={formErrors.name}
           required
-          placeholder="Masukkan nama lengkap"
+          placeholder="Nama lengkap"
         />
 
         <FormField
           label="Email"
           name="email"
           type="email"
+          autoComplete="email"
           value={profile.email}
           onChange={() => {}}
           disabled
-          placeholder="Email tidak dapat diubah"
+          placeholder="Email akun"
         />
 
         <FormField
           label="No. Telepon"
           name="phone"
-          type="text"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
           value={formData.phone}
           onChange={(value) => {
             setFormData((prev) => ({ ...prev, phone: value }));
@@ -404,7 +473,7 @@ function EditProfileModal({
             className="btn-primary h-11 px-6 py-0 text-sm disabled:cursor-not-allowed"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
+            {isSubmitting ? "Menyimpan..." : "Simpan"}
           </button>
         </div>
       </form>

@@ -144,12 +144,22 @@ export async function GET(request: Request) {
 
     const search = searchParams.get("search") || "";
     const categoryId = searchParams.get("categoryId") || "";
+    const idsParam = searchParams.get("ids") || "";
     const { page, limit, skip } = parsePaginationParams(searchParams, 20, 100);
 
     const whereClause: Prisma.ProductWhereInput = {
       isActive: true,
       florist: { isActive: true },
     };
+    if (idsParam.trim()) {
+      const parsedIds = idsParam
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (parsedIds.length > 0) {
+        whereClause.id = { in: parsedIds };
+      }
+    }
     if (search) {
       whereClause.name = {
         contains: search,
@@ -169,6 +179,11 @@ export async function GET(request: Request) {
             select: {
               id: true,
               name: true,
+              floristProfile: {
+                select: {
+                  shopName: true,
+                },
+              },
             },
           },
         },

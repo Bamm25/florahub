@@ -12,6 +12,8 @@ interface StoreQuickAddButtonProps {
     image: string;
     stock: number;
     floristId: string;
+    floristName?: string;
+    slug?: string;
   };
   fullWidth?: boolean;
 }
@@ -43,6 +45,8 @@ export default function StoreQuickAddButton({
       image: product.image,
       stock: product.stock,
       floristId: product.floristId,
+      floristName: product.floristName,
+      slug: product.slug,
     });
     setJustAdded(true);
     if (timerRef.current !== null) {

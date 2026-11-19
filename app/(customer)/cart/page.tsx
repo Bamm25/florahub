@@ -7,22 +7,31 @@ import {
   ArrowLeft,
   ArrowRight,
   Flower2,
+  Store,
   Trash2,
 } from "lucide-react";
 import CartTable from "@/components/customer/CartTable";
 import { ConfirmDialog, LoadingSpinner } from "@/components/ui";
 import { useCartStore } from "@/lib/stores/cartStore";
 import { formatRupiah } from "@/lib/utils/formatters";
+import type { CartItem } from "@/types";
 
-// Halaman keranjang belanja editorial dengan guard satu florist dan ringkasan transparan
+interface FloristGroupSummary {
+  floristId: string;
+  floristName: string;
+  itemCount: number;
+  subtotal: number;
+}
+
+// Halaman keranjang belanja editorial dengan pengelompokan per toko florist dan resolusi cepat 1-toko
 export default function CartPage() {
   const items = useCartStore((state) => state.items);
   const hasHydrated = useCartStore((state) => state._hasHydrated);
   const total = useCartStore((state) => state.getTotal());
   const clearCart = useCartStore((state) => state.clearCart);
+  const keepOnlyFlorist = useCartStore((state) => state.keepOnlyFlorist);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
-  // Render loading saat belum terhidrasi untuk mencegah hydration mismatch
   if (!hasHydrated) {
     return (
       <div className="container-custom py-12">
@@ -32,7 +41,30 @@ export default function CartPage() {
   }
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const distinctFlorists = new Set(items.map((item) => item.floristId)).size;
+
+  const groupMap = new Map<string, CartItem[]>();
+  for (const item of items) {
+    const existing = groupMap.get(item.floristId);
+    if (existing) {
+      existing.push(item);
+    } else {
+      groupMap.set(item.floristId, [item]);
+    }
+  }
+
+  const floristGroups: FloristGroupSummary[] = Array.from(
+    groupMap.entries(),
+  ).map(([floristId, groupItems], idx) => {
+    const namedItem = groupItems.find((i) => i.floristName?.trim());
+    return {
+      floristId,
+      floristName: namedItem?.floristName?.trim() || `Toko Florist #${idx + 1}`,
+      itemCount: groupItems.reduce((sum, i) => sum + i.quantity, 0),
+      subtotal: groupItems.reduce((sum, i) => sum + i.price * i.quantity, 0),
+    };
+  });
+
+  const distinctFlorists = floristGroups.length;
   const hasMultipleFlorists = distinctFlorists > 1;
 
   return (
@@ -60,9 +92,11 @@ export default function CartPage() {
                   Belanja
                 </span>
               </h1>
-              <p className="mt-2 text-base text-white/70">
+              <p className="mt-2 text-base tabular-nums text-white/70">
                 {items.length > 0
-                  ? `${itemCount} produk siap dipesan.`
+                  ? hasMultipleFlorists
+                    ? `${itemCount} produk dari ${distinctFlorists} toko florist.`
+                    : `${itemCount} produk · ${floristGroups[0]?.floristName}.`
                   : "Keranjang masih kosong."}
               </p>
             </div>
@@ -116,23 +150,45 @@ export default function CartPage() {
         ) : (
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:gap-14">
             {/* Items Column */}
-            <div className="space-y-4">
+            <div className="space-y-5">
               {hasMultipleFlorists && (
                 <div
                   role="alert"
-                  className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 text-sm text-foreground"
+                  className="rounded-2xl border border-warning/40 bg-warning/10 p-5 text-sm text-foreground sm:p-6"
                 >
-                  <AlertCircle
-                    className="mt-0.5 h-5 w-5 shrink-0 text-warning"
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <p className="font-semibold text-foreground">
-                      Produk berasal dari {distinctFlorists} toko berbeda
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      Satu checkout hanya berlaku untuk 1 toko. Sisakan produk dari satu toko untuk melanjutkan.
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <AlertCircle
+                      className="mt-0.5 h-5 w-5 shrink-0 text-warning"
+                      aria-hidden="true"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-bold tracking-tight text-foreground">
+                        Keranjang berisi {distinctFlorists} toko berbeda
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                        Checkout diproses per 1 toko. Pilih toko yang ingin
+                        dipesan sekarang:
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2.5">
+                        {floristGroups.map((group) => (
+                          <button
+                            key={group.floristId}
+                            type="button"
+                            onClick={() => keepOnlyFlorist(group.floristId)}
+                            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
+                          >
+                            <Store
+                              className="h-3.5 w-3.5 shrink-0 text-primary"
+                              aria-hidden="true"
+                            />
+                            <span>Pakai {group.floristName}</span>
+                            <span className="tabular-nums text-muted-foreground">
+                              ({group.itemCount} · {formatRupiah(group.subtotal)})
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -148,12 +204,36 @@ export default function CartPage() {
                 </h2>
 
                 <dl className="mt-5 space-y-3.5 border-t border-white/10 pt-5 text-sm">
-                  <div className="flex items-center justify-between text-white/75">
-                    <dt>Subtotal ({itemCount} produk)</dt>
-                    <dd className="font-semibold tabular-nums text-white">
-                      {formatRupiah(total)}
-                    </dd>
-                  </div>
+                  {!hasMultipleFlorists && floristGroups[0] ? (
+                    <>
+                      <div className="flex items-center justify-between text-white/75">
+                        <dt>Toko</dt>
+                        <dd className="truncate pl-4 font-semibold text-kicker">
+                          {floristGroups[0].floristName}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between text-white/75">
+                        <dt>Subtotal ({itemCount} produk)</dt>
+                        <dd className="font-semibold tabular-nums text-white">
+                          {formatRupiah(total)}
+                        </dd>
+                      </div>
+                    </>
+                  ) : (
+                    floristGroups.map((group) => (
+                      <div
+                        key={group.floristId}
+                        className="flex items-center justify-between gap-3 text-white/75"
+                      >
+                        <dt className="truncate">
+                          {group.floristName} ({group.itemCount})
+                        </dt>
+                        <dd className="shrink-0 font-semibold tabular-nums text-white">
+                          {formatRupiah(group.subtotal)}
+                        </dd>
+                      </div>
+                    ))
+                  )}
                   <div className="flex items-center justify-between text-white/75">
                     <dt>Ongkos kirim</dt>
                     <dd className="text-xs text-white/60">
@@ -167,7 +247,9 @@ export default function CartPage() {
                     <span className="text-sm font-medium text-white/75">
                       Total
                     </span>
-                    <p className="text-xs text-white/45">Belum termasuk ongkir</p>
+                    <p className="text-xs text-white/45">
+                      Belum termasuk ongkir
+                    </p>
                   </div>
                   <p className="text-2xl font-extrabold tracking-tight tabular-nums text-white sm:text-3xl">
                     {formatRupiah(total)}
@@ -180,7 +262,7 @@ export default function CartPage() {
                     disabled
                     className="btn-primary mt-6 w-full cursor-not-allowed text-sm font-semibold opacity-60"
                   >
-                    Pilih produk dari 1 toko
+                    Pilih 1 Toko untuk Checkout
                   </button>
                 ) : (
                   <Link

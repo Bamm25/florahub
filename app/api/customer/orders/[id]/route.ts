@@ -32,9 +32,27 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
+                slug: true,
                 price: true,
                 image: true,
                 category: true,
+                florist: {
+                  select: {
+                    id: true,
+                    name: true,
+                    floristProfile: {
+                      select: {
+                        shopName: true,
+                        logo: true,
+                        defaultAddress: {
+                          select: {
+                            city: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -73,6 +91,8 @@ export async function GET(
       );
     }
 
+    const primaryFlorist = order.items[0]?.product.florist;
+
     // Transformasi data pesanan ke dalam format respons klien
     const orderDetail = {
       id: order.id,
@@ -85,6 +105,15 @@ export async function GET(
       discount: order.discount,
       totalAmount: order.totalAmount,
 
+      florist: primaryFlorist
+        ? {
+            id: primaryFlorist.id,
+            shopName: primaryFlorist.floristProfile?.shopName || primaryFlorist.name,
+            logo: primaryFlorist.floristProfile?.logo ?? null,
+            city: primaryFlorist.floristProfile?.defaultAddress?.city ?? null,
+          }
+        : null,
+
       items: order.items.map((item) => ({
         id: item.id,
         quantity: item.quantity,
@@ -93,6 +122,7 @@ export async function GET(
         product: {
           id: item.product.id,
           name: item.product.name,
+          slug: item.product.slug,
           image: item.product.image,
           currentPrice: item.product.price,
         },

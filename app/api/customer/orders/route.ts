@@ -55,7 +55,20 @@ export async function GET(request: Request) {
                 select: {
                   id: true,
                   name: true,
+                  slug: true,
                   image: true,
+                  florist: {
+                    select: {
+                      id: true,
+                      name: true,
+                      floristProfile: {
+                        select: {
+                          shopName: true,
+                          logo: true,
+                        },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -82,34 +95,45 @@ export async function GET(request: Request) {
     ]);
 
     // Format data ringkasan pesanan untuk konsumsi klien
-    const ordersSummary = orders.map((order) => ({
-      id: order.id,
-      orderNumber: order.orderNumber,
-      totalAmount: order.totalAmount,
-      status: order.status,
-      itemCount: order.items.length,
-      createdAt: order.createdAt,
-      items: order.items.map((item) => ({
-        id: item.id,
-        quantity: item.quantity,
-        product: {
-          id: item.product.id,
-          name: item.product.name,
-          image: item.product.image,
+    const ordersSummary = orders.map((order) => {
+      const primaryFlorist = order.items[0]?.product.florist;
+      return {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount,
+        status: order.status,
+        itemCount: order.items.length,
+        createdAt: order.createdAt,
+        florist: primaryFlorist
+          ? {
+              id: primaryFlorist.id,
+              shopName: primaryFlorist.floristProfile?.shopName || primaryFlorist.name,
+              logo: primaryFlorist.floristProfile?.logo ?? null,
+            }
+          : null,
+        items: order.items.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          product: {
+            id: item.product.id,
+            name: item.product.name,
+            slug: item.product.slug,
+            image: item.product.image,
+          },
+        })),
+        payment: {
+          status: order.payment?.status,
         },
-      })),
-      payment: {
-        status: order.payment?.status,
-      },
-      shipment: order.shipment
-        ? {
-            id: order.shipment.id,
-            status: order.shipment.status,
-            courier: order.shipment.courier,
-            trackingNumber: order.shipment.trackingNumber,
-          }
-        : null,
-    }));
+        shipment: order.shipment
+          ? {
+              id: order.shipment.id,
+              status: order.shipment.status,
+              courier: order.shipment.courier,
+              trackingNumber: order.shipment.trackingNumber,
+            }
+          : null,
+      };
+    });
 
     // Kirim respons daftar pesanan beserta metadata paginasi
     return NextResponse.json({

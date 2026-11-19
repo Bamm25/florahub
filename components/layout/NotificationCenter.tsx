@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -17,16 +17,21 @@ import {
   TrendingUp,
   Truck,
 } from "lucide-react";
-import { EmptyState, ErrorState, LoadingSpinner } from "@/components/ui";
+import {
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  LoadingSpinner,
+} from "@/components/ui";
 import { useNotifications } from "@/hooks";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils/formatters";
 
 interface NotificationCenterProps {
-  kicker: string;
-  subtitle: string;
-  totalDescription: string;
-  unreadDescription: string;
-  emptyDescription: string;
+  kicker?: string;
+  subtitle?: string;
+  totalDescription?: string;
+  unreadDescription?: string;
+  emptyDescription?: string;
   loadingMessage?: string;
   variant?: "customer" | "portal";
   portalRole?: "FLORIST" | "SUPPLIER";
@@ -41,38 +46,38 @@ function getNotificationIcon(
   switch (type) {
     case "ORDER_CREATED":
     case "PAYMENT_SUCCESS":
-      return <ShoppingCart className="h-5 w-5 text-primary" />;
+      return <ShoppingCart className="h-5 w-5 text-primary" aria-hidden="true" />;
     case "SHIPMENT_UPDATE":
       return portalRole === "FLORIST" ? (
-        <Package className="h-5 w-5 text-sky-500" />
+        <Package className="h-5 w-5 text-info" aria-hidden="true" />
       ) : (
-        <Truck className="h-5 w-5 text-sky-500" />
+        <Truck className="h-5 w-5 text-info" aria-hidden="true" />
       );
     case "LOW_STOCK_ALERT":
-      return <TrendingUp className="h-5 w-5 text-rose-500" />;
+      return <TrendingUp className="h-5 w-5 text-error" aria-hidden="true" />;
     case "HARVEST_ANNOUNCEMENT":
       return portalRole === "SUPPLIER" ? (
-        <Sprout className="h-5 w-5 text-primary" />
+        <Sprout className="h-5 w-5 text-primary" aria-hidden="true" />
       ) : (
-        <Calendar className="h-5 w-5 text-primary" />
+        <Calendar className="h-5 w-5 text-primary" aria-hidden="true" />
       );
     case "PREORDER_CONFIRMED":
-      return <Calendar className="h-5 w-5 text-amber-500" />;
+      return <Calendar className="h-5 w-5 text-warning" aria-hidden="true" />;
     default:
       return portalRole ? (
-        <Bell className="h-5 w-5 text-muted-foreground" />
+        <Bell className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
       ) : (
-        <Package className="h-5 w-5 text-primary" />
+        <Package className="h-5 w-5 text-primary" aria-hidden="true" />
       );
   }
 }
 
 export function NotificationCenter({
-  kicker,
+  kicker = "Notifikasi",
   subtitle,
-  totalDescription,
-  unreadDescription,
-  emptyDescription,
+  totalDescription = "Total pemberitahuan",
+  unreadDescription = "Belum dibuka",
+  emptyDescription = "Belum ada pemberitahuan.",
   loadingMessage = "Memuat notifikasi...",
   variant = "portal",
   portalRole,
@@ -98,18 +103,36 @@ export function NotificationCenter({
     requireSessionGate ? { enabled: status === "authenticated" } : undefined,
   );
 
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     if (requireSessionGate && status === "unauthenticated") {
       router.push(loginRedirectUrl);
     }
   }, [requireSessionGate, status, router, loginRedirectUrl]);
 
-  const handleDeleteNotification = async (notificationId: string) => {
-    if (!window.confirm("Hapus notifikasi ini?")) return;
-    await deleteNotification(notificationId);
+  const handleConfirmDeleteNotification = async () => {
+    if (!pendingDeleteId) return;
+    setIsDeleting(true);
+    try {
+      await deleteNotification(pendingDeleteId);
+    } finally {
+      setIsDeleting(false);
+      setPendingDeleteId(null);
+    }
   };
 
   if ((requireSessionGate && status === "loading") || isLoading) {
+    if (variant === "customer") {
+      return (
+        <main className="min-h-dvh bg-background">
+          <div className="container-custom section-spacing">
+            <LoadingSpinner message={loadingMessage} />
+          </div>
+        </main>
+      );
+    }
     return <LoadingSpinner message={loadingMessage} />;
   }
 
@@ -122,108 +145,53 @@ export function NotificationCenter({
       />
     );
     return variant === "customer" ? (
-      <main className="container-custom section-spacing">{errorNode}</main>
+      <main className="min-h-dvh bg-background">
+        <div className="container-custom section-spacing">{errorNode}</div>
+      </main>
     ) : (
       errorNode
     );
   }
 
-  const wrapperClass =
-    variant === "customer"
-      ? "container-custom section-spacing space-y-6 sm:space-y-8"
-      : "mx-auto max-w-7xl space-y-6 sm:space-y-8";
+  const isCustomer = variant === "customer";
 
-  const WrapperTag = variant === "customer" ? "main" : "div";
-
-  return (
-    <WrapperTag className={wrapperClass}>
-      {/* Header Banner */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white shadow-xs sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
-            {kicker}
-          </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
-            Notifikasi
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
-            {subtitle}
-          </p>
-        </div>
-        {unreadCount > 0 && (
-          <button
-            type="button"
-            onClick={markAllAsRead}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
-          >
-            <CheckCheck className="h-4 w-4" />
-            <span>Tandai Semua Dibaca</span>
-          </button>
-        )}
-      </div>
-
-      {/* Ringkasan Statistik Notifikasi */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-surface p-5 shadow-2xs">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Total Notifikasi
-          </p>
-          <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-foreground">
-            {notifications.length}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {totalDescription}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border bg-surface p-5 shadow-2xs">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Belum Dibaca
-          </p>
-          <p
-            className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${
-              unreadCount > 0 ? "text-amber-600" : "text-foreground"
-            }`}
-          >
-            {unreadCount}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {unreadDescription}
-          </p>
-        </div>
-      </div>
-
-      {/* Tab Filter */}
-      <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setFilter("ALL")}
-            className={`rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
-              filter === "ALL"
-                ? "bg-primary text-primary-foreground"
-                : "bg-surface-container-low text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Semua
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilter("UNREAD")}
-            className={`rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${
-              filter === "UNREAD"
-                ? "bg-primary text-primary-foreground"
-                : "bg-surface-container-low text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Belum Dibaca {unreadCount > 0 && `(${unreadCount})`}
-          </button>
-        </div>
+  const notificationListBlock = (
+    <>
+      <div
+        role="group"
+        aria-label="Filter notifikasi"
+        className="flex flex-wrap gap-2"
+      >
+        <button
+          type="button"
+          aria-pressed={filter === "ALL"}
+          onClick={() => setFilter("ALL")}
+          className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors sm:text-sm ${
+            filter === "ALL"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+          }`}
+        >
+          Semua ({notifications.length})
+        </button>
+        <button
+          type="button"
+          aria-pressed={filter === "UNREAD"}
+          onClick={() => setFilter("UNREAD")}
+          className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors sm:text-sm ${
+            filter === "UNREAD"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+          }`}
+        >
+          Belum Dibaca ({unreadCount})
+        </button>
       </div>
 
       {actionError && (
         <div
           role="alert"
-          className="flex items-center justify-between gap-3 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error"
+          className="flex items-center justify-between gap-3 rounded-xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error"
         >
           <span>{actionError}</span>
           <button
@@ -236,131 +204,257 @@ export function NotificationCenter({
         </div>
       )}
 
-      {/* Daftar Notifikasi */}
       {notifications.length === 0 ? (
         <EmptyState
-          icon={<Bell className="h-6 w-6" />}
+          icon={<Bell className="h-6 w-6" aria-hidden="true" />}
           title={
             filter === "UNREAD"
-              ? "Tidak ada notifikasi yang belum dibaca"
+              ? "Semua notifikasi sudah dibaca"
               : "Belum ada notifikasi"
           }
-          description={
-            filter === "UNREAD"
-              ? "Semua notifikasi telah selesai Anda tinjau."
-              : emptyDescription
-          }
+          description={filter === "UNREAD" ? "" : emptyDescription}
         />
       ) : (
         <div className="space-y-3">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`rounded-2xl border p-5 transition-all ${
-                !notification.isRead
-                  ? "border-primary/40 bg-primary/[0.03] shadow-xs"
-                  : "border-border bg-surface"
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                <div className="mt-0.5 flex-shrink-0">
-                  <div
-                    className={`rounded-xl p-2.5 ${
-                      !notification.isRead
-                        ? "bg-primary/10 text-primary"
-                        : "bg-surface-container-low text-muted-foreground"
-                    }`}
-                  >
-                    {getNotificationIcon(notification.type, portalRole)}
+          {notifications.map((notification) => {
+            const isUnread = !notification.isRead;
+            return (
+              <article
+                key={notification.id}
+                className={`rounded-2xl border p-5 transition-colors ${
+                  isUnread
+                    ? "border-border border-l-4 border-l-primary bg-primary/[0.03]"
+                    : "border-border bg-card"
+                }`}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="mt-0.5 shrink-0">
+                    <div
+                      className={`rounded-xl p-2.5 ${
+                        isUnread
+                          ? "bg-primary/10 text-primary"
+                          : "bg-surface-container-low text-muted-foreground"
+                      }`}
+                    >
+                      {getNotificationIcon(notification.type, portalRole)}
+                    </div>
                   </div>
-                </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3
-                          className={`text-sm font-semibold ${
-                            !notification.isRead
-                              ? "font-bold text-foreground"
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h2
+                            className={`text-sm ${
+                              isUnread
+                                ? "font-bold text-foreground"
+                                : "font-semibold text-muted-foreground"
+                            }`}
+                          >
+                            {notification.title}
+                          </h2>
+                          {isUnread && (
+                            <span
+                              className="inline-block h-2 w-2 shrink-0 rounded-full bg-primary"
+                              aria-hidden="true"
+                            />
+                          )}
+                        </div>
+
+                        <p
+                          className={`mt-1 text-sm leading-relaxed ${
+                            isUnread
+                              ? "text-foreground"
                               : "text-muted-foreground"
                           }`}
                         >
-                          {notification.title}
-                        </h3>
-                        {!notification.isRead && (
-                          <span className="inline-block h-2 w-2 rounded-full bg-primary" />
-                        )}
-                      </div>
-                      <p
-                        className={`mt-1 text-sm leading-relaxed ${
-                          !notification.isRead
-                            ? "text-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {notification.message}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span className="font-mono">
-                          {notification.createdAt
-                            ? formatRelativeTime(notification.createdAt)
-                            : "Waktu tidak tersedia"}
-                        </span>
-                        {notification.createdAt && (
-                          <span>• {formatDateTime(notification.createdAt)}</span>
-                        )}
-                      </div>
+                          {notification.message}
+                        </p>
 
-                      {notification.link && (
-                        <div className="mt-3">
-                          <Link
-                            href={notification.link}
-                            onClick={() => {
-                              if (!notification.isRead) {
-                                void markAsRead(notification.id);
-                              }
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-surface-container"
-                          >
-                            <span>Buka Halaman Terkait</span>
-                            <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                          </Link>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs tabular-nums text-muted-foreground">
+                          <time dateTime={notification.createdAt}>
+                            {notification.createdAt
+                              ? formatRelativeTime(notification.createdAt)
+                              : "Waktu tidak tersedia"}
+                          </time>
+                          {notification.createdAt && (
+                            <>
+                              <span aria-hidden="true">·</span>
+                              <span>
+                                {formatDateTime(notification.createdAt)}
+                              </span>
+                            </>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    <div className="flex flex-shrink-0 items-center gap-1.5">
-                      {!notification.isRead && (
+                        {notification.link && (
+                          <div className="mt-3">
+                            <Link
+                              href={notification.link}
+                              onClick={() => {
+                                if (isUnread) {
+                                  void markAsRead(notification.id);
+                                }
+                              }}
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+                            >
+                              <span>
+                                Lihat Detail
+                                <span className="sr-only">
+                                  : {notification.title}
+                                </span>
+                              </span>
+                              <ArrowRight
+                                className="h-3 w-3 text-muted-foreground"
+                                aria-hidden="true"
+                              />
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1">
+                        {isUnread && (
+                          <button
+                            type="button"
+                            onClick={() => void markAsRead(notification.id)}
+                            aria-label={`Tandai dibaca: ${notification.title}`}
+                            className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl text-primary transition-colors hover:bg-primary/10"
+                          >
+                            <Check className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => void markAsRead(notification.id)}
-                          className="rounded-xl p-2 text-primary transition-colors hover:bg-primary/10"
-                          title="Tandai sudah dibaca"
-                          aria-label="Tandai sudah dibaca"
+                          onClick={() => setPendingDeleteId(notification.id)}
+                          aria-label={`Hapus notifikasi: ${notification.title}`}
+                          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl text-error transition-colors hover:bg-error/10"
                         >
-                          <Check className="h-4 w-4" aria-hidden="true" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void handleDeleteNotification(notification.id)
-                        }
-                        className="rounded-xl p-2 text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700"
-                        title="Hapus notifikasi"
-                        aria-label="Hapus notifikasi"
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
-    </WrapperTag>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeleteId)}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={handleConfirmDeleteNotification}
+        title="Hapus Notifikasi?"
+        description="Notifikasi yang dihapus tidak dapat dipulihkan."
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        variant="danger"
+        loading={isDeleting}
+      />
+    </>
+  );
+
+  if (isCustomer) {
+    return (
+      <main className="min-h-dvh bg-background pb-16 sm:pb-24">
+        {/* Full-Bleed Dark Editorial Masthead */}
+        <section className="border-b border-white/10 bg-surface-dark py-10 text-white sm:py-14">
+          <div className="container-custom">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
+                  Notifikasi
+                </h1>
+                <p className="mt-2 text-base tabular-nums text-white/70">
+                  {unreadCount > 0
+                    ? `${unreadCount} belum dibaca · ${notifications.length} total`
+                    : `${notifications.length} notifikasi`}
+                </p>
+              </div>
+
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={markAllAsRead}
+                  className="btn-primary inline-flex h-11 items-center gap-2 px-5 py-0 text-sm"
+                >
+                  <CheckCheck className="h-4 w-4" aria-hidden="true" />
+                  <span>Tandai Semua Dibaca</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <div className="container-custom space-y-6 pt-8 sm:pt-10">
+          {notificationListBlock}
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      {/* Header Banner Portal */}
+      <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
+            {kicker}
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
+            Notifikasi
+          </h1>
+          {subtitle && (
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        {unreadCount > 0 && (
+          <button
+            type="button"
+            onClick={markAllAsRead}
+            className="btn-primary inline-flex min-h-11 items-center justify-center gap-2 px-5 py-0 text-xs font-semibold"
+          >
+            <CheckCheck className="h-4 w-4" aria-hidden="true" />
+            <span>Tandai Semua Dibaca</span>
+          </button>
+        )}
+      </div>
+
+      {/* Ringkasan Statistik Portal */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Total Notifikasi
+          </p>
+          <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-foreground">
+            {notifications.length}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {totalDescription}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Belum Dibaca
+          </p>
+          <p
+            className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${
+              unreadCount > 0 ? "text-warning" : "text-foreground"
+            }`}
+          >
+            {unreadCount}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {unreadDescription}
+          </p>
+        </div>
+      </div>
+
+      {notificationListBlock}
+    </div>
   );
 }

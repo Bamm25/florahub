@@ -37,6 +37,10 @@ export default function StarProductsShowcase({
 
   const handleAddToCart = (product: Product) => {
     if (product.stock <= 0) return;
+    const floristName =
+      product.florist?.floristProfile?.shopName ||
+      product.florist?.name ||
+      "Toko Florist";
     addItem({
       id: product.id,
       name: product.name,
@@ -44,6 +48,8 @@ export default function StarProductsShowcase({
       image: product.image,
       stock: product.stock,
       floristId: product.floristId,
+      floristName,
+      slug: product.slug,
     });
     setAddedId(product.id);
     if (timerRef.current !== null) {

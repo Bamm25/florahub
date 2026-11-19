@@ -352,6 +352,8 @@ export default async function PublicStorePage({
                         image: spotlightProduct.image,
                         stock: spotlightProduct.stock,
                         floristId: store.id,
+                        floristName: shopName,
+                        slug: spotlightProduct.slug,
                       }}
                       fullWidth
                     />
@@ -584,6 +586,8 @@ export default async function PublicStorePage({
                         image: product.image,
                         stock: product.stock,
                         floristId: store.id,
+                        floristName: shopName,
+                        slug: product.slug,
                       }}
                     />
                   </div>

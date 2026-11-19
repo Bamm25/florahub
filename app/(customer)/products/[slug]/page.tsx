@@ -137,6 +137,8 @@ export default function ProductDetailPage() {
         image: product.image,
         stock: product.stock,
         floristId: product.florist.id,
+        floristName: product.florist.shopName,
+        slug: product.slug,
       },
       quantity,
     );

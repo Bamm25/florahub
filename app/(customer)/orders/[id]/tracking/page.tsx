@@ -1,58 +1,35 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  RefreshCw,
+} from "lucide-react";
+import {
+  confirmOrderDelivery,
   getOrderDetail,
   getOrderShipment,
+  type OrderDetail,
   type Shipment,
   type ShipmentTrackingDetails,
 } from "@/lib/api/orders";
-import { ArrowLeft, Copy, Check } from "lucide-react";
+import { ConfirmDialog, ErrorState } from "@/components/ui";
+import { buildOrderTrackingTimeline } from "@/lib/order-tracking-timeline";
 
-// Interface untuk data order di halaman tracking pengiriman
-interface OrderDetail {
-  id: string;
-  orderNumber: string;
-  status: string;
-  totalAmount: number;
-  createdAt: string;
-  updatedAt: string;
-  items: Array<{
-    id: string;
-    product: {
-      id: string;
-      name: string;
-      image: string;
-    };
-  }>;
-  address: {
-    recipientName: string;
-    phone: string;
-    fullAddress: string;
-    city: string;
-    province: string;
-  } | null;
-  payment: {
-    status: string;
-    paidAt: string | null;
-  } | null;
-}
+const TRACKING_STEPS = [
+  "Dirangkai",
+  "Dalam Perjalanan",
+  "Tiba",
+] as const;
 
-// Interface untuk timeline event shipment status tracking
-interface TimelineEvent {
-  id: string;
-  dateStr: string;
-  timeStr: string;
-  statusTitle: string;
-  description: string;
-  isLatest: boolean;
-  stepCategory: "created" | "transit" | "delivering" | "delivered";
-}
-
-// Halaman tracking pengiriman dengan timeline dan stepper progress
+// Halaman pelacakan pengiriman editorial dengan breadcrumbs semantik dan timeline kurir
 export default function OrderTrackingPage({
   params,
 }: {
@@ -68,91 +45,177 @@ export default function OrderTrackingPage({
   const [trackingDetails, setTrackingDetails] =
     useState<ShipmentTrackingDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedResi, setCopiedResi] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
+  const [showConfirmDelivery, setShowConfirmDelivery] = useState(false);
+  const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
+  const [confirmFeedback, setConfirmFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const resiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const orderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Redirect ke login jika belum auth, fetch order dan shipment data
+  useEffect(() => {
+    return () => {
+      if (resiTimerRef.current) clearTimeout(resiTimerRef.current);
+      if (orderTimerRef.current) clearTimeout(orderTimerRef.current);
+    };
+  }, []);
+
+  const loadTrackingData = useCallback(
+    async (options?: { signal?: AbortSignal; refresh?: boolean }) => {
+      const signal = options?.signal;
+      const isManualRefresh = Boolean(options?.refresh);
+
+      try {
+        if (isManualRefresh) {
+          setIsRefreshing(true);
+        } else {
+          setIsLoading(true);
+          setErrorMessage(null);
+        }
+
+        const orderRes = await getOrderDetail(orderId, signal);
+        if (signal?.aborted) return;
+        setOrder(orderRes.data.order);
+
+        try {
+          const shipRes = await getOrderShipment(orderId, signal);
+          if (!signal?.aborted) {
+            setShipment(shipRes.data.shipment);
+            setTrackingDetails(shipRes.data.tracking ?? null);
+          }
+        } catch {
+          if (!signal?.aborted) {
+            setShipment(null);
+            setTrackingDetails(null);
+          }
+        }
+      } catch (error) {
+        if (
+          signal?.aborted ||
+          (error instanceof Error && error.name === "AbortError")
+        ) {
+          return;
+        }
+        if (!isManualRefresh) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "Gagal memuat data pelacakan.",
+          );
+        }
+      } finally {
+        if (!signal?.aborted) {
+          if (isManualRefresh) {
+            setIsRefreshing(false);
+          } else {
+            setIsLoading(false);
+          }
+        }
+      }
+    },
+    [orderId],
+  );
+
   useEffect(() => {
     if (authStatus === "unauthenticated") {
       router.push(`/auth/login?callbackUrl=/orders/${orderId}/tracking`);
       return;
     }
 
-    async function loadTrackingData() {
-      try {
-        setIsLoading(true);
-        const orderRes = await getOrderDetail(orderId);
-        setOrder({
-          ...orderRes.data.order,
-          updatedAt:
-            ("updatedAt" in orderRes.data.order ? (orderRes.data.order as { updatedAt?: string }).updatedAt : undefined) ||
-            orderRes.data.order.createdAt,
-        });
+    if (authStatus !== "authenticated") {
+      return;
+    }
 
-        try {
-          const shipRes = await getOrderShipment(orderId);
-          setShipment(shipRes.data.shipment);
-          setTrackingDetails(shipRes.data.tracking ?? null);
-        } catch {
-          setShipment(null);
-          setTrackingDetails(null);
-        }
-      } catch (error) {
-        setErrorMessage(
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void loadTrackingData({ signal: controller.signal });
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [authStatus, orderId, router, loadTrackingData]);
+
+  const handleCopyResi = async (resi: string) => {
+    try {
+      await navigator.clipboard.writeText(resi);
+      setCopiedResi(true);
+      if (resiTimerRef.current) clearTimeout(resiTimerRef.current);
+      resiTimerRef.current = setTimeout(() => setCopiedResi(false), 2000);
+    } catch {
+      // Browser menolak akses clipboard
+    }
+  };
+
+  const handleCopyOrderId = async (orderNumber: string) => {
+    try {
+      await navigator.clipboard.writeText(orderNumber);
+      setCopiedOrderId(true);
+      if (orderTimerRef.current) clearTimeout(orderTimerRef.current);
+      orderTimerRef.current = setTimeout(() => setCopiedOrderId(false), 2000);
+    } catch {
+      // Browser menolak akses clipboard
+    }
+  };
+
+  const handleConfirmDelivery = async () => {
+    if (!order) return;
+    try {
+      setIsConfirmingDelivery(true);
+      setConfirmFeedback(null);
+      await confirmOrderDelivery(order.id);
+      setShowConfirmDelivery(false);
+      setConfirmFeedback({
+        type: "success",
+        message: "Pesanan dikonfirmasi diterima.",
+      });
+      await loadTrackingData({ refresh: true });
+    } catch (error) {
+      setShowConfirmDelivery(false);
+      setConfirmFeedback({
+        type: "error",
+        message:
           error instanceof Error
             ? error.message
-            : "Gagal memuat data pelacakan",
-        );
-      } finally {
-        setIsLoading(false);
-      }
+            : "Gagal mengonfirmasi penerimaan pesanan.",
+      });
+    } finally {
+      setIsConfirmingDelivery(false);
     }
-
-    if (authStatus === "authenticated") {
-      loadTrackingData();
-    }
-  }, [authStatus, orderId, router]);
-
-  // Copy nomor resi ke clipboard dengan feedback visual
-  const handleCopyResi = (resi: string) => {
-    navigator.clipboard.writeText(resi);
-    setCopiedResi(true);
-    setTimeout(() => setCopiedResi(false), 2000);
   };
 
-  // Copy order ID ke clipboard dengan feedback visual
-  const handleCopyOrderId = (id: string) => {
-    navigator.clipboard.writeText(id);
-    setCopiedOrderId(true);
-    setTimeout(() => setCopiedOrderId(false), 2000);
-  };
-
-  // Render loading skeleton untuk tracking page
   if (authStatus === "loading" || isLoading) {
     return (
-      <main className="container-custom section-spacing">
-        <div className="h-6 w-32 animate-pulse rounded bg-surface-container mb-6" />
-        <div className="h-40 animate-pulse rounded-2xl bg-surface-container-low mb-6" />
-        <div className="h-72 animate-pulse rounded-2xl bg-surface-container-low" />
+      <main className="min-h-dvh bg-background">
+        <div className="container-custom section-spacing">
+          <div className="mb-6 h-6 w-40 animate-pulse rounded bg-surface-container" />
+          <div className="mb-6 h-44 animate-pulse rounded-2xl bg-surface-container-low" />
+          <div className="h-72 animate-pulse rounded-2xl bg-surface-container-low" />
+        </div>
       </main>
     );
   }
 
-  // Render error state jika order tidak ditemukan
   if (errorMessage || !order) {
     return (
-      <main className="container-custom section-spacing">
-        <div className="mx-auto max-w-lg rounded-2xl border border-border bg-card p-8 text-center">
-          <p className="text-base font-semibold text-error">
-            {errorMessage || "Pesanan tidak ditemukan"}
-          </p>
-          <div className="mt-5">
+      <main className="min-h-dvh bg-background">
+        <div className="container-custom section-spacing space-y-4">
+          <ErrorState
+            title="Data Pelacakan Tidak Tersedia"
+            error={errorMessage || "Pesanan tidak ditemukan."}
+            onRetry={() => void loadTrackingData()}
+          />
+          <div className="flex justify-center">
             <Link
               href={`/orders/${orderId}`}
               className="btn-primary h-10 px-5 text-sm"
             >
-              Kembali ke Rincian Pesanan
+              Rincian Pesanan
             </Link>
           </div>
         </div>
@@ -160,8 +223,9 @@ export default function OrderTrackingPage({
     );
   }
 
-  const customerCity = order.address?.city || "Alamat Tujuan";
-  const courierName = shipment?.courier || "Menunggu Penugasan Kurir";
+  const courierDisplayName = shipment?.courier
+    ? shipment.courier.toUpperCase()
+    : "Menunggu penugasan kurir";
 
   const createdDate = new Date(order.createdAt);
   const estDays = shipment?.estimatedDays || 2;
@@ -175,390 +239,431 @@ export default function OrderTrackingPage({
   });
 
   const isCancelled =
-    order.status === "CANCELLED" || shipment?.status === "CANCELLED";
+    order.status === "CANCELLED" ||
+    order.status === "REFUNDED" ||
+    shipment?.status === "CANCELLED";
   const isDelivered =
     order.status === "DELIVERED" || shipment?.status === "DELIVERED";
   const isShipped =
     shipment?.status === "SHIPPED" ||
     (order.status === "SHIPPED" &&
       shipment?.status !== "PENDING" &&
-      shipment?.status !== "PROCESSING");
+      shipment?.status !== "PROCESSING" &&
+      shipment?.status !== "READY_TO_SHIP");
   const isProcessing =
     order.status === "PROCESSING" ||
+    order.status === "READY_TO_SHIP" ||
     shipment?.status === "PROCESSING" ||
+    shipment?.status === "READY_TO_SHIP" ||
     shipment?.status === "PENDING";
 
-  let activeStep = 0;
+  let activeStepIndex = 0;
   if (isDelivered) {
-    activeStep = 3;
+    activeStepIndex = 2;
   } else if (isShipped) {
-    activeStep = 2;
+    activeStepIndex = 1;
   } else if (isProcessing || order.status === "PAID") {
-    activeStep = 1;
+    activeStepIndex = 0;
   }
 
-  const events: TimelineEvent[] = [];
+  const canConfirmDelivery =
+    order.status === "SHIPPED" && !isCancelled && !isDelivered;
 
-  const formatEventDate = (d: Date) => ({
-    dateStr: d.toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
-    timeStr: d.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  });
+  const events = buildOrderTrackingTimeline({
+    order,
+    shipment,
+    remoteHistory: trackingDetails?.history ?? [],
+  }).toSorted(
+    (a, b) => b.timestampMs - a.timestampMs || b.phaseRank - a.phaseRank,
+  );
 
-  const remoteHistory = trackingDetails?.history ?? [];
-
-  if (remoteHistory.length > 0) {
-    const sortedRemote = [...remoteHistory].sort(
-      (a, b) =>
-        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-    );
-    sortedRemote.forEach((entry, idx) => {
-      const eventDate = new Date(entry.updated_at || order.updatedAt);
-      const { dateStr, timeStr } = formatEventDate(
-        Number.isNaN(eventDate.getTime()) ? createdDate : eventDate,
-      );
-      const stepCategory: TimelineEvent["stepCategory"] =
-        entry.status === "delivered"
-          ? "delivered"
-          : entry.status === "dropping_off"
-            ? "delivering"
-            : entry.status === "picked"
-              ? "transit"
-              : "created";
-
-      events.push({
-        id: `biteship-${idx}`,
-        dateStr,
-        timeStr,
-        statusTitle: entry.status.replace(/_/g, " ").toUpperCase(),
-        description: entry.note || `Pembaruan kurir ${courierName}`,
-        isLatest: idx === 0,
-        stepCategory,
-      });
-    });
-  } else {
-    if (isCancelled) {
-      const cancelDate = new Date(order.updatedAt);
-      const { dateStr, timeStr } = formatEventDate(cancelDate);
-      events.push({
-        id: "ev-cancelled",
-        dateStr,
-        timeStr,
-        statusTitle: "Pesanan Dibatalkan",
-        description:
-          "Pesanan telah dibatalkan. Pengembalian dana diproses sesuai metode pembayaran yang digunakan.",
-        isLatest: true,
-        stepCategory: "created",
-      });
-    }
-
-    if (isDelivered) {
-      const deliveredDate = shipment?.deliveredAt
-        ? new Date(shipment.deliveredAt)
-        : new Date(order.updatedAt);
-      const { dateStr, timeStr } = formatEventDate(deliveredDate);
-      events.push({
-        id: "ev-delivered",
-        dateStr,
-        timeStr,
-        statusTitle: "Pesanan Tiba di Alamat Tujuan",
-        description: `Pesanan telah diterima di ${customerCity} (${order.address?.recipientName || "Penerima"}).`,
-        isLatest: events.length === 0,
-        stepCategory: "delivered",
-      });
-    }
-
-    if ((isDelivered || isShipped) && shipment?.shippedAt) {
-      const shippedDate = new Date(shipment.shippedAt);
-      const { dateStr, timeStr } = formatEventDate(shippedDate);
-      events.push({
-        id: "ev-shipped",
-        dateStr,
-        timeStr,
-        statusTitle: "Diserahkan ke Kurir Ekspedisi",
-        description: `Paket telah diserahkan kepada kurir ${courierName}${shipment.trackingNumber ? ` dengan nomor resi ${shipment.trackingNumber}` : ""}.`,
-        isLatest: events.length === 0,
-        stepCategory: "transit",
-      });
-    } else if (shipment?.trackingNumber) {
-      const shipDate = new Date(shipment.createdAt || order.updatedAt);
-      const { dateStr, timeStr } = formatEventDate(shipDate);
-      events.push({
-        id: "ev-awb-created",
-        dateStr,
-        timeStr,
-        statusTitle: "Nomor Resi Diterbitkan",
-        description: `Nomor resi ${shipment.trackingNumber} (${courierName}) menunggu pembaruan status dari kurir.`,
-        isLatest: events.length === 0,
-        stepCategory: "transit",
-      });
-    }
-
-    if (order.payment?.paidAt) {
-      const paidDate = new Date(order.payment.paidAt);
-      const { dateStr, timeStr } = formatEventDate(paidDate);
-      events.push({
-        id: "ev-paid",
-        dateStr,
-        timeStr,
-        statusTitle: "Pembayaran Terverifikasi",
-        description:
-          "Pembayaran diterima dan florist sedang menyiapkan rangkaian bunga Anda.",
-        isLatest: events.length === 0,
-        stepCategory: "created",
-      });
-    }
-  }
-
-  const { dateStr: crDate, timeStr: crTime } = formatEventDate(createdDate);
-  events.push({
-    id: "ev-created",
-    dateStr: crDate,
-    timeStr: crTime,
-    statusTitle: "Pesanan Dibuat",
-    description: `Order #${order.orderNumber} tercatat pada sistem FloraHub.`,
-    isLatest: events.length === 0,
-    stepCategory: "created",
-  });
-
-  const steps = [
-    { label: "Bunga Dirangkai", active: activeStep >= 1 },
-    { label: "Dalam Perjalanan", active: activeStep >= 2 },
-    { label: "Tiba di Tujuan", active: activeStep >= 3 },
-  ];
+  const hasValidTrackingLink = Boolean(
+    trackingDetails?.link && trackingDetails.link.startsWith("https://"),
+  );
 
   return (
-    <main className="container-custom section-spacing">
-      {/* Back button */}
-      <nav aria-label="Navigasi" className="mb-6">
-        <Link
-          href={`/orders/${orderId}`}
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Rincian Pesanan
-        </Link>
-      </nav>
-
-      {/* Header Estimasi — aksen near-black */}
+    <main className="min-h-dvh bg-background pb-16 sm:pb-24">
+      {/* Full-Bleed Dark Editorial Header Band */}
       <section
         aria-labelledby="tracking-heading"
-        className="mb-8 rounded-2xl bg-[#10121b] p-6 text-white sm:p-8 border border-white/10"
+        className="border-b border-white/10 bg-surface-dark py-8 text-white sm:py-12"
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
-              Pelacakan Pengiriman
-            </p>
-            <h1
-              id="tracking-heading"
-              className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl"
-            >
-              {isCancelled
-                ? "Pesanan Dibatalkan"
-                : isDelivered
-                  ? "Pesanan telah tiba di tujuan"
-                  : `Estimasi tiba: ${formattedEstArrival}`}
-            </h1>
-            <p className="mt-1 text-xs text-white/70">
-              Order #{order.orderNumber} · {courierName}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleCopyOrderId(order.orderNumber)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/20 bg-white/5 px-3 text-xs font-medium text-white transition-colors hover:bg-white/10"
-              title="Salin nomor pesanan"
-            >
-              {copiedOrderId ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-success" />
-                  <span>Tersalin</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5" />
-                  <span>Salin Order ID</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Stepper Progress Horizontal (tenang, tanpa glow) */}
-        {!isCancelled && (
-          <div className="mt-8 border-t border-white/10 pt-6">
-            <ol className="grid grid-cols-3 gap-2">
-              {steps.map((step, idx) => (
-                <li key={step.label} className="text-left">
-                  <div
-                    className={`h-1.5 rounded-full ${
-                      step.active ? "bg-primary" : "bg-white/15"
-                    }`}
-                  />
-                  <p
-                    className={`mt-2 text-xs ${
-                      step.active
-                        ? "font-semibold text-white"
-                        : "text-white/40"
-                    }`}
-                  >
-                    <span className="font-mono">{idx + 1}.</span> {step.label}
-                  </p>
-                </li>
-              ))}
+        <div className="container-custom">
+          {/* Breadcrumbs Semantik */}
+          <nav aria-label="Breadcrumbs">
+            <ol className="flex flex-wrap items-center gap-1.5 text-xs text-white/60">
+              <li>
+                <Link
+                  href="/orders"
+                  className="underline-offset-4 transition-colors hover:text-white hover:underline"
+                >
+                  Pesanan
+                </Link>
+              </li>
+              <li className="inline-flex items-center gap-1.5">
+                <ChevronRight
+                  className="h-3.5 w-3.5 text-white/35"
+                  aria-hidden="true"
+                />
+                <Link
+                  href={`/orders/${orderId}`}
+                  className="font-mono underline-offset-4 transition-colors hover:text-white hover:underline"
+                >
+                  #{order.orderNumber}
+                </Link>
+              </li>
+              <li className="inline-flex items-center gap-1.5">
+                <ChevronRight
+                  className="h-3.5 w-3.5 text-white/35"
+                  aria-hidden="true"
+                />
+                <Link
+                  href={`/orders/${orderId}/tracking`}
+                  aria-current="page"
+                  className="font-semibold text-white underline-offset-4 hover:underline"
+                >
+                  Pelacakan
+                </Link>
+              </li>
             </ol>
+          </nav>
+
+          <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1
+                id="tracking-heading"
+                className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl"
+              >
+                {isCancelled ? (
+                  "Pesanan Dibatalkan"
+                ) : isDelivered ? (
+                  "Pesanan Telah Tiba"
+                ) : (
+                  <>
+                    Estimasi tiba{" "}
+                    <span className="font-display font-normal italic text-kicker">
+                      {formattedEstArrival}
+                    </span>
+                  </>
+                )}
+              </h1>
+              <p className="mt-2 text-xs text-white/70 sm:text-sm">
+                <span className="font-mono">#{order.orderNumber}</span> ·{" "}
+                {courierDisplayName}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {canConfirmDelivery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmFeedback(null);
+                    setShowConfirmDelivery(true);
+                  }}
+                  className="btn-primary h-11 px-4 py-0 text-xs font-semibold sm:text-sm"
+                >
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  <span>Pesanan Diterima</span>
+                </button>
+              )}
+
+              {hasValidTrackingLink && trackingDetails?.link && (
+                <a
+                  href={trackingDetails.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-xs font-semibold text-surface-dark transition-colors hover:bg-white/90 sm:text-sm"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Peta Kurir</span>
+                </a>
+              )}
+
+              <button
+                type="button"
+                onClick={() => void handleCopyOrderId(order.orderNumber)}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                {copiedOrderId ? (
+                  <>
+                    <Check
+                      className="h-3.5 w-3.5 text-kicker"
+                      aria-hidden="true"
+                    />
+                    <span role="status">Tersalin</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Salin No. Pesanan</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void loadTrackingData({ refresh: true })}
+                disabled={isRefreshing}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-50"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+                <span>{isRefreshing ? "Memperbarui..." : "Perbarui"}</span>
+              </button>
+            </div>
           </div>
-        )}
+
+          {/* 3-Step Shipping Progress Track */}
+          {!isCancelled && (
+            <ol
+              aria-label="Tahap pengiriman"
+              className="mt-8 grid grid-cols-3 gap-3 border-t border-white/10 pt-6"
+            >
+              {TRACKING_STEPS.map((label, idx) => {
+                const isCompleted = isDelivered ? idx < 2 : idx < activeStepIndex;
+                const isCurrent = isDelivered
+                  ? idx === 2
+                  : idx === activeStepIndex;
+
+                return (
+                  <li
+                    key={label}
+                    aria-current={isCurrent ? "step" : undefined}
+                    className="flex flex-col gap-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold transition-colors ${
+                          isCompleted || isCurrent
+                            ? "border-kicker bg-kicker text-surface-dark"
+                            : "border-white/20 bg-white/5 text-white/45"
+                        }`}
+                      >
+                        {isCompleted || (isDelivered && idx === 2) ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : (
+                          idx + 1
+                        )}
+                      </span>
+                      {idx < TRACKING_STEPS.length - 1 && (
+                        <span
+                          aria-hidden="true"
+                          className={`hidden h-px flex-1 sm:block ${
+                            isCompleted || isDelivered ? "bg-kicker" : "bg-white/15"
+                          }`}
+                        />
+                      )}
+                    </div>
+                    <span
+                      className={`text-xs font-medium ${
+                        isCurrent
+                          ? "text-kicker"
+                          : isCompleted
+                            ? "text-white/90"
+                            : "text-white/45"
+                      }`}
+                    >
+                      {label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
       </section>
 
-      {/* Grid 2 Kolom: Detail Pengiriman & Timeline */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Kolom Kiri: Kurir, Resi, Alamat */}
-        <div className="space-y-6 lg:col-span-1">
-          {/* Info Kurir & Resi */}
-          <section
-            aria-labelledby="courier-heading"
-            className="rounded-2xl border border-border bg-card p-6"
-          >
-            <h2
-              id="courier-heading"
-              className="mb-4 border-b border-border pb-3 text-base font-semibold text-foreground"
+      {/* Grid 2 Kolom: Detail Kurir/Alamat & Timeline */}
+      <div className="container-custom pt-8 sm:pt-10">
+        <div aria-live="polite">
+          {confirmFeedback && (
+            <div
+              role={confirmFeedback.type === "error" ? "alert" : "status"}
+              className={`mb-6 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+                confirmFeedback.type === "error"
+                  ? "border-error/30 bg-error/10 text-error"
+                  : "border-primary/30 bg-primary/10 text-foreground"
+              }`}
             >
-              Ekspedisi
-            </h2>
-            <div className="space-y-3 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Jasa Kurir</p>
-                <p className="font-semibold text-foreground">{courierName}</p>
-                {shipment?.service && (
-                  <p className="text-xs text-muted-foreground">
-                    Layanan: {shipment.service}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">Nomor Resi</p>
-                {shipment?.trackingNumber ? (
-                  <div className="mt-1 flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-container-low px-3 py-2">
-                    <span className="font-mono text-xs font-semibold text-foreground">
-                      {shipment.trackingNumber}
-                    </span>
-                    <button
-                      onClick={() => handleCopyResi(shipment.trackingNumber!)}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                    >
-                      {copiedResi ? (
-                        <>
-                          <Check className="h-3 w-3 text-success" />
-                          <span>Tersalin</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3 w-3" />
-                          <span>Salin</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="mt-0.5 text-xs italic text-muted-foreground">
-                    Menunggu florist mencetak resi
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Alamat Pengiriman */}
-          {order.address && (
-            <section
-              aria-labelledby="destination-heading"
-              className="rounded-2xl border border-border bg-card p-6"
-            >
-              <h2
-                id="destination-heading"
-                className="mb-3 border-b border-border pb-3 text-base font-semibold text-foreground"
+              <span>{confirmFeedback.message}</span>
+              <button
+                type="button"
+                onClick={() => setConfirmFeedback(null)}
+                className="text-xs font-semibold underline"
               >
-                Alamat tujuan
-              </h2>
-              <p className="text-sm font-medium text-foreground">
-                {order.address.recipientName}
-                <span className="mx-1.5 text-muted-foreground">·</span>
-                <span className="font-normal tabular-nums text-muted-foreground">
-                  {order.address.phone}
-                </span>
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {order.address.fullAddress}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {order.address.city}, {order.address.province}
-              </p>
-            </section>
+                Tutup
+              </button>
+            </div>
           )}
         </div>
 
-        {/* Kolom Kanan: Timeline Vertikal */}
-        <section
-          aria-labelledby="timeline-heading"
-          className="rounded-2xl border border-border bg-card p-6 lg:col-span-2"
-        >
-          <h2
-            id="timeline-heading"
-            className="mb-6 border-b border-border pb-3 text-base font-semibold text-foreground"
+        <div className="grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start xl:gap-12">
+          {/* Kolom Kiri */}
+          <div className="space-y-6">
+            <section
+              aria-labelledby="courier-heading"
+              className="rounded-2xl border border-border bg-card p-6"
+            >
+              <h2
+                id="courier-heading"
+                className="mb-4 border-b border-border pb-3 text-base font-semibold text-foreground"
+              >
+                Pengiriman
+              </h2>
+              <dl className="space-y-4 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Kurir</dt>
+                  <dd className="mt-0.5 font-semibold text-foreground">
+                    {courierDisplayName}
+                    {shipment?.service ? (
+                      <span className="ml-1.5 font-normal text-muted-foreground">
+                        ({shipment.service})
+                      </span>
+                    ) : null}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-xs text-muted-foreground">Nomor Resi</dt>
+                  <dd className="mt-1">
+                    {shipment?.trackingNumber ? (
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface-container-low px-3.5 py-2.5">
+                        <span className="font-mono text-xs font-semibold text-foreground">
+                          {shipment.trackingNumber}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleCopyResi(shipment.trackingNumber!)
+                          }
+                          aria-label={`Salin nomor resi ${shipment.trackingNumber}`}
+                          className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                        >
+                          {copiedResi ? (
+                            <>
+                              <Check className="h-3 w-3" aria-hidden="true" />
+                              <span role="status">Tersalin</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3" aria-hidden="true" />
+                              <span>Salin</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Menunggu resi dari florist
+                      </p>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            {order.address && (
+              <section
+                aria-labelledby="destination-heading"
+                className="rounded-2xl border border-border bg-card p-6"
+              >
+                <h2
+                  id="destination-heading"
+                  className="mb-3 border-b border-border pb-3 text-base font-semibold text-foreground"
+                >
+                  Alamat Tujuan
+                </h2>
+                <p className="text-sm font-medium text-foreground">
+                  {order.address.recipientName}
+                  <span className="mx-1.5 text-muted-foreground">·</span>
+                  <span className="font-normal tabular-nums text-muted-foreground">
+                    {order.address.phone}
+                  </span>
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  {order.address.fullAddress}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {order.address.city}, {order.address.province}
+                </p>
+              </section>
+            )}
+          </div>
+
+          {/* Kolom Kanan: Timeline Vertikal */}
+          <section
+            aria-labelledby="timeline-heading"
+            className="rounded-2xl border border-border bg-card p-6 sm:p-7"
           >
-            Riwayat status pengiriman
-          </h2>
+            <h2
+              id="timeline-heading"
+              className="mb-6 border-b border-border pb-3 text-base font-semibold text-foreground"
+            >
+              Riwayat Pengiriman
+            </h2>
 
-          <ol className="relative ml-3 space-y-6 border-l border-border pl-6">
-            {events.map((ev, index) => {
-              const isFirst = index === 0;
-              const isCancelledEvent = ev.id === "ev-cancelled";
+            <ol className="relative ml-3 space-y-6 border-l border-border pl-6">
+              {events.map((ev, index) => {
+                const isFirst = index === 0;
+                const isCancelledEvent = Boolean(ev.isCancelled);
 
-              return (
-                <li key={ev.id} className="relative">
-                  {/* Titik indikator di garis timeline */}
-                  <span
-                    className={`absolute -left-[31px] top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-card ${
-                      isCancelledEvent
-                        ? "bg-error"
-                        : isFirst
-                          ? "bg-primary"
-                          : "bg-border"
-                    }`}
-                    aria-hidden="true"
-                  />
-
-                  <div className="min-w-0">
-                    <p className="text-xs tabular-nums text-muted-foreground">
-                      {ev.dateStr} · {ev.timeStr}
-                    </p>
-                    <p
-                      className={`mt-0.5 text-sm ${
+                return (
+                  <li key={ev.id} className="relative">
+                    <span
+                      className={`absolute -left-[31px] top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-card ${
                         isCancelledEvent
-                          ? "font-semibold text-error"
+                          ? "bg-error"
                           : isFirst
-                            ? "font-semibold text-foreground"
-                            : "font-medium text-foreground/80"
+                            ? "bg-primary"
+                            : "bg-border"
                       }`}
-                    >
-                      {ev.statusTitle}
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {ev.description}
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
+                      aria-hidden="true"
+                    />
+
+                    <div className="min-w-0">
+                      <time
+                        dateTime={ev.isoDate}
+                        className="block text-xs tabular-nums text-muted-foreground"
+                      >
+                        {ev.dateStr} · {ev.timeStr}
+                      </time>
+                      <p
+                        className={`mt-0.5 text-sm ${
+                          isCancelledEvent
+                            ? "font-semibold text-error"
+                            : isFirst
+                              ? "font-semibold text-foreground"
+                              : "font-medium text-foreground/80"
+                        }`}
+                      >
+                        {ev.statusTitle}
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {ev.description}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showConfirmDelivery}
+        onClose={() => !isConfirmingDelivery && setShowConfirmDelivery(false)}
+        onConfirm={handleConfirmDelivery}
+        title="Konfirmasi pesanan diterima?"
+        description="Pastikan bunga sudah diterima dengan baik. Setelah dikonfirmasi, pesanan selesai dan Anda dapat menulis ulasan."
+        confirmLabel="Ya, Sudah Diterima"
+        cancelLabel="Batal"
+        loading={isConfirmingDelivery}
+      />
     </main>
   );
 }

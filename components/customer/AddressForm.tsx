@@ -157,7 +157,6 @@ export default function AddressForm({
       isOpen
       onClose={onCancel}
       title={address ? "Ubah alamat" : "Tambah alamat baru"}
-      subtitle="Alamat ini dipakai florist dan kurir untuk mengantar pesanan Anda."
       size="md"
     >
       {error && (
@@ -193,11 +192,15 @@ export default function AddressForm({
               onChange={set("recipientName")}
               error={formErrors.recipientName}
               placeholder="Nama lengkap penerima"
+              autoComplete="name"
               required
             />
             <FormField
               label="No. Telepon"
               name="phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={formData.phone}
               onChange={set("phone")}
               error={formErrors.phone}
@@ -221,6 +224,7 @@ export default function AddressForm({
             onChange={set("fullAddress")}
             error={formErrors.fullAddress}
             placeholder="Jalan, nomor rumah, RT/RW, kelurahan, kecamatan"
+            autoComplete="street-address"
             rows={3}
             required
           />
@@ -233,6 +237,7 @@ export default function AddressForm({
               onChange={set("city")}
               error={formErrors.city}
               placeholder="Contoh: Surabaya"
+              autoComplete="address-level2"
               required
             />
             <FormField
@@ -242,6 +247,7 @@ export default function AddressForm({
               onChange={set("province")}
               error={formErrors.province}
               placeholder="Contoh: Jawa Timur"
+              autoComplete="address-level1"
               required
             />
             <FormField
@@ -251,6 +257,8 @@ export default function AddressForm({
               onChange={set("postalCode")}
               error={formErrors.postalCode}
               placeholder="12345"
+              autoComplete="postal-code"
+              inputMode="numeric"
               required
             />
           </div>
@@ -269,13 +277,8 @@ export default function AddressForm({
             }
             className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
           />
-          <span>
-            <span className="block text-sm font-medium text-foreground">
-              Jadikan alamat utama
-            </span>
-            <span className="block text-xs text-muted-foreground">
-              Dipilih otomatis saat checkout.
-            </span>
+          <span className="text-sm font-medium text-foreground">
+            Jadikan alamat utama
           </span>
         </label>
 
