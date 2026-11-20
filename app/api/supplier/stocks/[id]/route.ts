@@ -2,6 +2,7 @@ import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { updateStockSchema } from "@/lib/validations/schemas";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -176,6 +177,11 @@ export async function PUT(
       });
 
       // Kembalikan respon sukses pembaruan stok
+      safeRevalidatePaths([
+        "/supplier/dashboard",
+        "/supplier/stocks",
+        "/florist/supplier-stocks",
+      ]);
       return NextResponse.json({
         success: true,
         message: "Stock berhasil diperbarui",
@@ -297,6 +303,11 @@ export async function DELETE(
     });
 
     // Kembalikan respon sukses penghapusan stok
+    safeRevalidatePaths([
+      "/supplier/dashboard",
+      "/supplier/stocks",
+      "/florist/supplier-stocks",
+    ]);
     return NextResponse.json({
       success: true,
       message: "Stock berhasil dihapus",

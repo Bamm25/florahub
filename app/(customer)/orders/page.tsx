@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { ArrowRight, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { getOrderHistory, type OrderSummary } from "@/lib/api/orders";
 import { OrderCard } from "@/components/customer/OrderCard";
 import {
@@ -160,8 +160,8 @@ export default function OrderHistoryPage() {
               href="/products"
               className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-kicker underline-offset-4 hover:text-white hover:underline"
             >
-              Belanja Lagi
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              <span>Belanja Lagi</span>
+              <span aria-hidden="true">→</span>
             </Link>
           </div>
         </div>
@@ -192,7 +192,7 @@ export default function OrderHistoryPage() {
                     setSelectedStatus(filter.id);
                     setCurrentPage(1);
                   }}
-                  className={`min-h-10 whitespace-nowrap rounded-xl border px-4 py-2 text-xs font-semibold transition-colors sm:text-sm ${
+                  className={`min-h-10 whitespace-nowrap rounded-sm border px-4 py-2 text-xs font-semibold transition-colors sm:text-sm ${
                     isActive
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"

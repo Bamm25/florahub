@@ -1,4 +1,5 @@
 import { reportServerError } from "@/lib/server-error-report";
+import { createAuditLog } from "@/lib/auditLog";
 import { releaseCouponUsageInTx } from "@/lib/coupons";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
@@ -129,8 +130,25 @@ export async function POST(request: Request) {
         return { shouldNotify: true };
       });
 
-      // Kirim notifikasi hanya jika order berhasil ditransisikan dari PENDING ke PAID
+      // Kirim notifikasi & catat audit hanya jika order berhasil ditransisikan dari PENDING ke PAID
       if (transitionResult.shouldNotify) {
+        await createAuditLog({
+          userId: order.userId,
+          action: "PAYMENT",
+          entity: "Payment",
+          entityId: order.payment?.id ?? order.id,
+          oldValue: { status: "PENDING", orderNumber: order.orderNumber },
+          newValue: {
+            status: "PAID",
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            amount: order.totalAmount,
+            method: payment_type || "midtrans",
+          },
+          ipAddress: request.headers.get("x-forwarded-for") ?? undefined,
+          userAgent: request.headers.get("user-agent") ?? undefined,
+        });
+
         const floristMap = await prisma.product.findMany({
           where: { id: { in: order.items.map((i: { productId: string }) => i.productId) } },
           select: { floristId: true },
@@ -167,7 +185,7 @@ export async function POST(request: Request) {
       transaction_status === "cancel"
     ) {
       // Perbarui status pembayaran menjadi gagal dan kembalikan kuota stok pesanan
-      await prisma.$transaction(async (tx) => {
+      const cancelledByWebhook = await prisma.$transaction(async (tx) => {
         await tx.payment.updateMany({
           where: { orderId: order.id, status: "PENDING" },
           data: {
@@ -201,8 +219,28 @@ export async function POST(request: Request) {
             ),
           );
           await releaseCouponUsageInTx(tx, order.id);
+          return true;
         }
+        return false;
       });
+
+      if (cancelledByWebhook) {
+        await createAuditLog({
+          userId: order.userId,
+          action: "PAYMENT",
+          entity: "Payment",
+          entityId: order.payment?.id ?? order.id,
+          oldValue: { status: "PENDING", orderNumber: order.orderNumber },
+          newValue: {
+            status: "FAILED",
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            reason: transaction_status,
+          },
+          ipAddress: request.headers.get("x-forwarded-for") ?? undefined,
+          userAgent: request.headers.get("user-agent") ?? undefined,
+        });
+      }
     }
 
     return NextResponse.json({

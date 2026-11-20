@@ -11,6 +11,8 @@ interface ModalProps {
   kicker?: string;
   size?: "sm" | "md" | "lg" | "xl";
   headerVariant?: "light" | "dark";
+  headerContent?: React.ReactNode;
+  bodyClassName?: string;
   footer?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -31,6 +33,8 @@ export default function Modal({
   kicker,
   size = "md",
   headerVariant = "light",
+  headerContent,
+  bodyClassName = "",
   footer,
   children,
 }: ModalProps) {
@@ -106,61 +110,68 @@ export default function Modal({
           onClose();
         }
       }}
-      className={`${SIZE_CLASSES[size]} rounded-2xl border border-border bg-card p-0 text-card-foreground`}
+      className={`${SIZE_CLASSES[size]} m-auto! max-h-[min(85dvh,52rem)] rounded-2xl border border-border bg-card p-0 text-card-foreground`}
     >
       {isOpen ? (
-        <div className="flex max-h-[min(90dvh,56rem)] flex-col overflow-hidden">
+        <div className="flex max-h-[min(85dvh,52rem)] flex-col overflow-hidden">
           <div
-            className={`flex flex-shrink-0 items-start justify-between gap-4 px-6 py-5 ${
+            className={`flex-shrink-0 px-6 py-5 ${
               isDarkHeader
                 ? "bg-surface-dark text-white"
                 : "border-b border-border bg-surface-container-low text-foreground"
             }`}
           >
-            <div className="min-w-0">
-              {kicker && (
-                <p
-                  className={`mb-1 text-xs font-semibold ${
-                    isDarkHeader ? "text-kicker" : "text-primary"
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                {kicker && (
+                  <p
+                    className={`mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                      isDarkHeader ? "text-kicker" : "text-primary"
+                    }`}
+                  >
+                    {kicker}
+                  </p>
+                )}
+                <h2
+                  id={titleId}
+                  className={`text-lg font-semibold leading-snug tracking-[-0.015em] sm:text-xl ${
+                    isDarkHeader ? "text-white" : "text-foreground"
                   }`}
                 >
-                  {kicker}
-                </p>
-              )}
-              <h2
-                id={titleId}
-                className={`text-lg font-semibold leading-snug sm:text-xl ${
-                  isDarkHeader ? "text-white" : "text-foreground"
+                  {title}
+                </h2>
+                {subtitle && (
+                  <p
+                    id={subtitleId}
+                    className={`mt-1 text-sm leading-relaxed ${
+                      isDarkHeader ? "text-white/75" : "text-muted-foreground"
+                    }`}
+                  >
+                    {subtitle}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className={`inline-flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-xs transition-colors ${
+                  isDarkHeader
+                    ? "text-white/75 hover:bg-white/10 hover:text-white"
+                    : "text-muted-foreground hover:bg-surface-container hover:text-foreground"
                 }`}
+                aria-label="Tutup dialog"
               >
-                {title}
-              </h2>
-              {subtitle && (
-                <p
-                  id={subtitleId}
-                  className={`mt-1 text-sm ${
-                    isDarkHeader ? "text-white/75" : "text-muted-foreground"
-                  }`}
-                >
-                  {subtitle}
-                </p>
-              )}
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className={`inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors ${
-                isDarkHeader
-                  ? "text-white/75 hover:bg-white/10 hover:text-white"
-                  : "text-muted-foreground hover:bg-surface-container hover:text-foreground"
-              }`}
-              aria-label="Tutup dialog"
-            >
-              <X className="h-5 w-5" aria-hidden="true" />
-            </button>
+            {headerContent}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6">{children}</div>
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto p-6 ${bodyClassName}`.trim()}
+          >
+            {children}
+          </div>
 
           {footer && (
             <div className="flex flex-shrink-0 items-center justify-end gap-3 border-t border-border bg-surface-container-low px-6 py-4">

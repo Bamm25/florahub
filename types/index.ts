@@ -85,8 +85,7 @@ export type OrderStatus =
   | "READY_TO_SHIP"
   | "SHIPPED"
   | "DELIVERED"
-  | "CANCELLED"
-  | "REFUNDED";
+  | "CANCELLED";
 
 // Tipe peran pengguna dalam sistem aplikasi
 export type UserRole = "CUSTOMER" | "FLORIST" | "SUPPLIER" | "ADMIN";

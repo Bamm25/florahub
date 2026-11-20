@@ -1,6 +1,5 @@
 "use client";
 
-import { CheckCircle } from "lucide-react";
 import { formatRupiah } from "@/lib/utils/formatters";
 
 // Interface untuk data kupon yang sudah diapply
@@ -57,19 +56,13 @@ export default function CouponInput({
 
       {appliedCoupon ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-container-low p-4">
-          <div className="flex items-center gap-3">
-            <CheckCircle
-              className="h-5 w-5 shrink-0 text-primary"
-              aria-hidden="true"
-            />
-            <div>
-              <p className="font-mono text-sm font-bold tracking-wider text-foreground">
-                {appliedCoupon.code}
-              </p>
-              <p className="text-xs tabular-nums text-muted-foreground">
-                Hemat {formatRupiah(appliedCoupon.discountAmount)}
-              </p>
-            </div>
+          <div>
+            <p className="font-mono text-sm font-bold tracking-wider text-foreground">
+              {appliedCoupon.code}
+            </p>
+            <p className="text-xs tabular-nums text-muted-foreground">
+              Hemat {formatRupiah(appliedCoupon.discountAmount)}
+            </p>
           </div>
           <button
             type="button"

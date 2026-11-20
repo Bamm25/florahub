@@ -52,6 +52,13 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: SITE_AUTHOR }],
   creator: SITE_AUTHOR,
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: ["/favicon.ico"],
+  },
   openGraph: {
     type: "website",
     locale: "id_ID",

@@ -1,6 +1,5 @@
 import React from "react";
 import Image from "next/image";
-import { Eye, Edit, Trash2, ImageIcon, Package } from "lucide-react";
 import { formatRupiah } from "@/lib/utils/formatters";
 
 // Tipe data lengkap produk untuk sinkronisasi dengan halaman florist
@@ -55,8 +54,8 @@ export default function ProductCard({
               className="m-zoom object-cover"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground/60">
-              <ImageIcon className="h-10 w-10 stroke-[1.5]" aria-hidden="true" />
+            <div className="flex h-full items-center justify-center font-display text-3xl italic text-muted-foreground/60">
+              {product.name.slice(0, 2).toUpperCase()}
             </div>
           )}
 
@@ -111,37 +110,33 @@ export default function ProductCard({
           <button
             type="button"
             onClick={() => onProduce(product)}
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
+            className="inline-flex min-h-9 items-center justify-center rounded-sm bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             title="Produksi Produk Jadi"
           >
-            <Package className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Produksi</span>
+            Produksi
           </button>
           <button
             type="button"
             onClick={() => onViewComponents(product)}
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+            className="inline-flex min-h-9 items-center justify-center rounded-sm border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
             title="Lihat Komponen BOM"
           >
-            <Eye className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-            <span>BOM</span>
+            BOM
           </button>
           <button
             type="button"
             onClick={() => onEdit(product)}
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-container-low hover:text-foreground"
+            className="inline-flex min-h-9 items-center justify-center rounded-sm px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-container-low hover:text-foreground"
           >
-            <Edit className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Edit</span>
+            Edit
           </button>
           <button
             type="button"
             onClick={() => onDelete(product.id)}
-            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-error transition-colors hover:bg-error/10"
+            className="inline-flex min-h-9 items-center justify-center rounded-sm px-2.5 py-1.5 text-xs font-semibold text-error transition-colors hover:bg-error/10"
             title="Hapus"
           >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Hapus</span>
+            Hapus
           </button>
         </div>
       </div>

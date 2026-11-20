@@ -7,10 +7,23 @@ export const APP_URL =
 
 export const PUBLIC_SITE_URL =
   process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "") ||
-  "https://florahub.com";
+  "https://www.florahub.biz.id";
 
 export const SITE_AUTHOR =
   process.env.NEXT_PUBLIC_SITE_AUTHOR?.trim() || "FloraHub Team";
+
+export const SUPPORT_EMAIL =
+  process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "support@florahub.biz.id";
+
+export const SUPPORT_MAILTO_URL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+  "Bantuan & Pengaduan Akun FloraHub",
+)}`;
+
+export function buildOrderSupportMailto(orderNumber: string): string {
+  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+    `Pengaduan Pesanan ${orderNumber} - FloraHub`,
+  )}`;
+}
 
 export const APP_TIMEZONE =
   process.env.APP_TIMEZONE?.trim() || "Asia/Jakarta";

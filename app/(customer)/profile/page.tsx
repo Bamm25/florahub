@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { Bell, ChevronRight, MapPin, Package } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
 import { LoadingSpinner, ErrorState } from "@/components/ui";
@@ -222,12 +222,12 @@ export default function ProfilePage() {
                   href="/orders"
                   className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-foreground/30"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-low text-primary">
-                      <Package className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <span className="text-sm font-semibold text-foreground">
+                  <div>
+                    <span className="block text-sm font-semibold text-foreground">
                       Pesanan Saya
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Status &amp; riwayat
                     </span>
                   </div>
                   <ChevronRight
@@ -240,12 +240,12 @@ export default function ProfilePage() {
                   href="/profile/addresses"
                   className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-foreground/30"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-low text-primary">
-                      <MapPin className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <span className="text-sm font-semibold text-foreground">
+                  <div>
+                    <span className="block text-sm font-semibold text-foreground">
                       Alamat
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Daftar tujuan
                     </span>
                   </div>
                   <ChevronRight
@@ -258,12 +258,12 @@ export default function ProfilePage() {
                   href="/notifications"
                   className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-foreground/30"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-low text-primary">
-                      <Bell className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <span className="text-sm font-semibold text-foreground">
+                  <div>
+                    <span className="block text-sm font-semibold text-foreground">
                       Notifikasi
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      Kabar pesanan
                     </span>
                   </div>
                   <ChevronRight

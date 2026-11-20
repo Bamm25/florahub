@@ -42,7 +42,7 @@ export async function GET(request: Request) {
               id: true,
               name: true,
               addresses: {
-                where: { isDefault: true },
+                orderBy: { isDefault: "desc" },
                 take: 1,
                 select: {
                   city: true,

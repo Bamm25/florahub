@@ -340,3 +340,37 @@ test("Route track supplier dan ShipmentTrackingModal menggunakan buildSupplierTr
   assert.doesNotMatch(trackingModal, /Lunas 100% via Midtrans/);
   assert.match(preOrderTable, /onRefresh\?\.\(\)/);
 });
+
+test("Desain tracking default menggunakan TrackingProgressTrack (gaya Customer), bebas simulator AI, dan mendukung handover supplier PAID -> SHIPPED", () => {
+  const handoverRoute = readProjectFile(
+    "app/api/supplier/shipments/[id]/handover/route.ts",
+  );
+  const trackingModal = readProjectFile(
+    "components/ui/ShipmentTrackingModal.tsx",
+  );
+  const customerTracking = readProjectFile(
+    "app/(customer)/orders/[id]/tracking/page.tsx",
+  );
+  const floristOrderDetail = readProjectFile(
+    "app/florist/orders/[id]/page.tsx",
+  );
+
+  assert.match(handoverRoute, /requireAuth\(request,\s*\["SUPPLIER"\]\)/);
+  assert.match(handoverRoute, /status:\s*"PAID"/);
+  assert.match(handoverRoute, /status:\s*"SHIPPED"/);
+  assert.match(handoverRoute, /biteshipOrderId/);
+  assert.match(handoverRoute, /safeRevalidatePaths/);
+  assert.doesNotMatch(handoverRoute, /DELIVERED/);
+  assert.doesNotMatch(handoverRoute, /fulfill/);
+
+  assert.match(trackingModal, /TrackingProgressTrack/);
+  assert.match(trackingModal, /ConfirmDialog/);
+  assert.match(trackingModal, /confirmSupplierShipmentHandover/);
+  assert.doesNotMatch(trackingModal, /Simulasi pengiriman/);
+  assert.doesNotMatch(trackingModal, /Simulasikan penjemputan/);
+  assert.doesNotMatch(trackingModal, /Status Terkini/);
+  assert.doesNotMatch(trackingModal, /0\{idx \+ 1\}/);
+
+  assert.match(customerTracking, /TrackingProgressTrack/);
+  assert.match(floristOrderDetail, /TrackingProgressTrack/);
+});

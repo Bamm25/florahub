@@ -4,14 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import {
-  AlertCircle,
-  ArrowLeft,
-  Check,
-  Loader2,
-  MapPin,
-  Plus,
-} from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cartStore";
 import AddressSelector from "@/components/customer/AddressSelector";
 import { CheckoutSummary } from "@/components/customer/CheckoutSummary";
@@ -469,9 +462,8 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={() => setShowAddressForm(true)}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+                    className="inline-flex min-h-9 items-center rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
                   >
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                     Tambah
                   </button>
                 )}
@@ -480,9 +472,6 @@ export default function CheckoutPage() {
               {addresses.length === 0 ? (
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-dashed border-border bg-surface-container-low/50 p-8 text-center">
-                    <div className="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground">
-                      <MapPin className="h-5 w-5" aria-hidden="true" />
-                    </div>
                     <h3 className="text-base font-semibold text-foreground">
                       Belum ada alamat pengiriman
                     </h3>
@@ -492,9 +481,8 @@ export default function CheckoutPage() {
                     <button
                       type="button"
                       onClick={() => setShowAddressForm(true)}
-                      className="btn-primary mt-5 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold"
+                      className="btn-primary mt-5 inline-flex items-center px-5 py-2.5 text-sm font-semibold"
                     >
-                      <Plus className="h-4 w-4" aria-hidden="true" />
                       Tambah Alamat
                     </button>
                   </div>

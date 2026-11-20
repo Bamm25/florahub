@@ -2,17 +2,14 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import {
-  Check,
-  Copy,
-  FileText,
-  Loader2,
-  RefreshCw,
-  Truck,
-} from "lucide-react";
+import { Check, Copy, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { LoadingSpinner, ErrorState } from "@/components/ui";
+import {
+  LoadingSpinner,
+  ErrorState,
+  TrackingProgressTrack,
+} from "@/components/ui";
 import { useDataFetching } from "@/hooks";
 import { getFloristOrderById, trackFloristShipment } from "@/lib/api/florist";
 import { buildOrderTrackingTimeline } from "@/lib/order-tracking-timeline";
@@ -48,23 +45,24 @@ function getActiveStepIndex(status: string, shipmentStatus?: string | null) {
   }
 }
 
+const mapPaymentMethod: Record<string, string> = {
+  MIDTRANS: "Pembayaran Online",
+  BANK_TRANSFER: "Transfer Bank (VA)",
+  CREDIT_CARD: "Kartu Kredit / Debit",
+  GOPAY: "GoPay",
+  SHOPEEPAY: "ShopeePay",
+  QRIS: "QRIS",
+  ECHANNEL: "Mandiri Bill Payment",
+  PERMATA_VA: "Permata Virtual Account",
+  BCA_VA: "BCA Virtual Account",
+  BNI_VA: "BNI Virtual Account",
+  BRI_VA: "BRI Virtual Account",
+};
+
 function formatPaymentMethod(method?: string | null): string {
   if (!method) return "-";
   const normalized = method.trim().toUpperCase();
-  const map: Record<string, string> = {
-    MIDTRANS: "Midtrans Snap",
-    BANK_TRANSFER: "Transfer Bank (VA)",
-    CREDIT_CARD: "Kartu Kredit / Debit",
-    GOPAY: "GoPay",
-    SHOPEEPAY: "ShopeePay",
-    QRIS: "QRIS",
-    ECHANNEL: "Mandiri Bill Payment",
-    PERMATA_VA: "Permata Virtual Account",
-    BCA_VA: "BCA Virtual Account",
-    BNI_VA: "BNI Virtual Account",
-    BRI_VA: "BRI Virtual Account",
-  };
-  return map[normalized] || method.replaceAll("_", " ");
+  return mapPaymentMethod[normalized] || method.replaceAll("_", " ");
 }
 
 // Halaman rincian pesanan florist dengan informasi produk, pemrosesan, dan pengiriman
@@ -82,7 +80,7 @@ export default function OrderDetailPage() {
   );
 
   const [copiedResi, setCopiedResi] = useState(false);
-  const [isSyncingShipment, setIsSyncingShipment] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleCopyResi = (resi: string) => {
     void navigator.clipboard.writeText(resi);
@@ -90,15 +88,15 @@ export default function OrderDetailPage() {
     window.setTimeout(() => setCopiedResi(false), 2000);
   };
 
-  const handleSyncShipment = async (shipmentId: string) => {
-    setIsSyncingShipment(true);
+  const handleRefreshOrder = async () => {
+    setIsRefreshing(true);
     try {
-      await trackFloristShipment(shipmentId);
+      if (order?.shipment?.biteshipOrderId) {
+        await trackFloristShipment(order.shipment.id).catch(() => {});
+      }
       await refetch();
-    } catch {
-      // Abaikan kegagalan sinkronisasi sementara
     } finally {
-      setIsSyncingShipment(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -231,19 +229,29 @@ export default function OrderDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void handleRefreshOrder()}
+              disabled={isRefreshing}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-50"
+            >
+              {isRefreshing && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              )}
+              <span>Perbarui Data</span>
+            </button>
             {order.status === "PAID" && !order.shipment && (
               <Link
                 href={`/florist/shipments?orderId=${order.id}`}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex min-h-11 items-center justify-center rounded-sm bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                <Truck className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Buat Pengiriman</span>
+                Buat Pengiriman
               </Link>
             )}
             {order.shipment && (
               <Link
                 href="/florist/shipments"
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10"
+                className="inline-flex min-h-11 items-center justify-center rounded-sm border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10"
               >
                 Kelola Pengiriman
               </Link>
@@ -253,39 +261,13 @@ export default function OrderDetailPage() {
 
         {/* 5-Step Fulfillment Tracker */}
         {!isCancelled && (
-          <div className="mt-7 border-t border-white/10 pt-6">
-            <ol
-              aria-label="Tahapan pemrosesan pesanan"
-              className="grid grid-cols-5 gap-2 sm:gap-3"
-            >
-              {ORDER_STEPS.map((step, idx) => {
-                const isDone = idx <= activeStepIndex;
-                const isCurrent = idx === activeStepIndex;
-                return (
-                  <li key={step.key} className="space-y-2">
-                    <div
-                      className={`h-1.5 rounded-full transition-colors ${
-                        isDone ? "bg-primary" : "bg-white/15"
-                      }`}
-                    />
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={`text-[11px] font-semibold sm:text-xs ${
-                          isCurrent
-                            ? "text-white"
-                            : isDone
-                              ? "text-white/80"
-                              : "text-white/40"
-                        }`}
-                      >
-                        {step.label}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
+          <TrackingProgressTrack
+            steps={ORDER_STEPS.map((step) => step.label)}
+            activeStepIndex={activeStepIndex}
+            isCompletedAll={order.status === "DELIVERED"}
+            ariaLabel="Tahapan pemrosesan pesanan"
+            className="mt-7 pt-6"
+          />
         )}
       </section>
 
@@ -293,7 +275,7 @@ export default function OrderDetailPage() {
         {/* Kolom Utama */}
         <div className="space-y-6 lg:col-span-8">
           {/* Daftar Produk */}
-          <section className="rounded-2xl border border-border bg-surface p-6 shadow-xs">
+          <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="mb-5 flex items-center justify-between border-b border-border pb-4">
               <div>
                 <h2 className="text-base font-bold tracking-tight text-foreground">
@@ -355,7 +337,7 @@ export default function OrderDetailPage() {
 
           {/* Catatan Pesanan Customer */}
           {order.notes && (
-            <section className="rounded-2xl border border-border bg-surface p-6 shadow-xs">
+            <section className="rounded-2xl border border-border bg-surface p-6">
               <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
                 Catatan Pesanan / Kartu Ucapan
               </h2>
@@ -366,7 +348,7 @@ export default function OrderDetailPage() {
           )}
 
           {/* Informasi Pengiriman & Riwayat Pelacakan */}
-          <section className="rounded-2xl border border-border bg-surface p-6 shadow-xs">
+          <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
               <div>
                 <h2 className="text-base font-bold tracking-tight text-foreground">
@@ -377,21 +359,6 @@ export default function OrderDetailPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {order.shipment?.biteshipOrderId && (
-                  <button
-                    type="button"
-                    onClick={() => void handleSyncShipment(order.shipment!.id)}
-                    disabled={isSyncingShipment}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-primary/30 bg-card px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/5 disabled:opacity-50"
-                  >
-                    {isSyncingShipment ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                    )}
-                    <span>Sinkron Kurir</span>
-                  </button>
-                )}
                 {order.shipment &&
                   (Boolean(order.shipment.id) ||
                     order.shipment.biteshipOrderId ||
@@ -400,10 +367,9 @@ export default function OrderDetailPage() {
                       href={`/api/florist/shipments/${order.shipment.id}/label`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+                      className="inline-flex min-h-9 items-center rounded-sm border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
                     >
-                      <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Cetak Label</span>
+                      Cetak Label
                     </a>
                   )}
                 {order.shipment && getStatusBadge(order.shipment.status)}
@@ -436,7 +402,7 @@ export default function OrderDetailPage() {
                         onClick={() =>
                           handleCopyResi(order.shipment!.trackingNumber!)
                         }
-                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-surface"
+                        className="inline-flex items-center gap-1 rounded-sm border border-border bg-card px-2 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-surface"
                       >
                         {copiedResi ? (
                           <>
@@ -504,32 +470,41 @@ export default function OrderDetailPage() {
             )}
 
             {/* Kronologi Timeline Start -> End */}
-            <ol className="relative ml-2.5 space-y-5 border-l border-border pl-6">
+            <ol className="relative ml-3 space-y-6 border-l border-border pl-6">
               {trackingTimeline.map((event, idx) => {
                 const isLatest = idx === 0;
+                const isCancelledEvent = Boolean(event.isCancelled);
                 return (
                   <li key={event.id} className="relative">
                     <span
-                      className={`absolute -left-[29px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-surface ${
-                        isLatest ? "bg-primary" : "bg-muted-foreground/40"
+                      className={`absolute -left-[31px] top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-surface ${
+                        isCancelledEvent
+                          ? "bg-error"
+                          : isLatest
+                            ? "bg-primary"
+                            : "bg-border"
                       }`}
                       aria-hidden="true"
                     />
-                    <div className="flex flex-col gap-0.5">
+                    <div className="min-w-0">
                       <time
                         dateTime={event.isoDate}
-                        className="text-xs font-medium tabular-nums text-muted-foreground"
+                        className="block text-xs tabular-nums text-muted-foreground"
                       >
                         {event.dateStr} · {event.timeStr}
                       </time>
                       <p
-                        className={`text-sm font-semibold ${
-                          isLatest ? "text-foreground" : "text-foreground/85"
+                        className={`mt-0.5 text-sm ${
+                          isCancelledEvent
+                            ? "font-semibold text-error"
+                            : isLatest
+                              ? "font-semibold text-foreground"
+                              : "font-medium text-foreground/80"
                         }`}
                       >
                         {event.statusTitle}
                       </p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                         {event.description}
                       </p>
                     </div>
@@ -543,7 +518,7 @@ export default function OrderDetailPage() {
         {/* Sidebar Kanan */}
         <div className="space-y-6 lg:col-span-4">
           {/* Dark Sticky Payment Receipt */}
-          <section className="rounded-2xl border border-white/10 bg-surface-dark p-6 text-white shadow-xs">
+          <section className="rounded-2xl border border-white/10 bg-surface-dark p-6 text-white">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-kicker">
               Ringkasan Tagihan
             </p>
@@ -604,7 +579,7 @@ export default function OrderDetailPage() {
           </section>
 
           {/* Informasi Customer */}
-          <section className="rounded-2xl border border-border bg-surface p-6 shadow-xs">
+          <section className="rounded-2xl border border-border bg-surface p-6">
             <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Informasi Customer
             </h2>
@@ -621,7 +596,7 @@ export default function OrderDetailPage() {
 
           {/* Alamat Tujuan */}
           {order.shippingAddress && (
-            <section className="rounded-2xl border border-border bg-surface p-6 shadow-xs">
+            <section className="rounded-2xl border border-border bg-surface p-6">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Alamat Tujuan Pengiriman

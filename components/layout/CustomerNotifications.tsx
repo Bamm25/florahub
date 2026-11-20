@@ -3,15 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Bell,
-  CheckCheck,
-  Package,
-  Truck,
-  ShoppingCart,
-  Calendar,
-  TrendingUp,
-} from "lucide-react";
+import { Bell } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils/formatters";
 
 type Notification = {
@@ -112,20 +104,20 @@ export default function CustomerNotifications() {
     }
   }
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationCategory = (type: string) => {
     switch (type) {
       case "ORDER_CREATED":
-        return <ShoppingCart className="h-4 w-4 text-primary" />;
+        return "Pesanan";
       case "PAYMENT_SUCCESS":
-        return <ShoppingCart className="h-4 w-4 text-primary" />;
+        return "Pembayaran";
       case "SHIPMENT_UPDATE":
-        return <Truck className="h-4 w-4 text-info" />;
+        return "Pengiriman";
       case "LOW_STOCK_ALERT":
-        return <TrendingUp className="h-4 w-4 text-error" />;
+        return "Stok";
       case "HARVEST_ANNOUNCEMENT":
-        return <Calendar className="h-4 w-4 text-primary" />;
+        return "Panen";
       default:
-        return <Package className="h-4 w-4 text-primary" />;
+        return "Info";
     }
   };
 
@@ -147,12 +139,12 @@ export default function CustomerNotifications() {
         )}
       </button>
       {open && (
-        <div role="dialog" aria-label="Notifikasi" className="absolute right-0 z-50 mt-2 w-[min(24rem,calc(100dvw-2rem))] overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-xs">
+        <div role="dialog" aria-label="Notifikasi" className="absolute right-0 z-50 mt-2 w-[min(24rem,calc(100dvw-2rem))] overflow-hidden rounded-2xl border border-border bg-card text-foreground">
           <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-surface-container-low/50">
             <h2 className="font-semibold text-sm">Notifikasi</h2>
             {unreadCount > 0 && (
-              <button type="button" onClick={() => void markAllRead()} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                <CheckCheck className="h-4 w-4" /> Tandai semua dibaca
+              <button type="button" onClick={() => void markAllRead()} className="text-xs font-semibold text-primary hover:underline">
+                Tandai semua dibaca
               </button>
             )}
           </div>
@@ -162,10 +154,7 @@ export default function CustomerNotifications() {
               <p className="p-6 text-center text-xs text-muted-foreground">Memuat notifikasi...</p>
             ) : notifications.length === 0 ? (
               <div className="p-8 text-center">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-low text-muted-foreground">
-                  <Bell className="h-5 w-5" />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">Belum ada notifikasi.</p>
+                <p className="text-xs text-muted-foreground">Belum ada notifikasi.</p>
               </div>
             ) : (
               notifications.map((notification) => {
@@ -182,29 +171,29 @@ export default function CustomerNotifications() {
                       }
                       router.push(target);
                     }}
-                    className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-container ${
+                    className={`block px-4 py-3 transition-colors hover:bg-surface-container ${
                       notification.isRead ? "" : "bg-primary/[0.04]"
                     }`}
                   >
-                    <div className="mt-0.5 rounded-lg bg-surface-container p-2 shrink-0">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`block text-xs ${notification.isRead ? "font-medium text-foreground" : "font-bold text-foreground"}`}>
-                          {notification.title}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`block text-xs ${notification.isRead ? "font-medium text-foreground" : "font-bold text-foreground"}`}>
+                        {notification.title}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {getNotificationCategory(notification.type)}
                         </span>
                         {!notification.isRead && (
                           <span className="h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Belum dibaca" />
                         )}
                       </div>
-                      <span className="mt-0.5 block text-xs text-muted-foreground line-clamp-2">
-                        {notification.message}
-                      </span>
-                      <span className="mt-1 block font-mono text-[11px] text-muted-foreground">
-                        {formatRelativeTime(notification.createdAt)}
-                      </span>
                     </div>
+                    <span className="mt-0.5 block text-xs text-muted-foreground line-clamp-2">
+                      {notification.message}
+                    </span>
+                    <span className="mt-1 block font-mono text-[11px] text-muted-foreground">
+                      {formatRelativeTime(notification.createdAt)}
+                    </span>
                   </Link>
                 );
               })

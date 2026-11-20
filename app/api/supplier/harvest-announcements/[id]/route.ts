@@ -1,8 +1,10 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { createAuditLog } from "@/lib/auditLog";
 import prisma from "@/lib/prisma";
 import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
 import { NextResponse } from "next/server";
 import { updateHarvestAnnouncementSchema } from "@/lib/validations/schemas";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import { z } from "zod";
 
 // Tipe parameter rute URL
@@ -46,7 +48,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       userRole === "ADMIN" ||
       (userRole === "SUPPLIER" && baseAnnouncement.supplierId === userId);
 
-    const preOrders = canSeeAllPreOrders
+    const preOrdersRaw = canSeeAllPreOrders
       ? await prisma.harvestPreOrder.findMany({
           where: { announcementId },
           include: {
@@ -54,6 +56,11 @@ export async function GET(request: Request, { params }: RouteParams) {
               select: {
                 id: true,
                 name: true,
+                floristProfile: {
+                  select: {
+                    shopName: true,
+                  },
+                },
               },
             },
           },
@@ -67,12 +74,25 @@ export async function GET(request: Request, { params }: RouteParams) {
                 select: {
                   id: true,
                   name: true,
+                  floristProfile: {
+                    select: {
+                      shopName: true,
+                    },
+                  },
                 },
               },
             },
             orderBy: { createdAt: "desc" },
           })
         : [];
+
+    const preOrders = preOrdersRaw.map((po) => ({
+      ...po,
+      florist: {
+        id: po.florist.id,
+        name: po.florist.floristProfile?.shopName || po.florist.name,
+      },
+    }));
 
     return NextResponse.json({
       success: true,
@@ -171,6 +191,17 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     // Harga dan tanggal panen terkunci setelah ada pemesan agar kontrak DP/pelunasan tetap sah.
+    if (existingAnnouncement.transferredAt && isActive === true) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Jadwal panen yang sisa stoknya sudah dipindahkan ke stok biasa tidak dapat diaktifkan kembali.",
+        },
+        { status: 409 },
+      );
+    }
+
     if (pricePerUnit !== undefined || harvestDate !== undefined) {
       const relatedOrders = await prisma.harvestPreOrder.count({
         where: { announcementId },
@@ -224,6 +255,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         where: { id: announcementId },
       });
       if (!latest || latest.supplierId !== userId) return null;
+      if (latest.transferredAt && isActive === true) return null;
       if (pricePerUnit !== undefined || harvestDate !== undefined) {
         const totalOrders = await tx.harvestPreOrder.count({
           where: { announcementId },
@@ -308,6 +340,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     // Kembalikan respon sukses pembaruan pengumuman panen
+    safeRevalidatePaths([
+      "/supplier/dashboard",
+      "/supplier/harvest-announcements",
+      "/florist/harvest-plans",
+    ]);
     return NextResponse.json({
       success: true,
       message: "Pengumuman panen berhasil diperbarui",
@@ -394,7 +431,25 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       where: { id: announcementId },
     });
 
+    await createAuditLog({
+      userId,
+      action: "DELETE",
+      entity: "HarvestAnnouncement",
+      entityId: announcementId,
+      oldValue: {
+        flowerName: existingAnnouncement.flowerName,
+        estimatedQuantity: existingAnnouncement.estimatedQuantity,
+      },
+      ipAddress: request.headers.get("x-forwarded-for") ?? undefined,
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    });
+
     // Kembalikan respon sukses penghapusan pengumuman panen
+    safeRevalidatePaths([
+      "/supplier/dashboard",
+      "/supplier/harvest-announcements",
+      "/florist/harvest-plans",
+    ]);
     return NextResponse.json({
       success: true,
       message: "Pengumuman panen berhasil dihapus",

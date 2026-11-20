@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Minus, Plus, Store, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import { PRODUCT_LOW_STOCK_THRESHOLD } from "@/lib/config/domain";
 import { useCartStore } from "@/lib/stores/cartStore";
 import { formatRupiah } from "@/lib/utils/formatters";
@@ -103,7 +103,7 @@ export default function CartTable() {
         </p>
         <Link href="/products" className="btn-primary mt-6">
           Lihat Katalog
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          <span aria-hidden="true">→</span>
         </Link>
       </div>
     );
@@ -154,10 +154,9 @@ export default function CartTable() {
               )}
               <Link
                 href={`/stores/${group.floristId}`}
-                className="inline-flex items-center gap-2 text-sm font-bold text-foreground transition-colors hover:text-primary sm:text-base"
+                className="text-sm font-bold text-foreground transition-colors hover:text-primary sm:text-base"
               >
-                <Store className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                <span>{group.floristName}</span>
+                {group.floristName}
               </Link>
               <span className="text-xs tabular-nums text-muted-foreground">
                 · {group.itemCount} produk · {formatRupiah(group.subtotal)}

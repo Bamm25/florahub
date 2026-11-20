@@ -1,35 +1,26 @@
 "use client";
 
-import {
-  AlertCircle,
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  Flower2,
-  ShoppingBag,
-  Sprout,
-} from "lucide-react";
+import { AlertCircle, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { Suspense, useState } from "react";
+import { FloraHubMark } from "@/components/ui/FloraHubLogo";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO_URL } from "@/lib/config/domain";
 
 const labelClass = "mb-2 block text-sm font-semibold text-foreground";
 const errorTextClass = "mt-2 text-sm font-medium text-error";
 
 const PORTAL_HIGHLIGHTS = [
   {
-    icon: ShoppingBag,
     title: "Pembeli",
     detail: "Pesan rangkaian & pantau pengiriman.",
   },
   {
-    icon: Flower2,
     title: "Florist",
     detail: "Kelola katalog & pesanan toko.",
   },
   {
-    icon: Sprout,
     title: "Supplier",
     detail: "Atur stok kebun & jadwal panen.",
   },
@@ -40,7 +31,7 @@ function BrandPanel() {
     <aside className="hidden flex-col justify-between border-r border-white/10 bg-surface-dark px-12 py-10 text-white lg:flex xl:px-16">
       <div className="flex items-center justify-between gap-4">
         <Link href="/" className="inline-flex items-center gap-2.5">
-          <Flower2 className="h-5 w-5 text-kicker" aria-hidden="true" />
+          <FloraHubMark className="h-7 w-7" variant="dark" />
           <span className="text-xl font-bold tracking-tight text-white">
             Flora<span className="font-display font-normal italic text-kicker">Hub</span>
           </span>
@@ -67,28 +58,25 @@ function BrandPanel() {
         </h2>
 
         <div className="mt-9 divide-y divide-white/10 rounded-2xl border border-white/12 bg-white/[0.04]">
-          {PORTAL_HIGHLIGHTS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.title} className="flex items-start gap-3.5 p-4 sm:px-5">
-                <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-kicker">
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">{item.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-white/65">
-                    {item.detail}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+          {PORTAL_HIGHLIGHTS.map((item) => (
+            <div key={item.title} className="p-4 sm:px-5">
+              <p className="text-sm font-semibold text-kicker">{item.title}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-white/70">
+                {item.detail}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
       <div className="flex items-center justify-between border-t border-white/10 pt-5 text-xs text-white/50">
         <span>© {new Date().getFullYear()} FloraHub</span>
-        <span>Surabaya · Malang</span>
+        <span className="text-white/55">
+          Khusus Wilayah{" "}
+          <span className="font-display text-sm font-normal italic text-kicker">
+            Jawa Timur
+          </span>
+        </span>
       </div>
     </aside>
   );
@@ -201,7 +189,7 @@ function LoginForm() {
             href="/"
             className="inline-flex items-center gap-2 text-foreground lg:hidden"
           >
-            <Flower2 className="h-5 w-5 text-primary" aria-hidden="true" />
+            <FloraHubMark className="h-6 w-6" variant="light" />
             <span className="text-lg font-bold tracking-tight">
               Flora<span className="font-display font-normal italic text-primary">Hub</span>
             </span>
@@ -247,7 +235,18 @@ function LoginForm() {
                 className="mt-0.5 h-5 w-5 shrink-0 text-error"
                 aria-hidden="true"
               />
-              <span className="font-medium">{errorMessage}</span>
+              <div className="space-y-1">
+                <p className="font-medium">{errorMessage}</p>
+                <p className="text-xs text-muted-foreground">
+                  Kendala akses atau akun dinonaktifkan?{" "}
+                  <a
+                    href={SUPPORT_MAILTO_URL}
+                    className="font-semibold text-primary underline-offset-4 hover:underline"
+                  >
+                    Hubungi Bantuan &amp; Pengaduan ({SUPPORT_EMAIL})
+                  </a>
+                </p>
+              </div>
             </div>
           )}
 
@@ -344,6 +343,16 @@ function LoginForm() {
             >
               Daftar gratis
             </Link>
+          </p>
+
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            Butuh bantuan akun atau pengaduan?{" "}
+            <a
+              href={SUPPORT_MAILTO_URL}
+              className="font-semibold text-foreground underline-offset-4 hover:text-primary hover:underline"
+            >
+              Hubungi Bantuan ({SUPPORT_EMAIL})
+            </a>
           </p>
         </div>
 

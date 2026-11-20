@@ -12,6 +12,7 @@ import {
 } from "@/lib/supply-chain/fulfill-inventory";
 import type { BiteshipOrderRequest } from "@/lib/biteship";
 import type { Address } from "@prisma/client";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import { NextResponse } from "next/server";
 
 // Handler HTTP POST untuk membuat pengiriman otomatis Biteship dan menerbitkan nomor resi resmi
@@ -373,6 +374,15 @@ export async function POST(request: Request) {
         },
       });
     }
+
+    safeRevalidatePaths([
+      "/supplier/dashboard",
+      "/supplier/shipments",
+      "/supplier/sales",
+      "/supplier/harvest-announcements",
+      "/florist/harvest-plans",
+      "/florist/supplier-stocks",
+    ]);
 
     return NextResponse.json({
       success: true,

@@ -42,8 +42,7 @@ export async function GET(request: Request) {
       parsed.data;
     const skip = (page - 1) * limit;
 
-    const whereClause: Prisma.AuditLogWhereInput = {
-      ...(action ? { action } : {}),
+    const baseWhere: Prisma.AuditLogWhereInput = {
       ...(entity
         ? { entity: { equals: entity, mode: "insensitive" } }
         : {}),
@@ -68,7 +67,12 @@ export async function GET(request: Request) {
         : {}),
     };
 
-    const [rows, total] = await Promise.all([
+    const whereClause: Prisma.AuditLogWhereInput = {
+      ...baseWhere,
+      ...(action ? { action } : {}),
+    };
+
+    const [rows, total, groupedActions] = await Promise.all([
       prisma.auditLog.findMany({
         where: whereClause,
         select: {
@@ -96,7 +100,32 @@ export async function GET(request: Request) {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       prisma.auditLog.count({ where: whereClause }),
+      typeof prisma.auditLog.groupBy === "function"
+        ? prisma.auditLog.groupBy({
+            by: ["action"],
+            where: baseWhere,
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
     ]);
+
+    const actionCounts: Record<string, number> = {
+      ALL: 0,
+      CREATE: 0,
+      UPDATE: 0,
+      DELETE: 0,
+      PAYMENT: 0,
+      LOGIN: 0,
+      LOGOUT: 0,
+    };
+    for (const row of groupedActions as Array<{
+      action: string;
+      _count: { _all: number };
+    }>) {
+      const countVal = row._count?._all ?? 0;
+      actionCounts[row.action] = countVal;
+      actionCounts.ALL += countVal;
+    }
 
     const logs = rows.map((row) => ({
       id: row.id,
@@ -124,6 +153,7 @@ export async function GET(request: Request) {
       message: "Daftar audit log berhasil diambil",
       data: {
         logs,
+        actionCounts,
         pagination: {
           page,
           limit,

@@ -1,4 +1,5 @@
 import { reportServerError } from "@/lib/server-error-report";
+import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import { releaseCouponUsageInTx } from "@/lib/coupons";
 import prisma from "@/lib/prisma";
@@ -94,6 +95,17 @@ export async function POST(
         { status: 409 },
       );
     }
+
+    await createAuditLog({
+      userId,
+      action: "UPDATE",
+      entity: "Order",
+      entityId: id,
+      oldValue: { status: "PENDING", orderNumber: order.orderNumber },
+      newValue: { status: "CANCELLED", reason: "Dibatalkan oleh pelanggan" },
+      ipAddress: request.headers.get("x-forwarded-for") ?? undefined,
+      userAgent: request.headers.get("user-agent") ?? undefined,
+    });
 
     return NextResponse.json({
       success: true,

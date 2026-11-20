@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Eye, Receipt, Truck, Navigation } from "lucide-react";
+import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import Modal from "@/components/forms/Modal";
-import { getSupplierSales, StockTransactionItem } from "@/lib/api/supplier";
+import { getAllSupplierSales, StockTransactionItem } from "@/lib/api/supplier";
 import StatusBadge from "@/components/ui/StatusBadge";
 import SupplierDeliveryStatus from "@/components/ui/SupplierDeliveryStatus";
 import ShipmentTrackingModal from "@/components/ui/ShipmentTrackingModal";
@@ -16,16 +17,23 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ErrorState from "@/components/ui/ErrorState";
 import EmptyState from "@/components/ui/EmptyState";
 import FilterBar from "@/components/ui/FilterBar";
+import SearchInput from "@/components/ui/SearchInput";
+import Pagination from "@/components/ui/Pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 export default function SupplierSalesPage() {
   const [sales, setSales] = useState<StockTransactionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter State
+  // Filter & Pencarian & Paginasi
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Rincian pesanan; pembayaran hanya melalui Midtrans
+  // Modal rincian & pelacakan pesanan
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<StockTransactionItem | null>(
     null,
@@ -34,12 +42,16 @@ export default function SupplierSalesPage() {
     null,
   );
 
-  // Ambil daftar riwayat penjualan dari backend
-  const fetchSales = async () => {
+  // Ambil seluruh riwayat penjualan dari backend
+  const fetchSales = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (silent) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
       setError(null);
-      const res = await getSupplierSales({ limit: 100 });
+      const res = await getAllSupplierSales();
       setSales(res);
     } catch (err) {
       setError(
@@ -49,6 +61,7 @@ export default function SupplierSalesPage() {
       );
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -56,25 +69,41 @@ export default function SupplierSalesPage() {
     void Promise.resolve().then(() => fetchSales());
   }, []);
 
-  // Filter data berdasarkan tab yang dipilih
+  // Ringkasan KPI
+  const summaryStats = useMemo(() => {
+    const total = sales.length;
+    const readyCount = sales.filter((s) => s.status === "PAID").length;
+    const shippedCount = sales.filter((s) => s.status === "SHIPPED").length;
+    const deliveredCount = sales.filter((s) => s.status === "DELIVERED").length;
+    return { total, readyCount, shippedCount, deliveredCount };
+  }, [sales]);
+
+  // Filter data berdasarkan pencarian dan kategori status
   const filteredSales = useMemo(() => {
-    if (activeFilter === "PENDING") {
-      return sales.filter((sale) => sale.status === "PENDING");
-    }
-    if (activeFilter === "PAID") {
-      return sales.filter((sale) => sale.status === "PAID");
-    }
-    if (activeFilter === "SHIPPED") {
-      return sales.filter((sale) => sale.status === "SHIPPED");
-    }
-    if (activeFilter === "DELIVERED") {
-      return sales.filter((sale) => sale.status === "DELIVERED");
-    }
-    if (activeFilter === "CANCELLED") {
-      return sales.filter((sale) => sale.status === "CANCELLED");
-    }
-    return sales;
-  }, [sales, activeFilter]);
+    const keyword = searchQuery.trim().toLowerCase();
+    return sales.filter((sale) => {
+      if (activeFilter !== "ALL" && sale.status !== activeFilter) {
+        return false;
+      }
+      if (!keyword) return true;
+      const orderIdShort = sale.id.slice(-8).toLowerCase();
+      return (
+        sale.id.toLowerCase().includes(keyword) ||
+        orderIdShort.includes(keyword) ||
+        sale.florist.name.toLowerCase().includes(keyword) ||
+        sale.florist.email.toLowerCase().includes(keyword) ||
+        sale.stock.name.toLowerCase().includes(keyword) ||
+        (sale.stock.variety?.toLowerCase().includes(keyword) ?? false)
+      );
+    });
+  }, [sales, searchQuery, activeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSales.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedSales = useMemo(() => {
+    const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+    return filteredSales.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredSales, safePage]);
 
   // Konfigurasi opsi FilterBar
   const filterOptions = [
@@ -86,12 +115,12 @@ export default function SupplierSalesPage() {
     },
     {
       id: "PAID",
-      label: "Lunas (Siap Kirim)",
+      label: "Siap Kirim",
       count: sales.filter((s) => s.status === "PAID").length,
     },
     {
       id: "SHIPPED",
-      label: "Resi Dibuat",
+      label: "Dalam Pengiriman",
       count: sales.filter((s) => s.status === "SHIPPED").length,
     },
     {
@@ -99,15 +128,18 @@ export default function SupplierSalesPage() {
       label: "Selesai",
       count: sales.filter((s) => s.status === "DELIVERED").length,
     },
+    {
+      id: "CANCELLED",
+      label: "Dibatalkan",
+      count: sales.filter((s) => s.status === "CANCELLED").length,
+    },
   ];
 
-  // Buka modal rincian transaksi penjualan
   const handleOpenModal = (sale: StockTransactionItem) => {
     setSelectedSale(sale);
     setIsModalOpen(true);
   };
 
-  // Loading & Error States
   if (isLoading) {
     return <LoadingSpinner message="Memuat data riwayat penjualan stok..." />;
   }
@@ -117,161 +149,273 @@ export default function SupplierSalesPage() {
       <ErrorState
         title="Riwayat Penjualan Gagal Dimuat"
         error={error}
-        onRetry={fetchSales}
+        onRetry={() => void fetchSales()}
       />
     );
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
-      {/* Header Halaman */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Penjualan Stok Bunga
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pantau pembelian stok florist dan pembayaran Midtrans.
-        </p>
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      {/* Header Editorial Gelap */}
+      <div className="flex flex-col gap-6 rounded-[24px] border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
+            Riwayat Pasokan
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
+            Penjualan Stok Bunga
+          </h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
+            Pantau pembelian stok langsung dari florist, status pembayaran, dan
+            pengirimannya.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={isRefreshing}
+            onClick={() => void fetchSales(true)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-white/20 bg-white/5 px-5 text-xs font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-50"
+          >
+            {isRefreshing && (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            )}
+            <span>Segarkan Data</span>
+          </button>
+          <Link
+            href="/supplier/shipments"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Kelola Pengiriman
+          </Link>
+        </div>
       </div>
 
-      {/* Filter Kategori Status */}
-      <FilterBar
-        filters={filterOptions}
-        activeFilter={activeFilter}
-        onChange={setActiveFilter}
-      />
+      {/* Ringkasan KPI 4-sel */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 overflow-hidden rounded-2xl border border-border bg-surface">
+        <div className="p-5 border-b border-r lg:border-b-0 border-border">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Total Transaksi
+          </p>
+          <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">
+            {summaryStats.total}
+          </p>
+        </div>
+        <div className="p-5 border-b lg:border-b-0 lg:border-r border-border">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Siap Kirim
+          </p>
+          <p
+            className={`mt-2 text-3xl font-bold tabular-nums ${
+              summaryStats.readyCount > 0 ? "text-warning" : "text-foreground"
+            }`}
+          >
+            {summaryStats.readyCount}
+          </p>
+        </div>
+        <div className="p-5 border-r border-border">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Dalam Pengiriman
+          </p>
+          <p className="mt-2 text-3xl font-bold tabular-nums text-primary">
+            {summaryStats.shippedCount}
+          </p>
+        </div>
+        <div className="p-5">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Selesai
+          </p>
+          <p className="mt-2 text-3xl font-bold tabular-nums text-success">
+            {summaryStats.deliveredCount}
+          </p>
+        </div>
+      </div>
+
+      {/* Bar Pencarian & Filter Kategori Status */}
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <SearchInput
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value);
+              setCurrentPage(1);
+            }}
+            placeholder="Cari nomor order, florist, atau bunga..."
+            className="max-w-md"
+          />
+          {filteredSales.length > 0 && (
+            <p className="text-xs tabular-nums text-muted-foreground">
+              Menampilkan {(safePage - 1) * ITEMS_PER_PAGE + 1}-
+              {Math.min(safePage * ITEMS_PER_PAGE, filteredSales.length)} dari{" "}
+              {filteredSales.length} transaksi
+            </p>
+          )}
+        </div>
+        <FilterBar
+          filters={filterOptions}
+          activeFilter={activeFilter}
+          onChange={(filterId) => {
+            setActiveFilter(filterId);
+            setCurrentPage(1);
+          }}
+        />
+      </div>
 
       {/* Tabel Riwayat Penjualan */}
       {filteredSales.length === 0 ? (
         <EmptyState
-          icon={<Receipt className="h-10 w-10 text-muted-foreground" />}
           title={
-            activeFilter !== "ALL"
-              ? "Tidak ada transaksi dalam filter ini"
+            searchQuery || activeFilter !== "ALL"
+              ? "Tidak ada transaksi yang cocok"
               : "Belum ada transaksi penjualan"
           }
           description={
-            activeFilter !== "ALL"
-              ? "Pilih tab filter lainnya untuk melihat transaksi penjualan."
+            searchQuery || activeFilter !== "ALL"
+              ? "Coba ubah kata kunci pencarian atau pilih filter status lainnya."
               : "Saat florist memesan bahan baku dari katalog stok Anda, transaksinya akan tercatat di sini."
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-border bg-surface-container-lowest text-xs font-medium uppercase text-muted-foreground">
-                <tr>
-                  <th scope="col" className="px-6 py-4">
-                    ID & Tanggal
-                  </th>
-                  <th scope="col" className="px-6 py-4">
-                    Florist
-                  </th>
-                  <th scope="col" className="px-6 py-4">
-                    Bunga Dipesan
-                  </th>
-                  <th scope="col" className="px-6 py-4">
-                    Total Tagihan
-                  </th>
-                  <th scope="col" className="px-6 py-4">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-right">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredSales.map((sale) => {
-                  return (
-                    <tr
-                      key={sale.id}
-                      className="hover:bg-surface-container-lowest/50"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <p className="font-mono text-xs font-bold text-foreground">
-                          #{sale.id.slice(-8).toUpperCase()}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(sale.createdAt)}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <p className="font-semibold text-foreground">
-                          {sale.florist.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {sale.florist.email}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-foreground">
-                          {sale.stock.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {sale.quantity.toLocaleString("id-ID")} tangkai (
-                          {formatRupiah(sale.pricePerUnit)} / tangkai)
-                        </p>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap font-bold text-foreground">
-                        {formatRupiah(sale.totalPrice)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {sale.biteshipOrderId ? <SupplierDeliveryStatus status={sale.status} booked /> : <StatusBadge status={sale.status} variant="shipment" size="sm" />}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {sale.status === "PAID" && !sale.biteshipOrderId && (
-                            <a
-                              href="/supplier/shipments"
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
-                            >
-                              <Truck className="h-3.5 w-3.5" />
-                              <span>Atur Pengiriman</span>
-                            </a>
+        <div className="space-y-4">
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-border bg-surface-container-lowest text-xs font-medium uppercase text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="px-6 py-4">
+                      ID &amp; Tanggal
+                    </th>
+                    <th scope="col" className="px-6 py-4">
+                      Florist
+                    </th>
+                    <th scope="col" className="px-6 py-4">
+                      Bunga Dipesan
+                    </th>
+                    <th scope="col" className="px-6 py-4">
+                      Total Tagihan
+                    </th>
+                    <th scope="col" className="px-6 py-4">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-4 text-right">
+                      Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginatedSales.map((sale) => {
+                    const unit = sale.stock.unit || "tangkai";
+                    return (
+                      <tr
+                        key={sale.id}
+                        className="hover:bg-surface-container-lowest/50"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className="font-mono text-xs font-bold text-foreground">
+                            #{sale.id.slice(-8).toUpperCase()}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            <time dateTime={sale.createdAt} className="tabular-nums">
+                              {formatDate(sale.createdAt)}
+                            </time>
+                          </p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className="font-semibold text-foreground">
+                            {sale.florist.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {sale.florist.email}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="font-medium text-foreground">
+                            {sale.stock.name}
+                          </p>
+                          <p className="text-xs tabular-nums text-muted-foreground">
+                            {sale.quantity.toLocaleString("id-ID")} {unit} (
+                            {formatRupiah(sale.pricePerUnit)} / {unit})
+                          </p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap font-bold tabular-nums text-foreground">
+                          {formatRupiah(sale.totalPrice)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {sale.biteshipOrderId ? (
+                            <SupplierDeliveryStatus
+                              status={sale.status}
+                              booked
+                            />
+                          ) : (
+                            <StatusBadge
+                              status={sale.status}
+                              variant="shipment"
+                              size="sm"
+                            />
                           )}
-                          {sale.biteshipOrderId && (
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {sale.status === "PAID" &&
+                              !sale.biteshipOrderId && (
+                                <Link
+                                  href="/supplier/shipments"
+                                  className="inline-flex min-h-8 items-center justify-center rounded-sm bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                                >
+                                  Atur Pengiriman
+                                </Link>
+                              )}
+                            {sale.biteshipOrderId && (
+                              <button
+                                type="button"
+                                onClick={() => setTrackingSale(sale)}
+                                className="inline-flex min-h-8 items-center justify-center rounded-sm border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                              >
+                                Lacak Pengiriman
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => setTrackingSale(sale)}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+                              onClick={() => handleOpenModal(sale)}
+                              className="inline-flex min-h-8 items-center justify-center rounded-sm border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container"
                             >
-                              <Navigation className="h-3.5 w-3.5 text-primary" />
-                              <span>Lacak & Kontrol Kurir</span>
+                              Rincian
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenModal(sale)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-container transition-colors"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            <span>Rincian</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          <Pagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            ariaLabel="Navigasi halaman penjualan stok"
+          />
         </div>
       )}
 
-      {/* Rincian transaksi dan status pembayaran otomatis */}
+      {/* Modal Rincian Transaksi */}
       <Modal
         isOpen={isModalOpen && Boolean(selectedSale)}
         onClose={() => setIsModalOpen(false)}
         size="sm"
+        headerVariant="dark"
+        kicker="Transaksi Pasokan"
         title="Rincian Transaksi Penjualan"
-        subtitle={selectedSale ? `ID: #${selectedSale.id}` : undefined}
+        subtitle={
+          selectedSale ? `ID: #${selectedSale.id.slice(-8).toUpperCase()}` : undefined
+        }
         footer={
           <button
             type="button"
             onClick={() => setIsModalOpen(false)}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-container"
+            className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
           >
             Tutup
           </button>
@@ -280,37 +424,36 @@ export default function SupplierSalesPage() {
         {selectedSale && (
           <div className="space-y-4 text-sm">
             {/* Rincian Pemesan & Bunga */}
-            <div className="rounded-xl bg-surface-container-low p-4 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  Florist Pemesan:
-                </span>
-                <span className="font-semibold text-foreground">
+            <div className="rounded-xl bg-surface-container-low p-4 space-y-2.5 text-xs">
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Florist Pemesan:</span>
+                <span className="text-right font-semibold text-foreground">
                   {selectedSale.florist.name} ({selectedSale.florist.email})
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Bunga Dipesan:</span>
-                <span className="font-semibold text-foreground">
+                <span className="text-right font-semibold text-foreground">
                   {selectedSale.stock.name} (
                   {selectedSale.stock.variety || "Standar"})
                 </span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Kuantitas:</span>
                 <span className="font-semibold text-foreground tabular-nums">
-                  {selectedSale.quantity.toLocaleString("id-ID")} tangkai
+                  {selectedSale.quantity.toLocaleString("id-ID")}{" "}
+                  {selectedSale.stock.unit || "tangkai"}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  Waktu Pemesanan:
-                </span>
-                <span className="text-foreground">
-                  {formatDateTime(selectedSale.createdAt)}
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Waktu Pemesanan:</span>
+                <span className="text-foreground tabular-nums">
+                  <time dateTime={selectedSale.createdAt}>
+                    {formatDateTime(selectedSale.createdAt)}
+                  </time>
                 </span>
               </div>
-              <div className="flex justify-between border-t border-border pt-2 text-sm font-bold text-foreground">
+              <div className="flex justify-between border-t border-border pt-2.5 text-sm font-bold text-foreground">
                 <span>Total Tagihan:</span>
                 <span className="text-foreground tabular-nums">
                   {formatRupiah(selectedSale.totalPrice)}
@@ -320,9 +463,11 @@ export default function SupplierSalesPage() {
 
             {selectedSale.status === "PENDING" && (
               <p className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
-                Menunggu pembayaran florist melalui Midtrans. Hanya pembayaran yang terverifikasi otomatis dapat diproses untuk pengiriman.
+                Menunggu pembayaran dari florist. Pesanan baru dapat dikirim
+                setelah pembayaran terkonfirmasi lunas.
               </p>
             )}
+
             {selectedSale.biteshipOrderId && (
               <div className="rounded-xl border border-border bg-surface-container-low p-4 space-y-3">
                 <SupplierDeliveryStatus
@@ -333,45 +478,53 @@ export default function SupplierSalesPage() {
                   bookedAt={selectedSale.shippedAt}
                   deliveredAt={selectedSale.deliveredAt}
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const saleToTrack = selectedSale;
-                    setIsModalOpen(false);
-                    setTrackingSale(saleToTrack);
-                  }}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
-                >
-                  <Navigation className="h-4 w-4" />
-                  <span>Buka Pelacakan & Kontrol Serah Terima Kurir</span>
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const saleToTrack = selectedSale;
+                      setIsModalOpen(false);
+                      setTrackingSale(saleToTrack);
+                    }}
+                    className="flex-1 inline-flex min-h-10 items-center justify-center rounded-sm bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    Lacak Pengiriman
+                  </button>
+                  <a
+                    href={`/api/supplier/shipments/${selectedSale.id}/label`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-surface px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container"
+                  >
+                    Cetak Label
+                  </a>
+                </div>
               </div>
             )}
 
-            {/* Arahkan ke menu Pengiriman Biteship saat status Lunas (PAID) */}
+            {/* Arahkan ke menu Pengiriman saat status Lunas (PAID) */}
             {selectedSale.status === "PAID" && !selectedSale.biteshipOrderId && (
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2 text-xs text-foreground">
-                <div className="flex items-center gap-2 font-semibold text-primary">
-                  <Truck className="h-4 w-4" />
-                  <span>Pesanan Lunas — Siap Diproses untuk Pengiriman</span>
-                </div>
-                <p className="text-muted-foreground">
-                  Buka menu Pengiriman untuk memilih kurir Biteship, menghitung ongkos kirim, dan menerbitkan resi otomatis.
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2.5 text-xs text-foreground">
+                <p className="font-semibold text-primary">
+                  Pesanan Lunas — Siap Dikirim
                 </p>
-                <a
+                <p className="text-muted-foreground leading-relaxed">
+                  Buka halaman Pengiriman untuk memilih layanan kurir, melihat
+                  ongkos kirim, dan menerbitkan resi pengiriman.
+                </p>
+                <Link
                   href="/supplier/shipments"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                  className="inline-flex min-h-9 items-center justify-center rounded-sm bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
-                  <Truck className="h-3.5 w-3.5" />
-                  <span>Atur Pengiriman Biteship</span>
-                </a>
+                  Atur Pengiriman
+                </Link>
               </div>
             )}
           </div>
         )}
       </Modal>
 
-      {/* MODAL PELACAKAN PENGIRIMAN PASOKAN UNTUK SUPPLIER */}
+      {/* Modal Pelacakan Pengiriman Pasokan */}
       {trackingSale && (
         <ShipmentTrackingModal
           isOpen={Boolean(trackingSale)}
@@ -387,7 +540,7 @@ export default function SupplierSalesPage() {
           deliveredAt={trackingSale.deliveredAt}
           userRole="SUPPLIER"
           onStatusUpdated={() => {
-            void fetchSales();
+            void fetchSales(true);
           }}
         />
       )}

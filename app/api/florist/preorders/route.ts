@@ -12,7 +12,7 @@ import { z } from "zod";
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses florist atau admin
-    const { userId, session } = await requireAuth(request, ["FLORIST"]);
+    const { userId } = await requireAuth(request, ["FLORIST"]);
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = parsePaginationParams(searchParams, 20, 100);
     const status = searchParams.get("status");
@@ -268,7 +268,7 @@ export async function POST(request: Request) {
         title: "Pre-Order Panen Baru Masuk!",
         message: `Florist ${session.user?.name || "Mitra"} memesan ${requestedQuantity} tangkai ${announcement.flowerName} untuk jadwal panen mendatang.`,
         type: "HARVEST_ANNOUNCEMENT",
-        link: `/supplier/harvest-announcements/${announcement.id}`,
+        link: "/supplier/harvest-announcements",
         isRead: false,
       },
     });

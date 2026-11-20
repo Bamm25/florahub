@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { Module } from "node:module";
 import { resolve } from "node:path";
 import { after, test } from "node:test";
@@ -12,7 +13,7 @@ type Role = "ADMIN" | "FLORIST" | "SUPPLIER" | "CUSTOMER";
 interface MockAuditRow {
   id: string;
   userId: string | null;
-  action: "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "LOGOUT" | "PAYMENT" | "REFUND";
+  action: "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "LOGOUT" | "PAYMENT";
   entity: string;
   entityId: string;
   oldValue: unknown;
@@ -44,6 +45,16 @@ const prismaMock = {
       return mockAuditRows;
     },
     count: async () => mockAuditRows.length,
+    groupBy: async () => {
+      const counts = new Map<string, number>();
+      for (const row of mockAuditRows) {
+        counts.set(row.action, (counts.get(row.action) ?? 0) + 1);
+      }
+      return Array.from(counts.entries()).map(([action, count]) => ({
+        action,
+        _count: { _all: count },
+      }));
+    },
     create: async ({ data }: { data: Record<string, unknown> }) => {
       writtenAudits.push(data);
       return data;
@@ -130,7 +141,7 @@ const auditHelperModule = loadCompiledModule<{
   sanitizeAuditPayload: (value: unknown) => Record<string, unknown> | null;
   createAuditLog: (input: {
     userId?: string;
-    action: "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "LOGOUT" | "PAYMENT" | "REFUND";
+    action: "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "LOGOUT" | "PAYMENT";
     entity: string;
     entityId: string;
     oldValue?: unknown;
@@ -396,4 +407,53 @@ test("Client API fetchAdminAuditLogs membentuk filter lengkap dan memvalidasi re
   globalThis.fetch = async () =>
     Response.json({ success: false, message: "Forbidden" }, { status: 403 });
   await assert.rejects(fetchAdminAuditLogs(), /Forbidden/);
+});
+
+test("GET /api/admin/audit-logs mendukung filter DELETE, PAYMENT, LOGIN serta menolak REFUND dan mengembalikan actionCounts", async () => {
+  resetFixture();
+  const { GET } = await auditLogsRoute;
+  mockAuditRows.push({
+    ...mockAuditRows[0],
+    id: "aud_2",
+    action: "DELETE",
+    entity: "Product",
+    entityId: "prd_1",
+  });
+
+  assert.equal(adminAuditLogQuerySchema.safeParse({ action: "REFUND" }).success, false);
+
+  for (const action of ["DELETE", "PAYMENT", "LOGIN"] as const) {
+    lastWhere = null;
+    const res = await GET(
+      new Request(`http://localhost/api/admin/audit-logs?action=${action}`),
+    );
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as {
+      success: boolean;
+      data: { actionCounts: Record<string, number> };
+    };
+    assert.equal(body.success, true);
+    assert.equal((lastWhere as { action?: string })?.action, action);
+    assert.equal(body.data.actionCounts.ALL, 2);
+    assert.equal(body.data.actionCounts.UPDATE, 1);
+    assert.equal(body.data.actionCounts.DELETE, 1);
+    assert.equal(body.data.actionCounts.LOGIN, 0);
+  }
+});
+
+test("Produsen audit log mencatat LOGIN, PAYMENT, dan DELETE (tanpa REFUND) serta UI menjaga klik filter aktif", () => {
+  const readRel = (rel: string) => readFileSync(resolve(projectRoot, rel), "utf8");
+
+  assert.match(readRel("lib/auth.ts"), /action:\s*"LOGIN"/);
+  const webhookSrc = readRel("app/api/webhook/midtrans/route.ts");
+  assert.match(webhookSrc, /action:\s*"PAYMENT"/);
+  assert.doesNotMatch(webhookSrc, /REFUND/);
+  assert.match(readRel("lib/supply-chain/midtrans-payments.ts"), /action:\s*"PAYMENT"/);
+  assert.match(readRel("app/api/florist/products/[productId]/route.ts"), /action:\s*"DELETE"/);
+  assert.match(readRel("app/api/florist/raw-materials/[id]/route.ts"), /action:\s*"DELETE"/);
+  assert.match(readRel("app/api/supplier/harvest-announcements/[id]/route.ts"), /action:\s*"DELETE"/);
+
+  const auditUiSrc = readRel("app/admin/audit-logs/page.tsx");
+  assert.match(auditUiSrc, /if \(nextAction === actionFilter\) return;/);
+  assert.match(auditUiSrc, /actionCounts/);
 });

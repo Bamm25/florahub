@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, Flame, ShoppingBag, Star, Store } from "lucide-react";
+import { Check, Star } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cartStore";
 import { PRODUCT_LOW_STOCK_THRESHOLD } from "@/lib/config/domain";
 import { formatRupiah } from "@/lib/utils/formatters";
@@ -116,8 +116,7 @@ export default function StarProductsShowcase({
           )}
 
           <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-surface-dark/90 px-3.5 py-1.5 text-xs font-semibold text-kicker backdrop-blur-xs">
-              <Flame className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="inline-flex items-center rounded-full border border-white/15 bg-surface-dark/90 px-3.5 py-1.5 text-xs font-semibold text-kicker backdrop-blur-xs">
               {mode === "best-selling" && (lead.soldCount ?? 0) > 0
                 ? "#1 Terlaris"
                 : "Pilihan Florist"}
@@ -145,7 +144,6 @@ export default function StarProductsShowcase({
                 href={`/stores/${lead.floristId}`}
                 className="inline-flex min-h-8 items-center gap-1.5 font-medium text-muted-foreground transition-colors hover:text-primary"
               >
-                <Store className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <span>{leadShopName}</span>
                 {leadCity && (
                   <span className="text-muted-foreground/70">• {leadCity}</span>
@@ -219,10 +217,7 @@ export default function StarProductsShowcase({
                     Ditambahkan
                   </>
                 ) : (
-                  <>
-                    <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-                    Tambah ke keranjang
-                  </>
+                  "Tambah ke keranjang"
                 )}
               </button>
               <Link
@@ -296,7 +291,6 @@ export default function StarProductsShowcase({
                       href={`/stores/${product.floristId}`}
                       className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
                     >
-                      <Store className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                       <span className="truncate">{shopName}</span>
                       {city && (
                         <span className="text-muted-foreground/70">• {city}</span>
@@ -347,7 +341,7 @@ export default function StarProductsShowcase({
                         href={`/products/${product.slug}`}
                         className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                       >
-                        Detail <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                        Detail <span aria-hidden="true">→</span>
                       </Link>
                     </div>
 
@@ -360,18 +354,17 @@ export default function StarProductsShowcase({
                           ? `${product.name} stok habis`
                           : `Tambah ${product.name} ke keranjang`
                       }
-                      className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+                      className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {justAdded ? (
                         <>
                           <Check className="h-4 w-4" aria-hidden="true" />
                           Masuk
                         </>
+                      ) : isOutOfStock ? (
+                        "Habis"
                       ) : (
-                        <>
-                          <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-                          {isOutOfStock ? "Habis" : "Tambah"}
-                        </>
+                        "Tambah"
                       )}
                     </button>
                   </div>

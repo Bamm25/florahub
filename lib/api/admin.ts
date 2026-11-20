@@ -129,8 +129,7 @@ export type AdminOrderStatus =
   | "READY_TO_SHIP"
   | "SHIPPED"
   | "DELIVERED"
-  | "CANCELLED"
-  | "REFUNDED";
+  | "CANCELLED";
 
 export interface AdminB2COrderItem {
   id: string;
@@ -163,7 +162,7 @@ export interface AdminB2COrderItem {
   }>;
   payment: {
     method: string;
-    status: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+    status: "PENDING" | "PAID" | "FAILED";
     amount: number;
     paidAt: string | null;
   } | null;
@@ -329,8 +328,7 @@ export type AdminAuditAction =
   | "DELETE"
   | "LOGIN"
   | "LOGOUT"
-  | "PAYMENT"
-  | "REFUND";
+  | "PAYMENT";
 
 export interface AdminAuditLogItem {
   id: string;
@@ -353,6 +351,7 @@ export interface AdminAuditLogItem {
 
 export interface AdminAuditLogsPage {
   logs: AdminAuditLogItem[];
+  actionCounts?: Partial<Record<AdminAuditAction | "ALL", number>>;
   pagination: AdminPaginationMeta;
 }
 

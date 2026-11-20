@@ -23,8 +23,11 @@ export async function GET(request: Request) {
         announcement: true,
         florist: {
           include: {
+            floristProfile: {
+              select: { shopName: true },
+            },
             addresses: {
-              where: { isDefault: true },
+              orderBy: { isDefault: "desc" },
               take: 1,
             },
           },
@@ -47,8 +50,11 @@ export async function GET(request: Request) {
         stock: true,
         florist: {
           include: {
+            floristProfile: {
+              select: { shopName: true },
+            },
             addresses: {
-              where: { isDefault: true },
+              orderBy: { isDefault: "desc" },
               take: 1,
             },
           },
@@ -69,7 +75,7 @@ export async function GET(request: Request) {
           itemName: `${p.announcement.flowerName} (${p.announcement.variety || "Standar"})`,
           weight: p.quantity * 100, // gram
           buyer: {
-            name: p.florist.name,
+            name: p.florist.floristProfile?.shopName || p.florist.name,
             email: p.florist.email,
             phone: p.florist.phone || destAddr?.phone || null,
             address: destAddr
@@ -90,7 +96,7 @@ export async function GET(request: Request) {
           itemName: `${s.stock.name} (${s.stock.variety || "Standar"})`,
           weight: s.quantity * 100, // gram
           buyer: {
-            name: s.florist.name,
+            name: s.florist.floristProfile?.shopName || s.florist.name,
             email: s.florist.email,
             phone: s.florist.phone || destAddr?.phone || null,
             address: destAddr

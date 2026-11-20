@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, MapPin } from "lucide-react";
 import { LoadingSpinner, ErrorState } from "@/components/ui";
 import { useDataFetching } from "@/hooks";
 import { getFloristDashboard } from "@/lib/api/florist";
@@ -104,13 +103,13 @@ export default function FloristDashboardPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/florist/products"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Katalog Produk
           </Link>
           <Link
             href="/florist/orders"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Kelola Pesanan
           </Link>
@@ -136,7 +135,7 @@ export default function FloristDashboardPage() {
             className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <span>Bahan Baku & Stok</span>
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            <span aria-hidden="true">→</span>
           </Link>
         </div>
 
@@ -173,7 +172,7 @@ export default function FloristDashboardPage() {
             </div>
             <p className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary group-hover:underline">
               <span>Buka Daftar Pesanan</span>
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <span aria-hidden="true">→</span>
             </p>
           </Link>
 
@@ -211,7 +210,7 @@ export default function FloristDashboardPage() {
             </div>
             <p className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary group-hover:underline">
               <span>Periksa Katalog Produk</span>
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              <span aria-hidden="true">→</span>
             </p>
           </Link>
         </div>
@@ -276,7 +275,7 @@ export default function FloristDashboardPage() {
       {/* Tabel Pesanan Terbaru */}
       <section
         aria-labelledby="recent-heading"
-        className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs"
+        className="overflow-hidden rounded-2xl border border-border bg-surface"
       >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-5 sm:px-6">
           <div>
@@ -295,7 +294,7 @@ export default function FloristDashboardPage() {
             className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <span>Semua Pesanan</span>
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            <span aria-hidden="true">→</span>
           </Link>
         </div>
 
@@ -367,7 +366,7 @@ export default function FloristDashboardPage() {
                       <td className="px-5 py-4 text-right sm:px-6">
                         <Link
                           href={`/florist/orders/${order.id}`}
-                          className="inline-flex min-h-9 items-center justify-center rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                          className="inline-flex min-h-9 items-center justify-center rounded-sm border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                         >
                           Lihat Detail
                         </Link>
@@ -383,29 +382,24 @@ export default function FloristDashboardPage() {
 
       {/* Strip Informasi Lokasi Studio */}
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 rounded-xl bg-surface-container-low p-2.5 text-muted-foreground">
-            <MapPin className="h-4 w-4" aria-hidden="true" />
-          </div>
-          <div className="text-sm">
-            <p className="font-semibold text-foreground">
-              Alamat Asal Pengiriman Studio
+        <div className="text-sm">
+          <p className="font-semibold text-foreground">
+            Alamat Asal Pengiriman Studio
+          </p>
+          {floristInfo?.address ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {floristInfo.address.fullAddress}, {floristInfo.address.city},{" "}
+              {floristInfo.address.province} {floristInfo.address.postalCode}
             </p>
-            {floristInfo?.address ? (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {floristInfo.address.fullAddress}, {floristInfo.address.city},{" "}
-                {floristInfo.address.province} {floristInfo.address.postalCode}
-              </p>
-            ) : (
-              <p className="mt-0.5 text-xs text-warning">
-                Alamat asal pengiriman belum diatur. Lengkapi agar tarif kurir Biteship dapat dihitung otomatis.
-              </p>
-            )}
-          </div>
+          ) : (
+            <p className="mt-0.5 text-xs text-warning">
+              Alamat asal pengiriman belum diatur. Lengkapi agar ongkos kirim kurir dapat dihitung otomatis.
+            </p>
+          )}
         </div>
         <Link
           href="/florist/settings/shop"
-          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card px-4 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-sm border border-border bg-card px-4 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {floristInfo?.address ? "Ubah Alamat Toko" : "Atur Alamat Toko"}
         </Link>

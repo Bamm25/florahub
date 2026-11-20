@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
-import { parsePaginationParams } from "@/lib/config/domain";
+import { buildPaginationMeta, parsePaginationParams } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -16,37 +16,56 @@ export async function GET(request: Request) {
       stock: { supplierId: userId },
     };
 
-    // Ambil daftar transaksi penjualan beserta relasi stok dan florist
-    const sales = await prisma.stockTransaction.findMany({
-      where: whereClause,
-      include: {
-        stock: {
-          select: {
-            id: true,
-            name: true,
-            variety: true,
-            pricePerUnit: true,
+    // Ambil daftar transaksi penjualan beserta relasi stok, florist, dan total data
+    const [sales, total] = await Promise.all([
+      prisma.stockTransaction.findMany({
+        where: whereClause,
+        include: {
+          stock: {
+            select: {
+              id: true,
+              name: true,
+              variety: true,
+              unit: true,
+              pricePerUnit: true,
+            },
+          },
+          florist: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              floristProfile: {
+                select: {
+                  shopName: true,
+                },
+              },
+            },
           },
         },
-        florist: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
         },
-      },
-      skip,
-      take: limit,
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+      }),
+      prisma.stockTransaction.count({ where: whereClause }),
+    ]);
 
-    // Kembalikan respon sukses data penjualan
+    const normalizedSales = sales.map((sale) => ({
+      ...sale,
+      florist: {
+        id: sale.florist.id,
+        name: sale.florist.floristProfile?.shopName || sale.florist.name,
+        email: sale.florist.email,
+      },
+    }));
+
+    // Kembalikan respon sukses data penjualan beserta metadata paginasi
     return NextResponse.json({
       success: true,
-      data: sales,
+      data: normalizedSales,
+      pagination: buildPaginationMeta(page, limit, total),
     });
   } catch (error) {
     // Tangani error otorisasi atau internal server error

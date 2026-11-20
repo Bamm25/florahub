@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Package, Loader2, Truck } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import { Pagination } from "@/components/ui";
 import TabNavigation from "@/components/ui/TabNavigation";
@@ -107,19 +107,28 @@ export default function FloristShipmentsPage() {
   const [availableRates, setAvailableRates] = useState<FloristShipmentRate[]>([]);
   const [selectedRate, setSelectedRate] = useState<string>("");
   const [isFetchingRates, setIsFetchingRates] = useState(false);
-  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Sinkronkan status shipment Biteship secara langsung dari server Biteship
-  const handleSyncShipment = async (shipment: Shipment) => {
-    if (!shipment.biteshipOrderId) return;
-    setSyncingId(shipment.id);
+  // Perbarui data pengiriman dan sinkronkan status kurir aktif dari server
+  const handleRefreshData = async () => {
+    setIsRefreshing(true);
     try {
-      await trackFloristShipment(shipment.id);
+      const activeBiteshipShipments = shipments.filter(
+        (item) =>
+          Boolean(item.biteshipOrderId) &&
+          item.status !== "DELIVERED" &&
+          item.status !== "CANCELLED",
+      );
+      if (activeBiteshipShipments.length > 0) {
+        await Promise.allSettled(
+          activeBiteshipShipments.map((item) => trackFloristShipment(item.id)),
+        );
+      }
       await fetchData();
     } catch {
       // Abaikan error sinkron sementara
     } finally {
-      setSyncingId(null);
+      setIsRefreshing(false);
     }
   };
 
@@ -370,16 +379,20 @@ export default function FloristShipmentsPage() {
             Pengiriman Customer
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
-            Terbitkan resi otomatis melalui kurir Biteship, cetak label pengiriman, dan pantau status pengantaran paket.
+            Terbitkan resi otomatis melalui layanan kurir, cetak label pengiriman, dan pantau status pengantaran paket.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={fetchData}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            disabled={isRefreshing || isLoading}
+            onClick={() => void handleRefreshData()}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
-            Perbarui Status
+            {isRefreshing && (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            )}
+            <span>Perbarui Status</span>
           </button>
         </div>
       </section>
@@ -418,7 +431,6 @@ export default function FloristShipmentsPage() {
           error={error}
           isEmpty={filteredShipments.length === 0}
           onRetry={fetchData}
-          emptyIcon={<Truck className="h-12 w-12" aria-hidden="true" />}
           emptyTitle={
             searchQuery || statusFilter !== "ALL"
               ? "Tidak ada pengiriman yang sesuai filter"
@@ -434,8 +446,6 @@ export default function FloristShipmentsPage() {
             <ShipmentTable
               shipments={paginatedShipments}
               onEdit={openEditModal}
-              onSync={handleSyncShipment}
-              syncingId={syncingId}
             />
             {filteredShipments.length > SHIPMENTS_PER_PAGE && (
               <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-3.5 sm:flex-row">
@@ -468,7 +478,6 @@ export default function FloristShipmentsPage() {
           error={ordersError}
           isEmpty={paidOrders.length === 0}
           onRetry={fetchPaidOrders}
-          emptyIcon={<Package className="h-12 w-12" aria-hidden="true" />}
           emptyTitle="Semua pesanan lunas sudah memiliki resi"
           emptyDescription="Pesanan baru yang pembayarannya telah diverifikasi akan muncul di sini untuk dibuatkan resi pengiriman."
         >
@@ -509,7 +518,7 @@ export default function FloristShipmentsPage() {
         headerVariant="dark"
         kicker={
           modalMode === "create"
-            ? "Penerbitan Resi Biteship"
+            ? "Penerbitan Resi Otomatis"
             : "Pembaruan Status"
         }
         title={
@@ -519,7 +528,7 @@ export default function FloristShipmentsPage() {
         }
         subtitle={
           modalMode === "create"
-            ? "Pilih tarif dan layanan kurir Biteship untuk menerbitkan nomor resi otomatis"
+            ? "Pilih tarif dan layanan kurir untuk menerbitkan nomor resi otomatis"
             : "Perbarui status pengiriman pesanan customer"
         }
       >
@@ -605,7 +614,7 @@ export default function FloristShipmentsPage() {
           {modalMode === "create" && (
             <div>
               <p className="mb-2 block text-sm font-medium text-foreground">
-                Pilih Kurir &amp; Layanan Biteship{" "}
+                Pilih Kurir &amp; Layanan Pengiriman{" "}
                 <span className="text-error">*</span>
               </p>
               {isFetchingRates ? (
@@ -615,7 +624,7 @@ export default function FloristShipmentsPage() {
                     aria-hidden="true"
                   />
                   <span className="text-sm text-muted-foreground">
-                    Mengambil tarif kurir Biteship...
+                    Mengambil tarif kurir...
                   </span>
                 </div>
               ) : formErrors.rates ? (
@@ -674,7 +683,7 @@ export default function FloristShipmentsPage() {
             <button
               type="button"
               onClick={closeModal}
-              className="btn-secondary flex-1 rounded-xl text-sm"
+              className="btn-secondary flex-1 rounded-sm text-sm"
               disabled={isSubmitting}
             >
               Batal
@@ -686,23 +695,18 @@ export default function FloristShipmentsPage() {
                 (modalMode === "create" &&
                   (isFetchingRates || availableRates.length === 0 || !selectedRate))
               }
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-sm bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  <span>Menyimpan...</span>
-                </>
-              ) : (
-                <>
-                  <Truck className="h-4 w-4" aria-hidden="true" />
-                  <span>
-                    {modalMode === "create"
-                      ? "Terbitkan Resi Biteship"
-                      : "Simpan Perubahan"}
-                  </span>
-                </>
+              {isSubmitting && (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               )}
+              <span>
+                {isSubmitting
+                  ? "Menyimpan..."
+                  : modalMode === "create"
+                    ? "Terbitkan Resi Pengiriman"
+                    : "Simpan Perubahan"}
+              </span>
             </button>
           </div>
         </form>

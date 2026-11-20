@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Flower2, Store, Truck } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { OrderSummary } from "@/lib/api/orders";
 import { formatDate, formatRupiah } from "@/lib/utils/formatters";
 
@@ -31,8 +31,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
   const showShipmentTag =
     Boolean(order.shipment?.courier) &&
     order.status !== "PENDING" &&
-    order.status !== "CANCELLED" &&
-    order.status !== "REFUNDED";
+    order.status !== "CANCELLED";
 
   const detailClass =
     order.status === "PENDING"
@@ -47,9 +46,8 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
         <div className="min-w-0">
           {order.florist?.shopName && (
-            <p className="mb-1 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Store className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate">{order.florist.shopName}</span>
+            <p className="mb-1 truncate text-xs font-medium text-muted-foreground">
+              {order.florist.shopName}
             </p>
           )}
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
@@ -92,10 +90,10 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
                     </div>
                   ) : (
                     <div
-                      className="flex aspect-[4/5] h-16 w-14 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-container-low text-muted-foreground"
+                      className="flex aspect-[4/5] h-16 w-14 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-container-low text-[10px] font-medium text-muted-foreground"
                       aria-hidden="true"
                     >
-                      <Flower2 className="h-5 w-5" />
+                      Foto
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
@@ -120,7 +118,6 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
 
           {showShipmentTag && order.shipment && (
             <div className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl border border-border bg-surface-container-low px-3 py-2 text-xs text-foreground @md:self-center">
-              <Truck className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
               <span className="font-semibold uppercase">
                 {order.shipment.courier}
               </span>
@@ -154,9 +151,8 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           {showTrackingLink && (
             <Link
               href={`/orders/${order.id}/tracking`}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+              className="inline-flex min-h-10 items-center rounded-xl border border-border bg-card px-3.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
             >
-              <Truck className="h-3.5 w-3.5" aria-hidden="true" />
               <span>
                 Lacak
                 <span className="sr-only"> pesanan {order.orderNumber}</span>
@@ -238,12 +234,6 @@ function getStatusConfig(status: string) {
       color: "text-error",
       bgColor: "bg-error/10",
       dot: "bg-error",
-    },
-    REFUNDED: {
-      label: "Dana Dikembalikan",
-      color: "text-muted-foreground",
-      bgColor: "bg-surface-container",
-      dot: "bg-muted-foreground",
     },
   };
   return (

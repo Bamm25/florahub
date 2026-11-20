@@ -107,7 +107,7 @@ export default function ConfirmDialog({
             type="button"
             disabled={loading}
             onClick={handleConfirm}
-            className={`inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${confirmVariantClasses[variant]}`}
+            className={`inline-flex h-10 cursor-pointer items-center justify-center rounded-xl px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${confirmVariantClasses[variant]}`}
           >
             {loading ? "Memproses..." : confirmLabel}
           </button>

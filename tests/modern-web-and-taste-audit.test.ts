@@ -340,3 +340,263 @@ test("Florist Batch 1 & Batch 2 routes enforce light-dominant rhythm, aria-press
   );
   assert.match(floristShopSettings, /\.toSorted\(/);
 });
+
+test("Supplier portal routes & APIs enforce editorial rhythm, pagination, SearchInput, native AWB label links, full harvest CRUD, and settled-revenue accounting", () => {
+  const supplierLayout = readProjectFile("app/supplier/layout.tsx");
+  const supplierDashboard = readProjectFile("app/supplier/dashboard/page.tsx");
+  const supplierSales = readProjectFile("app/supplier/sales/page.tsx");
+  const supplierShipments = readProjectFile("app/supplier/shipments/page.tsx");
+  const supplierStocks = readProjectFile("app/supplier/stocks/page.tsx");
+  const supplierHarvest = readProjectFile("app/supplier/harvest-announcements/page.tsx");
+  const filterBar = readProjectFile("components/ui/FilterBar.tsx");
+  const statusBadge = readProjectFile("components/ui/StatusBadge.tsx");
+  const supplierDeliveryStatus = readProjectFile("components/ui/SupplierDeliveryStatus.tsx");
+  const supplierDashboardApi = readProjectFile("app/api/supplier/dashboard/route.ts");
+  const harvestListApi = readProjectFile("app/api/supplier/harvest-announcements/route.ts");
+  const floristPreordersApi = readProjectFile("app/api/florist/preorders/route.ts");
+
+  for (const content of [
+    supplierLayout,
+    supplierDashboard,
+    supplierSales,
+    supplierShipments,
+    supplierStocks,
+    supplierHarvest,
+  ]) {
+    assert.doesNotMatch(content, /blur-3xl/);
+    assert.doesNotMatch(content, /\bbg-black\b/);
+    assert.doesNotMatch(content, /shadow-(?:md|lg|xl|2xl)/);
+    assert.doesNotMatch(content, /zinc-\d+/);
+  }
+
+  assert.match(supplierLayout, /Kebun/);
+  assert.match(supplierLayout, /bg-primary font-semibold text-primary-foreground/);
+  assert.match(supplierLayout, /aria-current/);
+
+  assert.match(supplierDashboard, /rounded-\[24px\]/);
+  assert.match(supplierDashboard, /StatusBadge/);
+  assert.match(supplierDashboard, /tabular-nums/);
+  assert.match(supplierDashboard, /<time\b/);
+  assert.doesNotMatch(supplierDashboard, /dalam satu tempat/);
+
+  assert.match(supplierSales, /Pagination/);
+  assert.match(supplierSales, /SearchInput/);
+  assert.match(supplierSales, /FilterBar/);
+  assert.match(supplierSales, /from "next\/link"/);
+  assert.doesNotMatch(supplierSales, /Lacak & Kontrol Kurir/);
+  assert.doesNotMatch(supplierSales, /Midtrans/);
+
+  assert.match(supplierShipments, /Pagination/);
+  assert.match(supplierShipments, /SearchInput/);
+  assert.match(supplierShipments, /aria-pressed/);
+  assert.match(
+    supplierShipments,
+    /href=\{`\/api\/supplier\/shipments\/\$\{s\.id\}\/label`\}/,
+  );
+  assert.doesNotMatch(supplierShipments, /getSupplierShipmentLabel/);
+  assert.doesNotMatch(supplierShipments, /handlePrintLabel/);
+  assert.match(supplierShipments, /shippedAt=/);
+  assert.match(supplierShipments, /deliveredAt=/);
+  assert.doesNotMatch(supplierShipments, /Booking Biteship/);
+
+  assert.match(supplierStocks, /Pagination/);
+  assert.match(supplierStocks, /SearchInput/);
+  assert.match(supplierStocks, /FilterBar/);
+  assert.match(supplierStocks, /fetchPaginatedCollection/);
+  assert.match(supplierStocks, /headerVariant="dark"/);
+  assert.match(supplierStocks, /role="status"/);
+
+  assert.match(supplierHarvest, /Pagination/);
+  assert.match(supplierHarvest, /SearchInput/);
+  assert.match(supplierHarvest, /FilterBar/);
+  assert.match(supplierHarvest, /fetchPaginatedCollection/);
+  assert.match(supplierHarvest, /updateHarvestAnnouncement/);
+  assert.match(supplierHarvest, /<article\b/);
+  assert.match(
+    supplierHarvest,
+    /href=\{`\/api\/supplier\/shipments\/\$\{order\.id\}\/label`\}/,
+  );
+  assert.doesNotMatch(supplierHarvest, /membuka keran/);
+
+  assert.match(filterBar, /type="button"/);
+  assert.match(filterBar, /aria-pressed/);
+  assert.match(statusBadge, /PAID:\s*\{/);
+  assert.doesNotMatch(supplierDeliveryStatus, /Booking Biteship/);
+
+  assert.match(supplierDashboardApi, /"DELIVERED"/);
+  assert.match(harvestListApi, /userRole === "SUPPLIER"/);
+  assert.doesNotMatch(
+    floristPreordersApi,
+    /\/supplier\/harvest-announcements\/\$\{announcement\.id\}/,
+  );
+});
+
+test("Admin portal routes enforce editorial rhythm, unified native Modal, accessible tables, aria-pressed filters, TrackingProgressTrack, and zero vendor jargon", () => {
+  const adminLayout = readProjectFile("app/admin/layout.tsx");
+  const adminDashboard = readProjectFile("app/admin/dashboard/page.tsx");
+  const adminUsers = readProjectFile("app/admin/users/page.tsx");
+  const adminOrders = readProjectFile("app/admin/orders/page.tsx");
+  const adminCoupons = readProjectFile("app/admin/coupons/page.tsx");
+  const adminAuditLogs = readProjectFile("app/admin/audit-logs/page.tsx");
+
+  for (const content of [
+    adminLayout,
+    adminDashboard,
+    adminUsers,
+    adminOrders,
+    adminCoupons,
+    adminAuditLogs,
+  ]) {
+    assert.doesNotMatch(content, /blur-3xl/);
+    assert.doesNotMatch(content, /\bbg-black\b/);
+    assert.doesNotMatch(content, /shadow-(?:md|lg|xl|2xl)/);
+    assert.doesNotMatch(content, /zinc-\d+/);
+    assert.doesNotMatch(content, /@\/components\/ui\/dialog/);
+    assert.doesNotMatch(content, /@\/components\/ui\/button/);
+  }
+
+  assert.match(adminLayout, /sticky top-0/);
+  assert.match(adminLayout, /bg-primary font-semibold text-primary-foreground/);
+  assert.match(adminLayout, /aria-current/);
+
+  assert.match(adminDashboard, /rounded-\[24px\]/);
+  assert.match(adminDashboard, /isRefreshing/);
+  assert.match(adminDashboard, /tabular-nums/);
+  assert.doesNotMatch(adminDashboard, /User Directory|Marketing/);
+
+  for (const dataPage of [adminUsers, adminOrders, adminCoupons, adminAuditLogs]) {
+    assert.match(dataPage, /import Modal from "@\/components\/forms\/Modal"/);
+    assert.match(dataPage, /scope="col"/);
+    assert.match(dataPage, /role="region"/);
+    assert.match(dataPage, /<time\b/);
+    assert.match(dataPage, /tabular-nums/);
+  }
+
+  assert.match(adminOrders, /TrackingProgressTrack/);
+  assert.match(adminOrders, /aria-pressed/);
+  assert.doesNotMatch(adminOrders, /\b(?:Midtrans|Biteship)\b/);
+  assert.doesNotMatch(adminOrders, /Masked PII/);
+
+  assert.match(adminCoupons, /inputMode="numeric"/);
+
+  assert.match(adminAuditLogs, /HarvestAnnouncement/);
+  assert.match(adminAuditLogs, /aria-pressed/);
+});
+
+test("Repo-wide icon hygiene & flat hairline discipline remove Sparkles/Flame slop, tinted KPI icon boxes, admin sidebar icons, and shadow-xs/shadow-sm", () => {
+  const uiFiles = [...collectUiFiles("app"), ...collectUiFiles("components")];
+
+  for (const relPath of uiFiles) {
+    const content = readProjectFile(relPath);
+    assert.doesNotMatch(
+      content,
+      /\b(?:Sparkles|Flame)\b/,
+      `${relPath} must not import or render Sparkles/Flame decorative icons`,
+    );
+
+    if (
+      relPath.startsWith("app/florist/") ||
+      relPath.startsWith("components/florist/") ||
+      relPath.startsWith("app/supplier/") ||
+      relPath.startsWith("app/admin/") ||
+      relPath === "components/layout/CustomerNotifications.tsx"
+    ) {
+      assert.doesNotMatch(
+        content,
+        /\bshadow-(?:xs|sm)\b/,
+        `${relPath} must use flat hairline surfaces without shadow-xs or shadow-sm`,
+      );
+    }
+  }
+
+  const adminLayout = readProjectFile("app/admin/layout.tsx");
+  assert.doesNotMatch(
+    adminLayout,
+    /\b(?:LayoutDashboard|TicketPercent|ClipboardList|LogOut|ShoppingBag|Users)\b/,
+  );
+
+  const adminDashboard = readProjectFile("app/admin/dashboard/page.tsx");
+  const supplierDashboard = readProjectFile("app/supplier/dashboard/page.tsx");
+  const storefrontHome = readProjectFile("app/(customer)/page.tsx");
+
+  for (const content of [adminDashboard, supplierDashboard, storefrontHome]) {
+    assert.doesNotMatch(content, /bg-primary\/10\s+p-(?:1\.5|2)\b/);
+    assert.doesNotMatch(content, /\bh-10\s+w-10\b[^"]*bg-primary\/10/);
+  }
+});
+
+test("Jawa Timur regional branding & floating dark summary-card sidebars are enforced consistently across Florist, Supplier, and Admin", () => {
+  const regionalFiles = [
+    "components/layout/Footer.tsx",
+    "app/(customer)/page.tsx",
+    "app/auth/login/page.tsx",
+    "app/auth/register/page.tsx",
+  ];
+  for (const relPath of regionalFiles) {
+    const content = readProjectFile(relPath);
+    assert.match(content, /Jawa Timur/, `${relPath} harus menegaskan fokus wilayah Jawa Timur`);
+    assert.doesNotMatch(
+      content,
+      /Surabaya\s*(?:&amp;|·)\s*Malang/,
+      `${relPath} tidak boleh lagi memakai copy Surabaya & Malang`,
+    );
+  }
+
+  for (const layoutPath of [
+    "app/florist/layout.tsx",
+    "app/supplier/layout.tsx",
+    "app/admin/layout.tsx",
+  ]) {
+    const layout = readProjectFile(layoutPath);
+    assert.match(layout, /rounded-2xl border border-white\/10 bg-surface-dark text-white/);
+    assert.match(layout, /rounded-xl border border-white\/10 bg-white\/5/);
+    assert.match(layout, /Keluar/);
+    assert.doesNotMatch(layout, /Buka Audit Log|Kelola Pengiriman/);
+  }
+});
+
+test("Fitur refund telah dihapus total dari schema, tipe, API, dan UI aplikasi", () => {
+  const roots = ["app", "components", "lib", "types"];
+  const files: string[] = ["prisma/schema.prisma"];
+  const walk = (dirRel: string) => {
+    for (const entry of readdirSync(join(ROOT, dirRel))) {
+      const rel = `${dirRel}/${entry}`;
+      const st = statSync(join(ROOT, rel));
+      if (st.isDirectory()) {
+        walk(rel);
+      } else if (entry.endsWith(".ts") || entry.endsWith(".tsx")) {
+        files.push(rel);
+      }
+    }
+  };
+  for (const r of roots) walk(r);
+
+  for (const relPath of files) {
+    const content = readProjectFile(relPath);
+    assert.doesNotMatch(
+      content,
+      /\b(?:REFUND|REFUNDED|refundedAt|refundAmount)\b/,
+      `${relPath} tidak boleh mengandung sisa fitur refund`,
+    );
+  }
+});
+
+test("Seluruh tombol dan elemen interaktif menerapkan cursor: pointer dan sidebar memiliki dark scrollbar", () => {
+  const globalsCss = readProjectFile("app/globals.css");
+  assert.match(globalsCss, /button:not\(:disabled\)/);
+  assert.match(globalsCss, /cursor:\s*pointer;/);
+  assert.match(globalsCss, /button:disabled[\s\S]*?cursor:\s*not-allowed;/);
+  assert.match(globalsCss, /\.sidebar-dark-scroll\s*\{[\s\S]*?color-scheme:\s*dark;/);
+  assert.match(globalsCss, /scrollbar-color:\s*var\(--scrollbar-thumb\)\s+var\(--scrollbar-track\);/);
+
+  const uiButton = readProjectFile("components/ui/button.tsx");
+  assert.match(uiButton, /\bcursor-pointer\b/);
+
+  const uiSelect = readProjectFile("components/ui/select.tsx");
+  assert.match(uiSelect, /\bcursor-pointer\b/);
+  assert.doesNotMatch(uiSelect, /\bcursor-default\b/);
+
+  const modalSource = readProjectFile("components/forms/Modal.tsx");
+  assert.match(modalSource, /\bm-auto!/);
+  assert.match(globalsCss, /dialog\s*\{[\s\S]*?margin:\s*auto\s*!important;/);
+});

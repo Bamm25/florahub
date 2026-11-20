@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Flame, Flower2, Sprout, Truck } from "lucide-react";
 import StarProductsShowcase from "@/components/customer/StarProductsShowcase";
 import { ErrorState, LoadingSpinner } from "@/components/ui";
 import { useDataFetching } from "@/hooks";
@@ -49,7 +48,7 @@ export default function HomePage() {
               style={{ "--d": "150ms" } as React.CSSProperties}
               className="mt-5 max-w-xl text-base leading-7 text-white/75 sm:text-lg"
             >
-              Rangkaian bunga segar dari florist lokal Surabaya, Malang, dan sekitarnya.
+              Rangkaian bunga segar dari kebun dan florist pilihan, melayani khusus wilayah Jawa Timur.
             </p>
             <div
               data-enter
@@ -76,8 +75,7 @@ export default function HomePage() {
             {heroStar && heroStar.image ? (
               <div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-medium tracking-[0.04em] text-kicker">
-                    <Flame className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="text-xs font-medium tracking-[0.04em] text-kicker">
                     {mode === "best-selling" && (heroStar.soldCount ?? 0) > 0
                       ? "#1 Terlaris"
                       : "Pilihan Florist"}
@@ -116,7 +114,7 @@ export default function HomePage() {
                         {formatRupiah(heroStar.price)}
                       </span>
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-kicker">
-                        Lihat <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        Lihat <span aria-hidden="true">↗</span>
                       </span>
                     </div>
                   </div>
@@ -214,13 +212,10 @@ export default function HomePage() {
 
           <div className="mt-12 grid border-y border-white/15 lg:mt-14 lg:grid-cols-3">
             <div className="border-b border-white/15 py-8 lg:border-b-0 lg:pr-8">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-kicker">
-                <Sprout className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <p className="mt-5 text-xs font-medium tracking-[0.04em] text-kicker">
+              <p className="text-xs font-medium tracking-[0.04em] text-kicker">
                 Kebun &amp; Supplier
               </p>
-              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+              <h3 className="mt-2.5 text-2xl font-semibold tracking-tight text-white">
                 Stok panen segar
               </h3>
               <p className="mt-2.5 text-base leading-7 text-white/70">
@@ -229,13 +224,10 @@ export default function HomePage() {
             </div>
 
             <div className="border-b border-white/15 py-8 lg:border-x lg:border-b-0 lg:px-8">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-kicker">
-                <Flower2 className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <p className="mt-5 text-xs font-medium tracking-[0.04em] text-kicker">
+              <p className="text-xs font-medium tracking-[0.04em] text-kicker">
                 Toko Florist
               </p>
-              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+              <h3 className="mt-2.5 text-2xl font-semibold tracking-tight text-white">
                 Dirangkai sesuai pesanan
               </h3>
               <p className="mt-2.5 text-base leading-7 text-white/70">
@@ -244,13 +236,10 @@ export default function HomePage() {
             </div>
 
             <div className="py-8 lg:pl-8">
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-kicker">
-                <Truck className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <p className="mt-5 text-xs font-medium tracking-[0.04em] text-kicker">
+              <p className="text-xs font-medium tracking-[0.04em] text-kicker">
                 Pembeli
               </p>
-              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+              <h3 className="mt-2.5 text-2xl font-semibold tracking-tight text-white">
                 Pesan &amp; pantau mudah
               </h3>
               <p className="mt-2.5 text-base leading-7 text-white/70">

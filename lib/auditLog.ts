@@ -1,4 +1,4 @@
-import { reportServerError } from "@/lib/server-error-report";
+import { reportServerError } from "./server-error-report";
 import { Prisma } from "@prisma/client";
 import prisma from "./prisma";
 
@@ -89,8 +89,7 @@ export async function createAuditLog({
     | "DELETE"
     | "LOGIN"
     | "LOGOUT"
-    | "PAYMENT"
-    | "REFUND";
+    | "PAYMENT";
   entity: string;
   entityId: string;
   oldValue?: Prisma.InputJsonValue | null;

@@ -1,19 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Flower2,
-  Search,
-  ShoppingCart,
-  Loader2,
-  MapPin,
-  Building2,
-  Sparkles,
-  Navigation,
-  CheckCircle2,
-  RefreshCw,
-  Printer,
-} from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import DataStateWrapper from "@/components/ui/DataStateWrapper";
 import Pagination from "@/components/ui/Pagination";
@@ -104,27 +92,26 @@ export default function FloristSupplierStocksPage() {
   const openPayment = async (id: string) => {
     try {
       setPayingId(id);
-      if (!window.snap) throw new Error("Midtrans Snap belum siap. Muat ulang halaman dan coba lagi.");
+      if (!window.snap) throw new Error("Layanan pembayaran belum siap. Muat ulang halaman dan coba lagi.");
       const { snapToken } = await getDirectSaleSnapToken(id);
       window.snap.pay(snapToken, {
         onSuccess: async (result: { transaction_id?: string; order_id?: string }) => {
           try {
             await confirmDirectPurchaseMidtrans(id, result?.transaction_id || result?.order_id);
-            setBuySuccess("Pembayaran Midtrans berhasil diverifikasi! Pesanan Anda kini berstatus Lunas.");
+            setBuySuccess("Pembayaran berhasil diverifikasi! Pesanan Anda kini berstatus Lunas.");
           } catch {
-
-            setBuySuccess("Pembayaran diterima Midtrans. Klik 'Cek Status Pembayaran' jika status belum berubah.");
+            setBuySuccess("Pembayaran diterima. Klik 'Cek Status Pembayaran' jika status belum berubah.");
           }
           setActiveTab("orders");
           void fetchPurchases();
         },
         onPending: () => {
-          setBuySuccess("Pembayaran masih menunggu penyelesaian (misalnya transfer VA). Selesaikan sesuai instruksi Midtrans.");
+          setBuySuccess("Pembayaran masih menunggu penyelesaian. Selesaikan sesuai instruksi yang muncul.");
           setActiveTab("orders");
           void fetchPurchases();
         },
         onError: () => {
-          setBuyError("Pembayaran Midtrans gagal atau dibatalkan.");
+          setBuyError("Pembayaran gagal atau dibatalkan.");
           void fetchPurchases();
         },
         onClose: () => {
@@ -132,7 +119,7 @@ export default function FloristSupplierStocksPage() {
         },
       });
     } catch (err) {
-      setBuyError(err instanceof Error ? err.message : "Gagal membuka pembayaran Midtrans");
+      setBuyError(err instanceof Error ? err.message : "Gagal membuka pembayaran");
       setActiveTab("orders");
     } finally {
       setPayingId(null);
@@ -144,10 +131,10 @@ export default function FloristSupplierStocksPage() {
       setCheckingId(id);
       setBuyError(null);
       await confirmDirectPurchaseMidtrans(id);
-      setBuySuccess("Status pembayaran berhasil diverifikasi dari Midtrans! Pesanan Anda kini Lunas.");
+      setBuySuccess("Status pembayaran berhasil diverifikasi! Pesanan Anda kini Lunas.");
       await fetchPurchases();
     } catch (err) {
-      setBuyError(err instanceof Error ? err.message : "Pembayaran belum terverifikasi di Midtrans.");
+      setBuyError(err instanceof Error ? err.message : "Pembayaran belum terverifikasi.");
     } finally {
       setCheckingId(null);
     }
@@ -222,7 +209,7 @@ export default function FloristSupplierStocksPage() {
       setIsSubmitting(true);
       setBuyError(null);
       const transaction = await purchaseSupplierStock(selectedStock.id, qty);
-      setBuySuccess(`Pesanan ${qty} tangkai ${selectedStock.name} dibuat. Pembayaran belum lunas; lanjutkan lewat Midtrans.`);
+      setBuySuccess(`Pesanan ${qty} tangkai ${selectedStock.name} dibuat. Pembayaran belum lunas; silakan lanjutkan pembayaran.`);
       void fetchStocks();
       void fetchPurchases();
       setIsBuyModalOpen(false);
@@ -249,13 +236,27 @@ export default function FloristSupplierStocksPage() {
             Beli Bunga dari Petani
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
-            Pesan stok kebun, bayar melalui Midtrans, lalu pantau pengiriman kurir hingga bunga masuk ke inventaris studio Anda.
+            Pesan stok kebun, selesaikan pembayaran secara daring, lalu pantau pengiriman kurir hingga bunga masuk ke inventaris studio Anda.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="rounded-xl border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-semibold tabular-nums text-white/85">
             Tersedia: <strong>{totalCount} Macam Bunga</strong>
           </span>
+          <button
+            type="button"
+            onClick={() => {
+              void fetchStocks();
+              void fetchPurchases();
+            }}
+            disabled={isLoading || isLoadingPurchases}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-sm bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            {(isLoading || isLoadingPurchases) && (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            )}
+            <span>Perbarui Data</span>
+          </button>
         </div>
       </section>
 
@@ -270,7 +271,7 @@ export default function FloristSupplierStocksPage() {
             type="button"
             aria-pressed={activeTab === "catalog"}
             onClick={() => setActiveTab("catalog")}
-            className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
+            className={`min-h-10 rounded-sm border px-4 py-2 text-xs font-semibold transition-colors ${
               activeTab === "catalog"
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
@@ -285,7 +286,7 @@ export default function FloristSupplierStocksPage() {
               setActiveTab("orders");
               void fetchPurchases();
             }}
-            className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
+            className={`min-h-10 rounded-sm border px-4 py-2 text-xs font-semibold transition-colors ${
               activeTab === "orders"
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
@@ -295,7 +296,7 @@ export default function FloristSupplierStocksPage() {
           </button>
         </div>
 
-        {activeTab === "catalog" ? (
+        {activeTab === "catalog" && (
           <form
             onSubmit={handleSearchSubmit}
             className="flex w-full items-center gap-2 sm:max-w-md"
@@ -319,20 +320,11 @@ export default function FloristSupplierStocksPage() {
             </div>
             <button
               type="submit"
-              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+              className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-card px-4 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
             >
               Cari
             </button>
           </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => void fetchPurchases()}
-            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
-          >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Perbarui Status</span>
-          </button>
         )}
       </div>
 
@@ -386,7 +378,7 @@ export default function FloristSupplierStocksPage() {
             {paginatedPurchases.map((order) => (
               <article
                 key={order.id}
-                className="flex flex-col justify-between space-y-3 rounded-2xl border border-border bg-surface p-5 text-sm shadow-xs"
+                className="flex flex-col justify-between space-y-3 rounded-2xl border border-border bg-surface p-5 text-sm"
               >
                 <div className="space-y-2.5">
                   <div className="flex items-start justify-between gap-2">
@@ -438,24 +430,26 @@ export default function FloristSupplierStocksPage() {
                 {order.status === "PENDING" && (
                   <div className="space-y-2 pt-2 border-t border-border">
                     <p className="text-xs text-warning">
-                      Belum dibayar atau menunggu verifikasi Midtrans.
+                      Belum dibayar atau menunggu verifikasi pembayaran.
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         disabled={payingId === order.id}
                         onClick={() => openPayment(order.id)}
-                        className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-xs"
+                        className="rounded-sm bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                       >
-                        {payingId === order.id ? "Membuka Midtrans..." : "Bayar melalui Midtrans"}
+                        {payingId === order.id ? "Menyiapkan pembayaran..." : "Bayar Sekarang"}
                       </button>
                       <button
                         type="button"
                         disabled={checkingId === order.id}
                         onClick={() => handleCheckStatus(order.id)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-container transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-container transition-colors disabled:opacity-50"
                       >
-                        <RefreshCw className={`h-3 w-3 ${checkingId === order.id ? "animate-spin text-primary" : ""}`} />
+                        {checkingId === order.id && (
+                          <Loader2 className="h-3 w-3 animate-spin text-primary" aria-hidden="true" />
+                        )}
                         <span>Cek Status Pembayaran</span>
                       </button>
                     </div>
@@ -465,7 +459,7 @@ export default function FloristSupplierStocksPage() {
                 {order.status === "PAID" && !order.biteshipOrderId && (
                   <div className="pt-2 border-t border-border">
                     <p className="text-xs font-medium text-primary">
-                      Lunas 100% terverifikasi • Menunggu supplier menyiapkan kurir Biteship.
+                      Lunas 100% terverifikasi • Menunggu supplier menyiapkan pengiriman kurir.
                     </p>
                   </div>
                 )}
@@ -478,26 +472,18 @@ export default function FloristSupplierStocksPage() {
                       <button
                         type="button"
                         onClick={() => setTrackingPurchase(order)}
-                        className="inline-flex min-h-8 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                        className="inline-flex min-h-8 items-center justify-center rounded-sm border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
                       >
-                        <Navigation
-                          className="h-3.5 w-3.5 text-primary"
-                          aria-hidden="true"
-                        />
-                        <span>Lacak Posisi Bunga</span>
+                        Lacak Posisi Bunga
                       </button>
                       <a
                         href={`/api/supplier/shipments/${order.id}/label`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex min-h-8 items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+                        className="inline-flex min-h-8 items-center justify-center rounded-sm border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
                         title="Cetak Label Pengiriman AWB"
                       >
-                        <Printer
-                          className="h-3.5 w-3.5 text-primary"
-                          aria-hidden="true"
-                        />
-                        <span>Label</span>
+                        Label
                       </a>
 
                       {order.status === "SHIPPED" && (
@@ -505,12 +491,10 @@ export default function FloristSupplierStocksPage() {
                           type="button"
                           disabled={receivingId === order.id}
                           onClick={() => handleReceivePurchase(order)}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-xs"
+                          className="inline-flex items-center gap-1.5 rounded-sm bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                         >
-                          {receivingId === order.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          {receivingId === order.id && (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                           )}
                           <span>Konfirmasi Bunga Diterima</span>
                         </button>
@@ -556,7 +540,6 @@ export default function FloristSupplierStocksPage() {
           isLoading={isLoading && stocks.length === 0}
           error={error}
           isEmpty={stocks.length === 0}
-          emptyIcon={<Flower2 className="h-12 w-12 text-muted-foreground" aria-hidden="true" />}
           emptyTitle="Belum ada pasokan bunga yang tersedia"
           emptyDescription="Supplier belum mendaftarkan katalog stok bunga ready stock saat ini."
           onRetry={fetchStocks}
@@ -566,7 +549,7 @@ export default function FloristSupplierStocksPage() {
               {paginatedStocks.map((stock) => (
                 <article
                   key={stock.id}
-                  className="m-card flex flex-col justify-between space-y-4 rounded-2xl border border-border bg-surface p-5 shadow-xs transition-colors hover:border-foreground/30"
+                  className="m-card flex flex-col justify-between space-y-4 rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-foreground/30"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
@@ -578,33 +561,20 @@ export default function FloristSupplierStocksPage() {
                           Varietas: {stock.variety}
                         </p>
                       </div>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
-                        <Sparkles className="h-3 w-3 text-primary" aria-hidden="true" />
-                        <span>Ready Stock</span>
+                      <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary">
+                        Ready Stock
                       </span>
                     </div>
 
                     <dl className="mt-4 space-y-2 border-t border-border pt-3.5 text-xs">
                       <div className="flex items-center justify-between gap-2">
-                        <dt className="flex items-center gap-1.5 text-muted-foreground">
-                          <Building2
-                            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                            aria-hidden="true"
-                          />
-                          <span>Kebun Mitra</span>
-                        </dt>
+                        <dt className="text-muted-foreground">Kebun Mitra</dt>
                         <dd className="font-semibold text-foreground">
                           {stock.supplier.name}
                         </dd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <dt className="flex items-center gap-1.5 text-muted-foreground">
-                          <MapPin
-                            className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                            aria-hidden="true"
-                          />
-                          <span>Lokasi</span>
-                        </dt>
+                        <dt className="text-muted-foreground">Lokasi</dt>
                         <dd className="truncate text-right text-foreground">
                           {stock.location} ({stock.supplier.city})
                         </dd>
@@ -627,10 +597,9 @@ export default function FloristSupplierStocksPage() {
                   <button
                     type="button"
                     onClick={() => openBuyModal(stock)}
-                    className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
+                    className="inline-flex min-h-10 w-full items-center justify-center rounded-sm bg-primary py-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                   >
-                    <ShoppingCart className="h-4 w-4" aria-hidden="true" />
-                    <span>Beli Pasokan Sekarang</span>
+                    Beli Pasokan Sekarang
                   </button>
                 </article>
               ))}
@@ -743,19 +712,19 @@ export default function FloristSupplierStocksPage() {
               <button
                 type="button"
                 onClick={() => setIsBuyModalOpen(false)}
-                className="rounded-xl border border-border px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+                className="rounded-sm border border-border px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-sm bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 {isSubmitting && (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 )}
-                <span>Buat Pesanan & Bayar Midtrans</span>
+                <span>Buat Pesanan & Lanjut Bayar</span>
               </button>
             </div>
           </form>

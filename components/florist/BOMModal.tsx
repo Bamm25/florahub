@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { Trash2, Loader2, AlertCircle } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
@@ -201,7 +201,7 @@ export default function BOMModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low sm:w-auto"
+            className="inline-flex min-h-10 w-full items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low sm:w-auto"
           >
             Tutup
           </button>
@@ -217,9 +217,8 @@ export default function BOMModal({
 
           <div className="space-y-4 rounded-2xl border border-border bg-surface-container-low/40 p-4 sm:p-5">
             <div>
-              <h3 className="flex items-center gap-2 text-sm font-semibold tracking-normal text-foreground">
-                <Plus className="h-4 w-4 text-primary" aria-hidden="true" />
-                <span>Tambah Komponen Baru</span>
+              <h3 className="text-sm font-semibold tracking-normal text-foreground">
+                Tambah Komponen Baru
               </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Tentukan bahan baku dan takaran untuk merakit 1 unit buket.
@@ -301,16 +300,15 @@ export default function BOMModal({
                 type="button"
                 onClick={handleAddComponent}
                 disabled={isAdding || !newComponent.inventoryId || !newComponent.quantity}
-                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-sm bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {isAdding ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                     Menambahkan...
                   </>
                 ) : (
                   <>
-                    <Plus className="h-4 w-4" />
                     Tambah ke BOM
                   </>
                 )}
@@ -393,7 +391,7 @@ export default function BOMModal({
                       <button
                         type="button"
                         onClick={() => setPendingDeleteId(comp.id)}
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-error transition-colors hover:bg-error/10"
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-error transition-colors hover:bg-error/10"
                         title="Hapus komponen"
                         aria-label="Hapus komponen dari BOM"
                       >

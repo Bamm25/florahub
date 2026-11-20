@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Package, RefreshCw, Truck } from "lucide-react";
 import {
   LoadingSpinner,
   ErrorState,
@@ -214,18 +213,16 @@ export default function FloristOrdersPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/florist/shipments"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10"
           >
-            <Truck className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Menu Pengiriman</span>
+            Menu Pengiriman
           </Link>
           <button
             type="button"
             onClick={fetchOrders}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Perbarui Data</span>
+            Perbarui Data
           </button>
         </div>
       </section>
@@ -307,7 +304,7 @@ export default function FloristOrdersPage() {
                   setStatusFilter(tab.value);
                   setCurrentPage(1);
                 }}
-                className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-sm border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                   isActive
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
@@ -353,7 +350,6 @@ export default function FloristOrdersPage() {
       {/* Empty State */}
       {!isLoading && !error && filteredOrders.length === 0 && (
         <EmptyState
-          icon={<Package className="h-6 w-6" aria-hidden="true" />}
           title={
             searchQuery || statusFilter !== "ALL"
               ? "Tidak ada pesanan yang sesuai"
@@ -382,7 +378,7 @@ export default function FloristOrdersPage() {
 
         return (
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+            <div className="overflow-hidden rounded-2xl border border-border bg-surface">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-195 text-left text-sm">
                   <thead className="border-b border-border bg-surface-container-low/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -473,7 +469,7 @@ export default function FloristOrdersPage() {
                             <div className="flex items-center justify-end gap-2">
                               <Link
                                 href={`/florist/orders/${order.id}`}
-                                className="inline-flex min-h-9 items-center justify-center rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                                className="inline-flex min-h-9 items-center justify-center rounded-sm border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                               >
                                 Detail
                               </Link>

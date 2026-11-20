@@ -24,8 +24,11 @@ export async function GET(request: Request) {
         announcement: true,
         florist: {
           include: {
+            floristProfile: {
+              select: { shopName: true },
+            },
             addresses: {
-              where: { isDefault: true },
+              orderBy: { isDefault: "desc" },
               take: 1,
             },
           },
@@ -46,8 +49,11 @@ export async function GET(request: Request) {
         stock: true,
         florist: {
           include: {
+            floristProfile: {
+              select: { shopName: true },
+            },
             addresses: {
-              where: { isDefault: true },
+              orderBy: { isDefault: "desc" },
               take: 1,
             },
           },
@@ -79,7 +85,7 @@ export async function GET(request: Request) {
           itemName: `${p.announcement.flowerName} (${p.quantity} tangkai)`,
           totalAmount: p.totalPrice,
           recipient: {
-            name: p.florist.name,
+            name: p.florist.floristProfile?.shopName || p.florist.name,
             email: p.florist.email,
             phone: p.florist.phone || destAddr?.phone || "-",
             address: destAddr
@@ -106,10 +112,10 @@ export async function GET(request: Request) {
           shippedAt: s.shippedAt ? s.shippedAt.toISOString() : null,
           deliveredAt: s.deliveredAt ? s.deliveredAt.toISOString() : null,
           createdAt: s.createdAt.toISOString(),
-          itemName: `${s.stock.name} (${s.quantity} tangkai)`,
+          itemName: `${s.stock.name} (${s.quantity} ${s.stock.unit || "tangkai"})`,
           totalAmount: s.totalPrice,
           recipient: {
-            name: s.florist.name,
+            name: s.florist.floristProfile?.shopName || s.florist.name,
             email: s.florist.email,
             phone: s.florist.phone || destAddr?.phone || "-",
             address: destAddr

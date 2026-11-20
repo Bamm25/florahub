@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { createAuditLog } from "@/lib/auditLog";
 import { MIDTRANS_API_HOST, MIDTRANS_TIMEOUT_MS } from "@/lib/config/domain";
 import { Prisma } from "@prisma/client";
 
@@ -65,7 +66,7 @@ export function matchesPayment(payment: MidtransPayment, kind: "DP" | "FINAL" | 
 /** Transition + notification in one transaction. Conditional writes make webhook retries harmless. */
 export async function settlePreorder(payment: MidtransPayment, kind: "DP" | "FINAL", id: string) {
   if (!isSettled(payment)) return { changed: false, reason: "Payment not settled" };
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const order = await tx.harvestPreOrder.findUnique({
       where: { id },
       include: {
@@ -105,6 +106,17 @@ export async function settlePreorder(payment: MidtransPayment, kind: "DP" | "FIN
         { userId: order.announcement.supplierId, title: "DP Pre-Order Masuk (Midtrans)", message: `DP untuk ${order.quantity} tangkai ${order.announcement.flowerName} dari ${order.florist.name} telah dibayar.`, type: "PREORDER_CONFIRMED", link: "/supplier/harvest-announcements" },
         { userId: order.floristId, title: "DP Pre-Order Diterima", message: `Kuota ${order.quantity} tangkai ${order.announcement.flowerName} telah dikunci. Pelunasan jatuh tempo pada tanggal panen.`, type: "PREORDER_CONFIRMED", link: "/florist/harvest-plans" },
       ] });
+      return {
+        changed: true as const,
+        reason: "Settled",
+        audit: {
+          userId: order.floristId,
+          entityId: order.id,
+          oldStatus: "CONFIRMED",
+          newStatus: "DEPOSIT_PAID",
+          amount,
+        },
+      };
     } else {
       if (order.status !== "DEPOSIT_PAID") return { changed: false, reason: order.status === "PAID" && order.finalProof === `MIDTRANS:${payment.transaction_id}` ? "Already processed" : "DP not paid or final state invalid; reconcile payment" };
       if (!order.finalDeadline || now > finalPaymentDeadline(order.finalDeadline, order.announcement.harvestDate)) {
@@ -119,14 +131,40 @@ export async function settlePreorder(payment: MidtransPayment, kind: "DP" | "FIN
         { userId: order.announcement.supplierId, title: "Pelunasan Pre-Order Diterima", message: `Pelunasan ${order.quantity} tangkai ${order.announcement.flowerName} dari ${order.florist.name} berhasil.`, type: "PREORDER_CONFIRMED", link: "/supplier/harvest-announcements" },
         { userId: order.floristId, title: "Pre-Order Lunas", message: `Pelunasan ${order.announcement.flowerName} diterima.`, type: "PAYMENT_SUCCESS", link: "/florist/harvest-plans" },
       ] });
+      return {
+        changed: true as const,
+        reason: "Settled",
+        audit: {
+          userId: order.floristId,
+          entityId: order.id,
+          oldStatus: "DEPOSIT_PAID",
+          newStatus: "PAID",
+          amount,
+        },
+      };
     }
-    return { changed: true, reason: "Settled" };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  if (result.changed && "audit" in result && result.audit) {
+    await createAuditLog({
+      userId: result.audit.userId,
+      action: "PAYMENT",
+      entity: "HarvestPreOrder",
+      entityId: result.audit.entityId,
+      oldValue: { status: result.audit.oldStatus },
+      newValue: {
+        status: result.audit.newStatus,
+        stage: kind,
+        amount: result.audit.amount,
+      },
+    });
+  }
+  return { changed: result.changed, reason: result.reason };
 }
 
 export async function settleStock(payment: MidtransPayment, id: string) {
   if (!isSettled(payment)) return { changed: false, reason: "Payment not settled" };
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const sale = await tx.stockTransaction.findUnique({ where: { id }, include: { stock: true } });
     if (!sale) return { changed: false, reason: "Sale not found" };
     if (!matchesPayment(payment, "STOCK", id, sale.totalPrice)) return { changed: false, reason: "Payment identity or amount mismatch" };
@@ -139,6 +177,31 @@ export async function settleStock(payment: MidtransPayment, id: string) {
       { userId: sale.stock.supplierId, title: "Penjualan Stok Dibayar", message: `Pembayaran ${sale.quantity} tangkai ${sale.stock.name} diterima melalui Midtrans.`, type: "PAYMENT_SUCCESS", link: "/supplier/sales" },
       { userId: sale.floristId, title: "Pembayaran Stok Berhasil", message: `Pembayaran ${sale.quantity} tangkai ${sale.stock.name} berhasil.`, type: "PAYMENT_SUCCESS", link: "/florist/supplier-stocks" },
     ] });
-    return { changed: true, reason: "Settled" };
+    return {
+      changed: true as const,
+      reason: "Settled",
+      audit: {
+        userId: sale.floristId,
+        entityId: sale.id,
+        amount: sale.totalPrice,
+        quantity: sale.quantity,
+      },
+    };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  if (result.changed && "audit" in result && result.audit) {
+    await createAuditLog({
+      userId: result.audit.userId,
+      action: "PAYMENT",
+      entity: "StockTransaction",
+      entityId: result.audit.entityId,
+      oldValue: { status: "PENDING" },
+      newValue: {
+        status: "PAID",
+        amount: result.audit.amount,
+        quantity: result.audit.quantity,
+      },
+    });
+  }
+  return { changed: result.changed, reason: result.reason };
 }

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="8" fill="#112218" />
+  <rect x="0.75" y="0.75" width="30.5" height="30.5" rx="7.25" stroke="#B7D39C" stroke-opacity="0.24" stroke-width="1.5" />
+  <!-- Central cut-flower bloom bud -->
+  <path
+    d="M16 5.75C19.1 9.35 19.1 15.15 16 18.75C12.9 15.15 12.9 9.35 16 5.75Z"
+    fill="#F7F5F0"
+  />
+  <!-- Left botanical leaf (Supplier / Kebun) -->
+  <path
+    d="M14.6 20.5C9.75 19.9 7.1 16.1 7.6 10.9C11.75 11.45 14.1 14.65 14.6 20.5Z"
+    fill="#B7D39C"
+  />
+  <!-- Right botanical leaf (Florist Studio) -->
+  <path
+    d="M17.4 20.5C22.25 19.9 24.9 16.1 24.4 10.9C20.25 11.45 17.9 14.65 17.4 20.5Z"
+    fill="#B7D39C"
+  />
+  <!-- Central supply-chain hub node -->
+  <circle cx="16" cy="24.25" r="2" fill="#B7D39C" />
+</svg>

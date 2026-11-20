@@ -4,14 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import {
-  Check,
-  CheckCircle2,
-  ChevronRight,
-  Copy,
-  ExternalLink,
-  RefreshCw,
-} from "lucide-react";
+import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import {
   confirmOrderDelivery,
   getOrderDetail,
@@ -20,7 +13,7 @@ import {
   type Shipment,
   type ShipmentTrackingDetails,
 } from "@/lib/api/orders";
-import { ConfirmDialog, ErrorState } from "@/components/ui";
+import { ConfirmDialog, ErrorState, TrackingProgressTrack } from "@/components/ui";
 import { buildOrderTrackingTimeline } from "@/lib/order-tracking-timeline";
 
 const TRACKING_STEPS = [
@@ -240,7 +233,6 @@ export default function OrderTrackingPage({
 
   const isCancelled =
     order.status === "CANCELLED" ||
-    order.status === "REFUNDED" ||
     shipment?.status === "CANCELLED";
   const isDelivered =
     order.status === "DELIVERED" || shipment?.status === "DELIVERED";
@@ -291,7 +283,7 @@ export default function OrderTrackingPage({
         <div className="container-custom">
           {/* Breadcrumbs Semantik */}
           <nav aria-label="Breadcrumbs">
-            <ol className="flex flex-wrap items-center gap-1.5 text-xs text-white/60">
+            <ol className="flex flex-wrap items-center gap-2 text-xs text-white/60">
               <li>
                 <Link
                   href="/orders"
@@ -300,11 +292,10 @@ export default function OrderTrackingPage({
                   Pesanan
                 </Link>
               </li>
-              <li className="inline-flex items-center gap-1.5">
-                <ChevronRight
-                  className="h-3.5 w-3.5 text-white/35"
-                  aria-hidden="true"
-                />
+              <li aria-hidden="true" className="text-white/35">
+                /
+              </li>
+              <li>
                 <Link
                   href={`/orders/${orderId}`}
                   className="font-mono underline-offset-4 transition-colors hover:text-white hover:underline"
@@ -312,11 +303,10 @@ export default function OrderTrackingPage({
                   #{order.orderNumber}
                 </Link>
               </li>
-              <li className="inline-flex items-center gap-1.5">
-                <ChevronRight
-                  className="h-3.5 w-3.5 text-white/35"
-                  aria-hidden="true"
-                />
+              <li aria-hidden="true" className="text-white/35">
+                /
+              </li>
+              <li>
                 <Link
                   href={`/orders/${orderId}/tracking`}
                   aria-current="page"
@@ -363,8 +353,7 @@ export default function OrderTrackingPage({
                   }}
                   className="btn-primary h-11 px-4 py-0 text-xs font-semibold sm:text-sm"
                 >
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  <span>Pesanan Diterima</span>
+                  Pesanan Diterima
                 </button>
               )}
 
@@ -407,10 +396,9 @@ export default function OrderTrackingPage({
                 disabled={isRefreshing}
                 className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-50"
               >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
-                  aria-hidden="true"
-                />
+                {isRefreshing && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                )}
                 <span>{isRefreshing ? "Memperbarui..." : "Perbarui"}</span>
               </button>
             </div>
@@ -418,61 +406,13 @@ export default function OrderTrackingPage({
 
           {/* 3-Step Shipping Progress Track */}
           {!isCancelled && (
-            <ol
-              aria-label="Tahap pengiriman"
-              className="mt-8 grid grid-cols-3 gap-3 border-t border-white/10 pt-6"
-            >
-              {TRACKING_STEPS.map((label, idx) => {
-                const isCompleted = isDelivered ? idx < 2 : idx < activeStepIndex;
-                const isCurrent = isDelivered
-                  ? idx === 2
-                  : idx === activeStepIndex;
-
-                return (
-                  <li
-                    key={label}
-                    aria-current={isCurrent ? "step" : undefined}
-                    className="flex flex-col gap-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold transition-colors ${
-                          isCompleted || isCurrent
-                            ? "border-kicker bg-kicker text-surface-dark"
-                            : "border-white/20 bg-white/5 text-white/45"
-                        }`}
-                      >
-                        {isCompleted || (isDelivered && idx === 2) ? (
-                          <Check className="h-3.5 w-3.5" />
-                        ) : (
-                          idx + 1
-                        )}
-                      </span>
-                      {idx < TRACKING_STEPS.length - 1 && (
-                        <span
-                          aria-hidden="true"
-                          className={`hidden h-px flex-1 sm:block ${
-                            isCompleted || isDelivered ? "bg-kicker" : "bg-white/15"
-                          }`}
-                        />
-                      )}
-                    </div>
-                    <span
-                      className={`text-xs font-medium ${
-                        isCurrent
-                          ? "text-kicker"
-                          : isCompleted
-                            ? "text-white/90"
-                            : "text-white/45"
-                      }`}
-                    >
-                      {label}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
+            <TrackingProgressTrack
+              steps={TRACKING_STEPS}
+              activeStepIndex={activeStepIndex}
+              isCompletedAll={isDelivered}
+              ariaLabel="Tahap pengiriman"
+              className="mt-8 pt-6"
+            />
           )}
         </div>
       </section>

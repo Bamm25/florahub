@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ShoppingBag } from "lucide-react";
+import { Check } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cartStore";
 
 interface StoreQuickAddButtonProps {
@@ -67,7 +67,7 @@ export default function StoreQuickAddButton({
           ? `${product.name} stok habis`
           : `Tambah ${product.name} ke keranjang`
       }
-      className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50 ${
+      className={`inline-flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 ${
         fullWidth ? "w-full sm:w-auto sm:px-5 text-sm h-12" : "shrink-0"
       }`}
     >
@@ -79,10 +79,7 @@ export default function StoreQuickAddButton({
           Masuk
         </>
       ) : (
-        <>
-          <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-          Keranjang
-        </>
+        "Keranjang"
       )}
     </button>
   );

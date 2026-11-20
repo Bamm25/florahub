@@ -2,6 +2,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { NextAuthOptions } from "next-auth";
 import { Role } from "@prisma/client";
 import prisma from "./prisma";
+import { createAuditLog } from "./auditLog";
 import bcrypt from "bcryptjs";
 import { checkRateLimit } from "./rate-limit";
 import {
@@ -28,7 +29,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials.password) {
           throw new Error("Email dan password harus diisi");
         }
@@ -61,6 +62,20 @@ export const authOptions: NextAuthOptions = {
         if (!isValidPassword) {
           throw new Error("Email atau password salah");
         }
+
+        const rawIp =
+          req?.headers?.["x-forwarded-for"] ?? req?.headers?.["x-real-ip"];
+        const rawUa = req?.headers?.["user-agent"];
+        await createAuditLog({
+          userId: user.id,
+          action: "LOGIN",
+          entity: "User",
+          entityId: user.id,
+          newValue: { role: user.role, method: "credentials" },
+          ipAddress: typeof rawIp === "string" ? rawIp : undefined,
+          userAgent: typeof rawUa === "string" ? rawUa : undefined,
+        });
+
         return {
           id: user.id,
           name: user.name,

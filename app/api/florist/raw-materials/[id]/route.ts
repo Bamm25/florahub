@@ -1,4 +1,5 @@
 import { reportServerError } from "@/lib/server-error-report";
+import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { updateRawMaterialSchema } from "@/lib/validations/schemas";
@@ -271,6 +272,19 @@ export async function DELETE(
           where: { id: inventory.stockId },
         });
       }
+    });
+
+    await createAuditLog({
+      userId,
+      action: "DELETE",
+      entity: "Stock",
+      entityId: inventory.stockId,
+      oldValue: {
+        name: inventory.stock.name,
+        quantity: inventory.quantity,
+      },
+      ipAddress: request.headers.get("x-forwarded-for") ?? undefined,
+      userAgent: request.headers.get("user-agent") ?? undefined,
     });
 
     return NextResponse.json({

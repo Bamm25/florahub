@@ -1,21 +1,12 @@
 "use client";
 
+import Modal from "@/components/forms/Modal";
 import EmptyState from "@/components/ui/EmptyState";
 import ErrorState from "@/components/ui/ErrorState";
 import FilterBar from "@/components/ui/FilterBar";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Pagination from "@/components/ui/Pagination";
 import SearchInput from "@/components/ui/SearchInput";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   fetchAdminAuditLogs,
   type AdminAuditAction,
@@ -23,14 +14,7 @@ import {
   type AdminAuditLogsPage,
 } from "@/lib/api/admin";
 import { formatDateTime } from "@/lib/utils/formatters";
-import {
-  Calendar,
-  ClipboardList,
-  Eye,
-  RefreshCw,
-  ShieldCheck,
-  UserCheck,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 const actionFilters = [
@@ -39,16 +23,21 @@ const actionFilters = [
   { id: "UPDATE", label: "UPDATE" },
   { id: "DELETE", label: "DELETE" },
   { id: "PAYMENT", label: "PAYMENT" },
-  { id: "REFUND", label: "REFUND" },
   { id: "LOGIN", label: "LOGIN" },
 ];
 
 const entityOptions = [
   { id: "ALL", label: "Semua Entitas" },
   { id: "User", label: "User" },
+  { id: "Order", label: "Order" },
+  { id: "Payment", label: "Payment" },
+  { id: "Product", label: "Product" },
   { id: "Coupon", label: "Coupon" },
   { id: "FlowerCategory", label: "FlowerCategory" },
   { id: "Stock", label: "Stock" },
+  { id: "StockTransaction", label: "StockTransaction" },
+  { id: "HarvestAnnouncement", label: "Jadwal Panen" },
+  { id: "HarvestPreOrder", label: "Pre-Order Panen" },
   { id: "Shipment", label: "Shipment" },
 ];
 
@@ -71,10 +60,6 @@ const actionBadgeMap: Record<
   PAYMENT: {
     label: "PAYMENT",
     className: "border-success/25 bg-success/10 text-success",
-  },
-  REFUND: {
-    label: "REFUND",
-    className: "border-warning/25 bg-warning/10 text-warning",
   },
   LOGIN: {
     label: "LOGIN",
@@ -106,8 +91,11 @@ function summarizePayload(payload: Record<string, unknown> | null): string {
   if (entries.length === 0) return "-";
   return entries
     .slice(0, 3)
-    .map(([key, val]) => `${key}: ${typeof val === "object" ? "{...}" : String(val)}`)
-    .join(" • ");
+    .map(
+      ([key, val]) =>
+        `${key}: ${typeof val === "object" ? "{...}" : String(val)}`,
+    )
+    .join(" · ");
 }
 
 export default function AdminAuditLogsPage() {
@@ -213,19 +201,18 @@ export default function AdminAuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <header className="flex flex-col gap-4 rounded-2xl bg-surface-dark p-6 text-white sm:flex-row sm:items-center sm:justify-between">
+      {/* Header Editorial Gelap */}
+      <header className="flex flex-col gap-6 rounded-[24px] border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold tracking-wider text-kicker uppercase">
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Audit Trail &amp; Keamanan
-          </span>
-          <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+          </p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
             Log Audit Aktivitas Sistem
           </h1>
-          <p className="mt-1.5 max-w-2xl text-sm text-white/70">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
             Telusuri riwayat mutasi sensitif lintas aktor secara read-only
-            dengan proteksi redaksi PII dan kredensial.
+            dengan proteksi penyamaran data pribadi dan kredensial.
           </p>
         </div>
 
@@ -233,18 +220,20 @@ export default function AdminAuditLogsPage() {
           type="button"
           onClick={reload}
           disabled={loading || isDateRangeInvalid}
-          className="inline-flex items-center justify-center gap-2 self-start rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20 disabled:opacity-50 sm:self-center"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-sm border border-white/20 bg-white/5 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-50 lg:self-end"
         >
-          <RefreshCw
-            className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-            aria-hidden="true"
-          />
+          {loading && (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          )}
           <span>Muat Ulang</span>
         </button>
       </header>
 
       {/* Panel Filter */}
-      <section className="surface-panel space-y-5">
+      <section
+        aria-label="Filter dan pencarian audit log"
+        className="surface-panel space-y-5"
+      >
         <SearchInput
           value={query}
           onChange={setQuery}
@@ -252,13 +241,17 @@ export default function AdminAuditLogsPage() {
         />
 
         <div className="space-y-3">
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Filter Aksi
           </p>
           <FilterBar
-            filters={actionFilters}
+            filters={actionFilters.map((f) => ({
+              ...f,
+              count: data?.actionCounts?.[f.id as AdminAuditAction | "ALL"],
+            }))}
             activeFilter={actionFilter}
             onChange={(nextAction) => {
+              if (nextAction === actionFilter) return;
               setLoading(true);
               setActionFilter(nextAction);
               setPage(1);
@@ -267,7 +260,7 @@ export default function AdminAuditLogsPage() {
         </div>
 
         <div className="space-y-3 border-t border-border pt-4">
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Filter Entitas
           </p>
           <div className="flex flex-wrap gap-2">
@@ -275,12 +268,14 @@ export default function AdminAuditLogsPage() {
               <button
                 key={item.id}
                 type="button"
+                aria-pressed={entityFilter === item.id}
                 onClick={() => {
+                  if (item.id === entityFilter) return;
                   setLoading(true);
                   setEntityFilter(item.id);
                   setPage(1);
                 }}
-                className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                className={`min-h-9 rounded-sm px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                   entityFilter === item.id
                     ? "bg-primary text-primary-foreground"
                     : "border border-border bg-surface-container-low text-muted-foreground hover:bg-surface-container hover:text-foreground"
@@ -296,46 +291,46 @@ export default function AdminAuditLogsPage() {
           <div>
             <label
               htmlFor="audit-date-from"
-              className="flex items-center gap-1.5 text-xs font-semibold text-foreground"
+              className="block text-sm font-medium text-foreground"
             >
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Dari Tanggal</span>
+              Dari Tanggal
             </label>
             <input
               id="audit-date-from"
               type="date"
               value={dateFrom}
               onChange={(e) => {
+                if (e.target.value === dateFrom) return;
                 setDateFrom(e.target.value);
                 setPage(1);
                 if (!e.target.value || !dateTo || e.target.value <= dateTo) {
                   setLoading(true);
                 }
               }}
-              className="input-field mt-1 w-full"
+              className="input-field mt-1.5 w-full tabular-nums"
             />
           </div>
 
           <div>
             <label
               htmlFor="audit-date-to"
-              className="flex items-center gap-1.5 text-xs font-semibold text-foreground"
+              className="block text-sm font-medium text-foreground"
             >
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Sampai Tanggal</span>
+              Sampai Tanggal
             </label>
             <input
               id="audit-date-to"
               type="date"
               value={dateTo}
               onChange={(e) => {
+                if (e.target.value === dateTo) return;
                 setDateTo(e.target.value);
                 setPage(1);
                 if (!dateFrom || !e.target.value || dateFrom <= e.target.value) {
                   setLoading(true);
                 }
               }}
-              className="input-field mt-1 w-full"
+              className="input-field mt-1.5 w-full tabular-nums"
             />
           </div>
 
@@ -349,7 +344,7 @@ export default function AdminAuditLogsPage() {
                   setDateTo("");
                   setPage(1);
                 }}
-                className="btn-secondary w-full py-2.5 text-xs font-semibold sm:w-auto"
+                className="inline-flex min-h-10 w-full items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low sm:w-auto"
               >
                 Reset Tanggal
               </button>
@@ -360,7 +355,7 @@ export default function AdminAuditLogsPage() {
         {isDateRangeInvalid && (
           <div
             role="alert"
-            className="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs font-medium text-error"
+            className="rounded-md border border-error/30 bg-error/5 px-3.5 py-2.5 text-sm font-medium text-error"
           >
             Tanggal mulai tidak boleh melebihi tanggal akhir.
           </div>
@@ -376,24 +371,73 @@ export default function AdminAuditLogsPage() {
         <ErrorState error={error} onRetry={reload} />
       ) : !data || data.logs.length === 0 ? (
         <EmptyState
-          icon={<ClipboardList className="h-6 w-6" />}
-          title="Belum ada rekaman audit log yang sesuai"
-          description="Tidak ditemukan aktivitas audit dengan filter aksi, entitas, atau rentang tanggal saat ini."
+          title={
+            actionFilter !== "ALL"
+              ? `Belum ada rekaman aksi ${actionFilter}`
+              : "Belum ada rekaman audit log yang sesuai"
+          }
+          description={
+            actionFilter !== "ALL" ||
+            entityFilter !== "ALL" ||
+            Boolean(dateFrom) ||
+            Boolean(dateTo) ||
+            Boolean(query)
+              ? "Tidak ditemukan aktivitas audit dengan filter aksi, entitas, atau rentang tanggal saat ini."
+              : "Aktivitas sensitif lintas pengguna dan transaksi akan tercatat otomatis di sini."
+          }
+          action={
+            actionFilter !== "ALL" ||
+            entityFilter !== "ALL" ||
+            Boolean(dateFrom) ||
+            Boolean(dateTo) ||
+            Boolean(query)
+              ? {
+                  label: "Reset Semua Filter",
+                  onClick: () => {
+                    setLoading(true);
+                    setActionFilter("ALL");
+                    setEntityFilter("ALL");
+                    setDateFrom("");
+                    setDateTo("");
+                    setQuery("");
+                    setSearch("");
+                    setPage(1);
+                  },
+                }
+              : undefined
+          }
         />
       ) : (
         <section className="space-y-4">
           {/* Tabel Desktop */}
-          <div className="surface-panel hidden overflow-hidden p-0 md:block">
-            <div className="overflow-x-auto">
+          <div className="hidden overflow-hidden rounded-2xl border border-border bg-surface md:block">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Tabel log audit sistem"
+              className="overflow-x-auto"
+            >
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-border bg-surface-container-low text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                <thead className="border-b border-border bg-surface-container-low text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-3.5">Waktu</th>
-                    <th className="px-4 py-3.5">Aktor (Masked)</th>
-                    <th className="px-4 py-3.5">Aksi</th>
-                    <th className="px-4 py-3.5">Entitas &amp; ID</th>
-                    <th className="px-4 py-3.5">Ringkasan Perubahan</th>
-                    <th className="px-4 py-3.5 text-right">Inspeksi</th>
+                    <th scope="col" className="px-4 py-3.5">
+                      Waktu
+                    </th>
+                    <th scope="col" className="px-4 py-3.5">
+                      Aktor
+                    </th>
+                    <th scope="col" className="px-4 py-3.5">
+                      Aksi
+                    </th>
+                    <th scope="col" className="px-4 py-3.5">
+                      Entitas &amp; ID
+                    </th>
+                    <th scope="col" className="px-4 py-3.5">
+                      Ringkasan Perubahan
+                    </th>
+                    <th scope="col" className="px-4 py-3.5 text-right">
+                      Inspeksi
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border bg-surface">
@@ -402,9 +446,14 @@ export default function AdminAuditLogsPage() {
                       key={log.id}
                       className="transition-colors hover:bg-surface-dim"
                     >
-                      <td className="px-4 py-3.5 align-top whitespace-nowrap">
+                      <td className="whitespace-nowrap px-4 py-3.5 align-top">
                         <div className="font-medium text-foreground">
-                          {formatDateTime(log.createdAt)}
+                          <time
+                            dateTime={log.createdAt}
+                            className="tabular-nums"
+                          >
+                            {formatDateTime(log.createdAt)}
+                          </time>
                         </div>
                         {log.maskedIpAddress && (
                           <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
@@ -420,7 +469,7 @@ export default function AdminAuditLogsPage() {
                               {log.actor.name}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {log.actor.role} • {log.actor.maskedEmail}
+                              {log.actor.role} · {log.actor.maskedEmail}
                             </div>
                           </div>
                         ) : (
@@ -453,10 +502,9 @@ export default function AdminAuditLogsPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedLog(log)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
+                          className="inline-flex min-h-9 items-center justify-center rounded-sm border border-border bg-surface-container-low px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
                         >
-                          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                          <span>Lihat Perubahan</span>
+                          Lihat Perubahan
                         </button>
                       </td>
                     </tr>
@@ -472,7 +520,9 @@ export default function AdminAuditLogsPage() {
               <article key={log.id} className="surface-panel space-y-2.5 p-4">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-foreground">{log.entity}</p>
+                    <p className="font-semibold text-foreground">
+                      {log.entity}
+                    </p>
                     <p className="font-mono text-xs text-muted-foreground">
                       {log.entityId}
                     </p>
@@ -483,15 +533,17 @@ export default function AdminAuditLogsPage() {
                   {log.actor
                     ? `${log.actor.name} (${log.actor.role})`
                     : "Sistem / Otomatis"}{" "}
-                  • {formatDateTime(log.createdAt)}
+                  ·{" "}
+                  <time dateTime={log.createdAt} className="tabular-nums">
+                    {formatDateTime(log.createdAt)}
+                  </time>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedLog(log)}
-                  className="btn-secondary inline-flex w-full items-center justify-center gap-2 py-2 text-xs font-semibold"
+                  className="inline-flex min-h-10 w-full items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
                 >
-                  <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Lihat Perubahan</span>
+                  Lihat Perubahan
                 </button>
               </article>
             ))}
@@ -502,7 +554,7 @@ export default function AdminAuditLogsPage() {
       {/* Paginasi */}
       {!isDateRangeInvalid && data && data.pagination.totalPages > 1 && (
         <div className="surface-panel flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs tabular-nums text-muted-foreground">
             Menampilkan halaman {data.pagination.page} dari{" "}
             {data.pagination.totalPages} ({data.pagination.total} total rekaman)
           </p>
@@ -519,107 +571,109 @@ export default function AdminAuditLogsPage() {
       )}
 
       {/* Modal Detail Audit Log */}
-      <Dialog
-        open={selectedLog !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedLog(null);
-        }}
+      <Modal
+        isOpen={selectedLog !== null}
+        onClose={() => setSelectedLog(null)}
+        headerVariant="dark"
+        bodyClassName="bg-background"
+        size="lg"
+        kicker="Rekaman Audit"
+        title={
+          selectedLog ? `${selectedLog.entity} · ${selectedLog.action}` : ""
+        }
+        subtitle="Rekaman perubahan bersifat permanen (read-only). Informasi sensitif disamarkan otomatis."
+        footer={
+          <button
+            type="button"
+            onClick={() => setSelectedLog(null)}
+            className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+          >
+            Tutup
+          </button>
+        }
       >
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              Detail Audit {selectedLog?.entity} ({selectedLog?.action})
-            </DialogTitle>
-            <DialogDescription>
-              Rekaman perubahan bersifat permanen (read-only). Informasi sensitif
-              dan PII telah disamarkan secara otomatis.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedLog && (
-            <div className="space-y-4 text-sm">
-              <div className="grid gap-3 rounded-xl border border-border bg-surface-container-low p-4 sm:grid-cols-2">
-                <div>
-                  <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase">
-                    <UserCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Aktor Pelaksana</span>
-                  </p>
-                  {selectedLog.actor ? (
-                    <>
-                      <p className="mt-1 font-medium text-foreground">
-                        {selectedLog.actor.name} ({selectedLog.actor.role})
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedLog.actor.maskedEmail}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Sistem / Otomatis
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    Metadata Teknis
-                  </p>
-                  <p className="mt-1 font-mono text-xs text-foreground">
-                    ID Entitas: {selectedLog.entityId}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Waktu: {formatDateTime(selectedLog.createdAt)}
-                  </p>
-                  <p className="font-mono text-xs text-muted-foreground">
-                    IP: {selectedLog.maskedIpAddress || "-"}
-                  </p>
-                </div>
+        {selectedLog && (
+          <div className="space-y-4 text-sm">
+            <dl className="grid gap-4 rounded-md border border-border bg-card p-4 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-semibold uppercase text-muted-foreground">
+                  Aktor Pelaksana
+                </dt>
+                {selectedLog.actor ? (
+                  <>
+                    <dd className="mt-1 font-medium text-foreground">
+                      {selectedLog.actor.name} ({selectedLog.actor.role})
+                    </dd>
+                    <dd className="text-xs text-muted-foreground">
+                      {selectedLog.actor.maskedEmail}
+                    </dd>
+                  </>
+                ) : (
+                  <dd className="mt-1 text-xs text-muted-foreground">
+                    Sistem / Otomatis
+                  </dd>
+                )}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    Nilai Sebelum (oldValue)
-                  </p>
-                  <pre className="max-h-72 overflow-auto rounded-xl border border-border bg-surface-container-low p-3 font-mono text-xs text-foreground">
-                    {selectedLog.oldValue
-                      ? JSON.stringify(selectedLog.oldValue, null, 2)
-                      : "Tidak ada nilai sebelumnya"}
-                  </pre>
-                </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase text-muted-foreground">
+                  Metadata Teknis
+                </dt>
+                <dd className="mt-1 font-mono text-xs text-foreground">
+                  ID Entitas: {selectedLog.entityId}
+                </dd>
+                <dd className="text-xs text-muted-foreground">
+                  Waktu:{" "}
+                  <time
+                    dateTime={selectedLog.createdAt}
+                    className="tabular-nums"
+                  >
+                    {formatDateTime(selectedLog.createdAt)}
+                  </time>
+                </dd>
+                <dd className="font-mono text-xs text-muted-foreground">
+                  IP: {selectedLog.maskedIpAddress || "-"}
+                </dd>
+              </div>
+            </dl>
 
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    Nilai Sesudah (newValue)
-                  </p>
-                  <pre className="max-h-72 overflow-auto rounded-xl border border-border bg-surface-container-low p-3 font-mono text-xs text-foreground">
-                    {selectedLog.newValue
-                      ? JSON.stringify(selectedLog.newValue, null, 2)
-                      : "Tidak ada nilai baru"}
-                  </pre>
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Nilai Sebelum (oldValue)
+                </p>
+                <pre className="max-h-72 overflow-auto rounded-md border border-border bg-card p-3.5 font-mono text-xs text-foreground">
+                  {selectedLog.oldValue
+                    ? JSON.stringify(selectedLog.oldValue, null, 2)
+                    : "Tidak ada nilai sebelumnya"}
+                </pre>
               </div>
 
-              {selectedLog.userAgent && (
-                <div className="rounded-xl border border-border bg-surface-container-low p-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    User Agent
-                  </p>
-                  <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-                    {selectedLog.userAgent}
-                  </p>
-                </div>
-              )}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Nilai Sesudah (newValue)
+                </p>
+                <pre className="max-h-72 overflow-auto rounded-md border border-border bg-card p-3.5 font-mono text-xs text-foreground">
+                  {selectedLog.newValue
+                    ? JSON.stringify(selectedLog.newValue, null, 2)
+                    : "Tidak ada nilai baru"}
+                </pre>
+              </div>
             </div>
-          )}
 
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" type="button" />}>
-              Tutup
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            {selectedLog.userAgent && (
+              <div className="rounded-md border border-border bg-card p-3.5">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  User Agent
+                </p>
+                <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                  {selectedLog.userAgent}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

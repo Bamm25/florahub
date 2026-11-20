@@ -1,4 +1,3 @@
-import { Lock } from "lucide-react";
 import { formatRupiah } from "@/lib/utils/formatters";
 
 // Props interface untuk komponen ringkasan pembayaran checkout
@@ -103,9 +102,8 @@ export function CheckoutSummary({
         ) : finalTotal === 0 ? (
           <span>Selesaikan Pesanan</span>
         ) : (
-          <span className="inline-flex items-center gap-2 tabular-nums">
-            <Lock className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>Bayar · {formatRupiah(finalTotal)}</span>
+          <span className="tabular-nums">
+            Bayar · {formatRupiah(finalTotal)}
           </span>
         )}
       </button>

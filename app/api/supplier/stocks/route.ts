@@ -6,6 +6,7 @@ import {
 } from "@/lib/config/domain";
 import prisma from "@/lib/prisma";
 import { createStockSchema } from "@/lib/validations/schemas";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -111,6 +112,11 @@ export async function POST(request: Request) {
       });
 
       // Kembalikan respon sukses pembuatan stok
+      safeRevalidatePaths([
+        "/supplier/dashboard",
+        "/supplier/stocks",
+        "/florist/supplier-stocks",
+      ]);
       return NextResponse.json(
         {
           success: true,

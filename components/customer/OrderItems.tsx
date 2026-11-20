@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { Flower2 } from "lucide-react";
 import { formatRupiah } from "@/lib/utils/formatters";
 
 // Interface untuk item produk di keranjang checkout
@@ -64,10 +63,10 @@ export default function OrderItems({ items, stepNumber = "03" }: OrderItemsProps
               </div>
             ) : (
               <div
-                className="flex aspect-[4/5] h-16 w-14 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-container-low text-muted-foreground"
+                className="flex aspect-[4/5] h-16 w-14 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-container-low text-[10px] font-medium text-muted-foreground"
                 aria-hidden="true"
               >
-                <Flower2 className="h-5 w-5" />
+                Foto
               </div>
             )}
 

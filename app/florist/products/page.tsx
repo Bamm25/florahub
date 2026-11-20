@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, CheckCircle2 } from "lucide-react";
 import {
   ConfirmDialog,
   LoadingSpinner,
@@ -378,10 +377,9 @@ export default function FloristProductsPage() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-sm bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:w-auto"
           >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            <span>Tambah Produk Baru</span>
+            Tambah Produk Baru
           </button>
         </div>
       </section>
@@ -391,10 +389,7 @@ export default function FloristProductsPage() {
           role="status"
           className="flex items-start justify-between gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-foreground"
         >
-          <div className="flex items-start gap-2.5">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-            <span>{actionSuccess}</span>
-          </div>
+          <span>{actionSuccess}</span>
           <button
             type="button"
             onClick={() => setActionSuccess(null)}

@@ -9,11 +9,13 @@ export interface SupplierDashboardData {
     activeStocks: number;
     lowStockAlert: number;
     pendingTransactions: number;
+    readyToShipCount?: number;
     averageOrderValue: number;
   };
   harvestMetrics: {
     activeAnnouncements: number;
     confirmedPreOrders: number;
+    pendingPreOrders?: number;
   };
   charts: {
     monthlyRevenue: Array<{ month: string; revenue: number }>;
@@ -76,6 +78,9 @@ export interface HarvestAnnouncementItem {
   image: string | null;
   isActive: boolean;
   totalReservedQuantity?: number;
+  transferredToStockQty?: number | null;
+  transferredStockId?: string | null;
+  transferredAt?: string | null;
   supplier?: {
     id: string;
     name: string;
@@ -140,6 +145,18 @@ export interface CreateHarvestAnnouncementInput {
   image?: string;
 }
 
+export interface UpdateHarvestAnnouncementInput {
+  flowerName?: string;
+  variety?: string;
+  estimatedQuantity?: number;
+  pricePerUnit?: number;
+  harvestDate?: string;
+  description?: string;
+  location?: string;
+  image?: string;
+  isActive?: boolean;
+}
+
 export interface StockTransactionItem {
   id: string;
   stockId: string;
@@ -161,6 +178,7 @@ export interface StockTransactionItem {
     id: string;
     name: string;
     variety: string | null;
+    unit?: string;
     pricePerUnit: number;
   };
   florist: {
@@ -351,6 +369,21 @@ export async function createHarvestAnnouncement(
   return result.data.announcement;
 }
 
+// CRUD update jadwal panen
+export async function updateHarvestAnnouncement(
+  id: string,
+  input: UpdateHarvestAnnouncementInput,
+): Promise<HarvestAnnouncementItem> {
+  const result = await fetchJson<{
+    success: boolean;
+    data: { announcement: HarvestAnnouncementItem };
+  }>(`/api/supplier/harvest-announcements/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+  return result.data.announcement;
+}
+
 // CRUD delete jadwal panen
 export async function deleteHarvestAnnouncement(id: string): Promise<void> {
   await fetchJson<{ success: boolean; message: string }>(
@@ -359,6 +392,42 @@ export async function deleteHarvestAnnouncement(id: string): Promise<void> {
       method: "DELETE",
     },
   );
+}
+
+export interface TransferHarvestToStockInput {
+  quantity: number;
+  pricePerUnit?: number;
+  qcNotes?: string;
+}
+
+// Pindahkan sisa hasil panen (setelah QC supplier) ke stok bunga biasa
+export async function transferHarvestToStock(
+  announcementId: string,
+  input: TransferHarvestToStockInput,
+): Promise<{
+  announcement: HarvestAnnouncementItem;
+  stock: StockItem;
+  mergedIntoExisting: boolean;
+  transferredQuantity: number;
+  message?: string;
+}> {
+  const result = await fetchJson<{
+    success: boolean;
+    message?: string;
+    data: {
+      announcement: HarvestAnnouncementItem;
+      stock: StockItem;
+      mergedIntoExisting: boolean;
+      transferredQuantity: number;
+    };
+  }>(`/api/supplier/harvest-announcements/${announcementId}/transfer-to-stock`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return {
+    ...result.data,
+    message: result.message,
+  };
 }
 
 // update status preOrder
@@ -490,6 +559,32 @@ export async function getSupplierSales(
     signal,
   });
   return result.data;
+}
+
+// Ambil seluruh halaman riwayat transaksi penjualan supplier
+export async function getAllSupplierSales(
+  signal?: AbortSignal,
+): Promise<StockTransactionItem[]> {
+  const results: StockTransactionItem[] = [];
+  for (let page = 1; page <= 100; page++) {
+    const result = await fetchJson<{
+      success: boolean;
+      data: StockTransactionItem[];
+      pagination?: { hasNext?: boolean; totalPages?: number };
+    }>(`/api/supplier/sales?page=${page}&limit=100`, {
+      method: "GET",
+      cache: "no-store",
+      signal,
+    });
+    results.push(...result.data);
+    if (
+      !result.pagination?.hasNext &&
+      page >= (result.pagination?.totalPages ?? 1)
+    ) {
+      break;
+    }
+  }
+  return results;
 }
 
 // Interface pengiriman terpadu supplier
@@ -815,6 +910,19 @@ export async function simulateShipmentStatus(
       body: JSON.stringify({ status }),
     },
   );
+  return result.data;
+}
+
+// Supplier mengonfirmasi paket telah diserahkan ke kurir (PAID -> SHIPPED)
+export async function confirmSupplierShipmentHandover(
+  shipmentId: string,
+): Promise<{ status: string; shippedAt?: string }> {
+  const result = await fetchJson<{
+    success: boolean;
+    data: { status: string; shippedAt?: string };
+  }>(`/api/supplier/shipments/${shipmentId}/handover`, {
+    method: "POST",
+  });
   return result.data;
 }
 

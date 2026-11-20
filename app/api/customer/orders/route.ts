@@ -21,7 +21,6 @@ export async function GET(request: Request) {
       "SHIPPED",
       "DELIVERED",
       "CANCELLED",
-      "REFUNDED",
     ];
 
     // Validasi nilai parameter status pesanan
@@ -73,7 +72,11 @@ export async function GET(request: Request) {
               },
             },
           },
-          payment: true,
+          payment: {
+            select: {
+              status: true,
+            },
+          },
           shipment: {
             select: {
               id: true,

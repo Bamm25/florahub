@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Plus, Truck } from "lucide-react";
 import { formatRupiah } from "@/lib/utils/formatters";
 
 // Interface data pesanan customer yang siap dikirim
@@ -32,7 +31,7 @@ export function OutgoingShipmentTable({
         orders.map((order) => (
           <article
             key={order.id}
-            className="flex flex-col justify-between rounded-2xl border border-border bg-surface p-5 shadow-xs transition-colors hover:border-foreground/25"
+            className="flex flex-col justify-between rounded-2xl border border-border bg-surface p-5 transition-colors hover:border-foreground/25"
           >
             <div>
               <div className="flex items-start justify-between gap-2">
@@ -74,18 +73,16 @@ export function OutgoingShipmentTable({
             <div className="mt-5 flex items-center gap-2">
               <Link
                 href={`/florist/orders/${order.id}`}
-                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-3.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+                className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-card px-3.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
               >
                 Detail
               </Link>
               <button
                 type="button"
                 onClick={() => onCreateShipment(order.id)}
-                className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
+                className="inline-flex min-h-10 flex-1 items-center justify-center rounded-sm bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                <Truck className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Buat Resi Pengiriman</span>
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                Buat Resi Pengiriman
               </button>
             </div>
           </article>

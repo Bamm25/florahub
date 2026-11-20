@@ -1,4 +1,5 @@
 import { reportServerError } from "@/lib/server-error-report";
+import { createAuditLog } from "@/lib/auditLog";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import prisma from "@/lib/prisma";
@@ -418,6 +419,20 @@ export async function DELETE(
     // Hapus data produk dari database
     await prisma.product.delete({
       where: { id: productId },
+    });
+
+    await createAuditLog({
+      userId,
+      action: "DELETE",
+      entity: "Product",
+      entityId: productId,
+      oldValue: {
+        name: existingProduct.name,
+        price: existingProduct.price,
+        stock: existingProduct.stock,
+      },
+      ipAddress: request.headers.get("x-forwarded-for") ?? undefined,
+      userAgent: request.headers.get("user-agent") ?? undefined,
     });
 
     safeRevalidatePaths(["/", "/products", "/stores", `/stores/${userId}`]);

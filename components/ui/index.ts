@@ -9,3 +9,4 @@ export { default as TabNavigation } from "./TabNavigation";
 export { default as FilterBar } from "./FilterBar";
 export { default as Pagination } from "./Pagination";
 export { default as ConfirmDialog } from "./ConfirmDialog";
+export { default as TrackingProgressTrack } from "./TrackingProgressTrack";

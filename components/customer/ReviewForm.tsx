@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Star, Send, AlertCircle, CheckCircle2, ShoppingBag } from "lucide-react";
+import { Star, AlertCircle } from "lucide-react";
 import { createProductReview, checkProductPurchase, type CheckPurchaseStatus } from "@/lib/api/products";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -86,19 +86,14 @@ export default function ReviewForm({
   if (purchaseStatus && !purchaseStatus.canReview) {
     return (
       <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-start gap-3">
-          <ShoppingBag className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {purchaseStatus.status === "PENDING"
-                ? "Pesanan dalam proses"
-                : "Belum bisa menulis ulasan"}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {purchaseStatus.message}
-            </p>
-          </div>
-        </div>
+        <p className="text-sm font-semibold text-foreground">
+          {purchaseStatus.status === "PENDING"
+            ? "Pesanan dalam proses"
+            : "Belum bisa menulis ulasan"}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {purchaseStatus.message}
+        </p>
       </div>
     );
   }
@@ -182,9 +177,8 @@ export default function ReviewForm({
         )}
 
         {successMessage && (
-          <div className="mb-4 flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-foreground">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-            <span>{successMessage}</span>
+          <div className="mb-4 rounded-xl border border-success/30 bg-success/10 p-4 text-sm font-medium text-foreground">
+            {successMessage}
           </div>
         )}
       </div>
@@ -260,7 +254,6 @@ export default function ReviewForm({
           disabled={isSubmitting}
           className="btn-primary min-w-[180px] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Send className="h-4 w-4" aria-hidden="true" />
           {isSubmitting ? "Mengirim..." : "Kirim Ulasan"}
         </button>
       </div>

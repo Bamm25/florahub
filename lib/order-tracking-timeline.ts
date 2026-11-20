@@ -240,7 +240,6 @@ export function buildOrderTrackingTimeline({
   // 4. Milestone pengiriman dari database bila belum tercakup riwayat kurir
   const isCancelled =
     order.status === "CANCELLED" ||
-    order.status === "REFUNDED" ||
     shipment?.status === "CANCELLED";
   const isDelivered =
     order.status === "DELIVERED" || shipment?.status === "DELIVERED";

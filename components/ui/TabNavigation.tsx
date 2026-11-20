@@ -25,7 +25,7 @@ export default function TabNavigation({ tabs, activeTab, onChange }: TabNavigati
             role="tab"
             aria-selected={isSelected}
             onClick={() => onChange(tab.id)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`cursor-pointer px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               isSelected
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"

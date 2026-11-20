@@ -8,7 +8,7 @@ interface DataStateWrapperProps {
   isLoading: boolean;
   error: string | null;
   isEmpty: boolean;
-  emptyIcon: React.ReactNode;
+  emptyIcon?: React.ReactNode;
   emptyTitle: string;
   emptyDescription: string;
   onRetry: () => void;

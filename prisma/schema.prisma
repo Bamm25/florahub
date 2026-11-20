@@ -189,8 +189,6 @@ model Payment {
   paymentUrl    String?       @db.VarChar(500)
   expiryTime    DateTime?
   paidAt        DateTime?
-  refundedAt    DateTime?
-  refundAmount  Int?
   paymentProof  String?       @db.VarChar(500)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -236,12 +234,13 @@ model Stock {
   harvestDate        DateTime           @default(now())
   expiryDate         DateTime?
   location           String?            @db.VarChar(200)
-  isAvailable        Boolean            @default(true)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  floristInventories FloristInventory[]
-  supplier           User               @relation("SupplierStocks", fields: [supplierId], references: [id], onDelete: Cascade)
-  stockTransactions  StockTransaction[]
+  isAvailable             Boolean               @default(true)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  floristInventories      FloristInventory[]
+  supplier                User                  @relation("SupplierStocks", fields: [supplierId], references: [id], onDelete: Cascade)
+  stockTransactions       StockTransaction[]
+  transferredFromHarvests HarvestAnnouncement[] @relation("TransferredHarvestStocks")
 
   @@index([supplierId])
   @@index([harvestDate])
@@ -279,27 +278,32 @@ model StockTransaction {
 }
 
 model HarvestAnnouncement {
-  id                String            @id @default(cuid()) @db.Char(25)
-  supplierId        String            @db.Char(25)
-  flowerName        String            @db.VarChar(200)
-  variety           String?           @db.VarChar(100)
-  estimatedQuantity Int
-  pricePerUnit      Int
-  harvestDate       DateTime
-  announceDate      DateTime          @default(now())
-  description       String?
-  location          String?           @db.VarChar(200)
-  image             String?           @db.VarChar(500)
-  isActive          Boolean           @default(true)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  supplier          User              @relation("SupplierAnnouncements", fields: [supplierId], references: [id], onDelete: Cascade)
-  preOrders         HarvestPreOrder[]
+  id                    String            @id @default(cuid()) @db.Char(25)
+  supplierId            String            @db.Char(25)
+  flowerName            String            @db.VarChar(200)
+  variety               String?           @db.VarChar(100)
+  estimatedQuantity     Int
+  pricePerUnit          Int
+  harvestDate           DateTime
+  announceDate          DateTime          @default(now())
+  description           String?
+  location              String?           @db.VarChar(200)
+  image                 String?           @db.VarChar(500)
+  isActive              Boolean           @default(true)
+  transferredToStockQty Int?
+  transferredStockId    String?           @db.Char(25)
+  transferredAt         DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  supplier              User              @relation("SupplierAnnouncements", fields: [supplierId], references: [id], onDelete: Cascade)
+  transferredStock      Stock?            @relation("TransferredHarvestStocks", fields: [transferredStockId], references: [id], onDelete: SetNull)
+  preOrders             HarvestPreOrder[]
 
   @@index([harvestDate])
   @@index([supplierId])
   @@index([isActive])
   @@index([announceDate])
+  @@index([transferredStockId])
 }
 
 model HarvestPreOrder {
@@ -495,14 +499,12 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
-  REFUNDED
 }
 
 enum PaymentStatus {
   PENDING
   PAID
   FAILED
-  REFUNDED
 }
 
 enum ShipmentStatus {
@@ -556,7 +558,6 @@ enum AuditAction {
   LOGIN
   LOGOUT
   PAYMENT
-  REFUND
 }
 
 model FloristProfile {

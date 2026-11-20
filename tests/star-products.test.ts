@@ -99,7 +99,6 @@ test("getStarProducts mengurutkan produk terlaris lintas seluruh florist & tidak
         ]);
         assert.equal(args.where.order.status.in.includes("PENDING"), false);
         assert.equal(args.where.order.status.in.includes("CANCELLED"), false);
-        assert.equal(args.where.order.status.in.includes("REFUNDED"), false);
         return [
           { productId: "prod-florist-a", _sum: { quantity: 7 }, _count: { _all: 4 } },
           { productId: "prod-florist-b", _sum: { quantity: 14 }, _count: { _all: 9 } },

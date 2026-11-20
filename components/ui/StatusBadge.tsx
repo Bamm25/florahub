@@ -27,6 +27,10 @@ export default function StatusBadge({ status, variant, size = "md" }: StatusBadg
           label: "Menunggu",
           className: "bg-warning/10 text-warning border-warning/20",
         },
+        PAID: {
+          label: "Lunas · Siap Kirim",
+          className: "bg-success/10 text-success border-success/20",
+        },
         PROCESSING: {
           label: "Diproses",
           className: "bg-primary/10 text-primary border-primary/20",

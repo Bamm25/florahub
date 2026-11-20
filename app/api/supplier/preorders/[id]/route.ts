@@ -10,6 +10,7 @@ import { HarvestPreOrderStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { updatePreorderSchema } from "@/lib/validations/schemas";
 import { formatRupiah, formatDate } from "@/lib/utils/formatters";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import { z } from "zod";
 
 // Tipe parameter rute URL
@@ -262,6 +263,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     // Kembalikan respon sukses pembaruan status pre-order
+    safeRevalidatePaths([
+      "/supplier/dashboard",
+      "/supplier/harvest-announcements",
+      "/supplier/shipments",
+      "/florist/harvest-plans",
+    ]);
     return NextResponse.json({
       success: true,
       message: isConfirming

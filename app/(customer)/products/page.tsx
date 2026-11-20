@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Check, PackageCheck, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import ProductGrid from "@/components/customer/ProductGrid";
 import {
   EmptyState,
@@ -233,10 +233,10 @@ function ProductsPageContent() {
             </div>
             <Link
               href="/stores"
-              className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-kicker transition-colors hover:text-white"
+              className="mt-4 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-kicker transition-colors hover:text-white"
             >
               Lihat daftar toko
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              <span aria-hidden="true">→</span>
             </Link>
           </div>
         </div>
@@ -302,11 +302,7 @@ function ProductsPageContent() {
                   : "border-border bg-card text-foreground hover:border-outline"
               }`}
             >
-              {inStockOnly ? (
-                <Check className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <PackageCheck className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              )}
+              {inStockOnly && <Check className="h-4 w-4" aria-hidden="true" />}
               Siap Kirim
             </button>
 

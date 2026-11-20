@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Copy, Edit, RefreshCw, FileText, Loader2 } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { isValidShippingLabelUrl } from "@/lib/config/domain";
 import { formatDateTime, formatRupiah } from "@/lib/utils/formatters";
@@ -49,12 +49,10 @@ interface ShipmentTableProps {
   syncingId?: string | null;
 }
 
-// Komponen tabel daftar pengiriman florist dengan aksi sinkronisasi Biteship dan cetak label
+// Komponen tabel daftar pengiriman florist dengan aksi cetak label dan pembaruan status
 export function ShipmentTable({
   shipments,
   onEdit,
-  onSync,
-  syncingId,
 }: ShipmentTableProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -67,7 +65,7 @@ export function ShipmentTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
       <div className="overflow-x-auto overscroll-x-contain">
         <table className="w-full min-w-[860px] text-left text-sm">
           <thead className="border-b border-border bg-surface-container-low/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -134,7 +132,7 @@ export function ShipmentTable({
                       </p>
                       {shipment.biteshipOrderId && (
                         <span className="rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                          Biteship
+                          Otomatis
                         </span>
                       )}
                     </div>
@@ -156,7 +154,7 @@ export function ShipmentTable({
                             handleCopyResi(shipment.id, shipment.trackingNumber!)
                           }
                           aria-label={`Salin resi ${shipment.trackingNumber}`}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
                         >
                           {copiedId === shipment.id ? (
                             <Check
@@ -181,33 +179,8 @@ export function ShipmentTable({
                     </time>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <div className="flex flex-wrap items-center justify-end gap-1.5">
-                      {/* Tombol sinkron status pengiriman otomatis dari Biteship */}
-                      {shipment.biteshipOrderId && onSync && (
-                        <button
-                          type="button"
-                          onClick={() => onSync(shipment)}
-                          disabled={
-                            syncingId === shipment.id ||
-                            shipment.status === "DELIVERED" ||
-                            shipment.status === "CANCELLED"
-                          }
-                          className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-primary/30 bg-card px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50"
-                          title="Sinkronkan status dari Biteship"
-                        >
-                          {syncingId === shipment.id ? (
-                            <Loader2
-                              className="h-3.5 w-3.5 animate-spin"
-                              aria-hidden="true"
-                            />
-                          ) : (
-                            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                          )}
-                          <span>Sinkron</span>
-                        </button>
-                      )}
-
-                      {/* Tombol cetak shipping label untuk pengiriman Biteship maupun Manual */}
+                    <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                      {/* Tombol cetak shipping label */}
                       {(Boolean(shipment.id) ||
                         Boolean(shipment.biteshipOrderId) ||
                         isValidShippingLabelUrl(shipment.biteshipLabelUrl)) && (
@@ -215,11 +188,10 @@ export function ShipmentTable({
                           href={`/api/florist/shipments/${shipment.id}/label`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+                          className="inline-flex min-h-9 items-center rounded-sm border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
                           title="Buka atau cetak label pengiriman (AWB)"
                         >
-                          <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                          <span>Label</span>
+                          Label
                         </a>
                       )}
 
@@ -231,10 +203,9 @@ export function ShipmentTable({
                           shipment.status === "DELIVERED" ||
                           shipment.status === "CANCELLED"
                         }
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="inline-flex min-h-9 items-center rounded-sm bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        <Edit className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span>Update</span>
+                        Update
                       </button>
                     </div>
                   </td>

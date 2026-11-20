@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Loader2, Calendar, CheckCircle2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import { formatDate, formatRupiah } from "@/lib/utils/formatters";
 import { createFloristPreOrder } from "@/lib/api/florist";
@@ -140,12 +140,9 @@ export default function PreOrderModal({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {showSuccess && (
-          <div role="status" className="p-4 bg-success/10 border border-success/30 rounded-xl flex items-center gap-3 text-success">
-            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">Pre-order berhasil dibuat!</p>
-              <p className="text-sm opacity-90">Menunggu konfirmasi dari supplier</p>
-            </div>
+          <div role="status" className="p-4 bg-success/10 border border-success/30 rounded-xl text-success">
+            <p className="font-medium">Pre-order berhasil dibuat!</p>
+            <p className="text-sm opacity-90">Menunggu konfirmasi dari supplier</p>
           </div>
         )}
         
@@ -255,18 +252,15 @@ export default function PreOrderModal({
           <button
             type="submit"
             disabled={isSubmitting || showSuccess}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:opacity-50 min-h-11 flex-1"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-sm bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors disabled:opacity-50 min-h-11 flex-1"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                 Mengirim...
               </>
             ) : (
-              <>
-                <Calendar className="w-4 h-4" />
-                Kirim Pre-Order
-              </>
+              "Kirim Pre-Order"
             )}
           </button>
         </div>

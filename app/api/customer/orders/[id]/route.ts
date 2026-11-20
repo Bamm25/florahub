@@ -57,7 +57,16 @@ export async function GET(
             },
           },
         },
-        payment: true,
+        payment: {
+          select: {
+            id: true,
+            amount: true,
+            method: true,
+            status: true,
+            transactionId: true,
+            paidAt: true,
+          },
+        },
         address: true,
         shipment: true,
         user: {

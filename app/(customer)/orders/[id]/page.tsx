@@ -5,17 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  Check,
-  CheckCircle2,
-  Copy,
-  CreditCard,
-  Flower2,
-  RefreshCw,
-  Store,
-  Truck,
-  XCircle,
-} from "lucide-react";
+import { Check, Copy, Loader2 } from "lucide-react";
 import {
   confirmOrderDelivery,
   getOrderDetail,
@@ -28,6 +18,7 @@ import { createPaymentToken } from "@/lib/api/customer";
 import { ConfirmDialog, LoadingSpinner, ErrorState } from "@/components/ui";
 import Modal from "@/components/forms/Modal";
 import { formatDateTime, formatRupiah } from "@/lib/utils/formatters";
+import { buildOrderSupportMailto } from "@/lib/config/domain";
 
 const ORDER_STEPS = ["Dibuat", "Dibayar", "Diproses", "Dikirim", "Selesai"] as const;
 
@@ -329,15 +320,13 @@ export default function OrderDetailPage({
   }
 
   const statusMeta = getStatusMeta(order.status);
-  const showProgressTrack =
-    order.status !== "CANCELLED" && order.status !== "REFUNDED";
+  const showProgressTrack = order.status !== "CANCELLED";
   const currentStepIndex = getOrderStepIndex(order.status);
   const activeShipment = shipment ?? order.shipment ?? null;
   const canConfirmDelivery = order.status === "SHIPPED";
   const canTrackShipment =
     order.status !== "PENDING" &&
-    order.status !== "CANCELLED" &&
-    order.status !== "REFUNDED";
+    order.status !== "CANCELLED";
 
   return (
     <main className="min-h-dvh bg-background pb-16 sm:pb-24">
@@ -386,7 +375,6 @@ export default function OrderDetailPage({
                       href={`/stores/${order.florist.id}`}
                       className="inline-flex items-center gap-1.5 font-medium text-kicker underline-offset-4 hover:text-white hover:underline"
                     >
-                      <Store className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>{order.florist.shopName}</span>
                       {order.florist.city ? (
                         <span className="text-white/60">
@@ -409,14 +397,7 @@ export default function OrderDetailPage({
                     disabled={isPaying}
                     className="btn-primary h-11 px-5 py-0 text-sm font-semibold disabled:opacity-50"
                   >
-                    {isPaying ? (
-                      <span>Menyiapkan...</span>
-                    ) : (
-                      <>
-                        <CreditCard className="h-4 w-4" aria-hidden="true" />
-                        <span>Bayar Sekarang</span>
-                      </>
-                    )}
+                    {isPaying ? "Menyiapkan..." : "Bayar Sekarang"}
                   </button>
 
                   <button
@@ -425,10 +406,9 @@ export default function OrderDetailPage({
                       setCancelError(null);
                       setShowCancelModal(true);
                     }}
-                    className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/20 px-4 text-sm font-medium text-white/85 transition-colors hover:border-error/40 hover:bg-error/10 hover:text-error"
+                    className="inline-flex min-h-11 items-center rounded-xl border border-white/20 px-4 text-sm font-medium text-white/85 transition-colors hover:border-error/40 hover:bg-error/10 hover:text-error"
                   >
-                    <XCircle className="h-4 w-4" aria-hidden="true" />
-                    <span>Batalkan</span>
+                    Batalkan
                   </button>
                 </>
               )}
@@ -442,18 +422,16 @@ export default function OrderDetailPage({
                   }}
                   className="btn-primary h-11 px-5 py-0 text-sm font-semibold"
                 >
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  <span>Pesanan Diterima</span>
+                  Pesanan Diterima
                 </button>
               )}
 
               {canTrackShipment && (
                 <Link
                   href={`/orders/${order.id}/tracking`}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-surface-dark transition-colors hover:bg-white/90"
+                  className="inline-flex min-h-11 items-center rounded-xl bg-white px-5 text-sm font-semibold text-surface-dark transition-colors hover:bg-white/90"
                 >
-                  <Truck className="h-4 w-4" aria-hidden="true" />
-                  <span>Lacak Pengiriman</span>
+                  Lacak Pengiriman
                 </Link>
               )}
 
@@ -463,10 +441,9 @@ export default function OrderDetailPage({
                 disabled={isRefreshing}
                 className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:opacity-50"
               >
-                <RefreshCw
-                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-                  aria-hidden="true"
-                />
+                {isRefreshing && (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                )}
                 <span>{isRefreshing ? "Memperbarui..." : "Perbarui"}</span>
               </button>
             </div>
@@ -615,10 +592,10 @@ export default function OrderDetailPage({
                       </div>
                     ) : (
                       <div
-                        className="flex aspect-[4/5] h-20 w-16 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-container-low text-muted-foreground"
+                        className="flex aspect-[4/5] h-20 w-16 shrink-0 items-center justify-center rounded-xl border border-border bg-surface-container-low text-xs text-muted-foreground"
                         aria-hidden="true"
                       >
-                        <Flower2 className="h-6 w-6" />
+                        Foto
                       </div>
                     )}
 
@@ -888,20 +865,28 @@ export default function OrderDetailPage({
                   }}
                   className="btn-primary mt-6 w-full text-sm font-semibold"
                 >
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  <span>Pesanan Diterima</span>
+                  Pesanan Diterima
                 </button>
               )}
 
               {canTrackShipment && (
                 <Link
                   href={`/orders/${order.id}/tracking`}
-                  className={`${canConfirmDelivery ? "mt-2.5" : "mt-6"} inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-surface-dark transition-colors hover:bg-white/90`}
+                  className={`${canConfirmDelivery ? "mt-2.5" : "mt-6"} inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-surface-dark transition-colors hover:bg-white/90`}
                 >
-                  <Truck className="h-4 w-4" aria-hidden="true" />
-                  <span>Lacak Pengiriman</span>
+                  Lacak Pengiriman
                 </Link>
               )}
+
+              <div className="mt-5 border-t border-white/10 pt-4 text-center text-xs text-white/60">
+                Ada kendala dengan pesanan ini?{" "}
+                <a
+                  href={buildOrderSupportMailto(order.orderNumber)}
+                  className="font-semibold text-kicker underline-offset-4 hover:text-white hover:underline"
+                >
+                  Hubungi Bantuan &amp; Pengaduan
+                </a>
+              </div>
             </section>
           </aside>
         </div>
@@ -984,8 +969,6 @@ function getStatusMeta(status: string) {
       return { label: "Selesai", dot: "bg-success" };
     case "CANCELLED":
       return { label: "Dibatalkan", dot: "bg-error" };
-    case "REFUNDED":
-      return { label: "Dana Dikembalikan", dot: "bg-muted-foreground" };
     default:
       return { label: status, dot: "bg-muted-foreground" };
   }

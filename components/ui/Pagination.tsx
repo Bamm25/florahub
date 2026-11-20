@@ -69,7 +69,7 @@ export default function Pagination({
         onClick={() => onPageChange(Math.max(1, safePage - 1))}
         disabled={safePage <= 1 || disabled}
         aria-label="Halaman sebelumnya"
-        className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-surface transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
       >
         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
       </button>
@@ -90,7 +90,7 @@ export default function Pagination({
                 onClick={() => onPageChange(page)}
                 disabled={disabled}
                 aria-current={safePage === page ? "page" : undefined}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-medium tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border text-sm font-medium tabular-nums transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                   safePage === page
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-surface hover:bg-surface-container"
@@ -122,7 +122,7 @@ export default function Pagination({
         onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
         disabled={safePage >= totalPages || disabled}
         aria-label="Halaman berikutnya"
-        className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-surface transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface transition-colors hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
       >
         <ChevronRight className="h-5 w-5" aria-hidden="true" />
       </button>

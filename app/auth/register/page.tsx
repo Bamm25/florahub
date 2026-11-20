@@ -3,20 +3,10 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import {
-  AlertCircle,
-  ArrowLeft,
-  Check,
-  CheckCircle,
-  Eye,
-  EyeOff,
-  Flower2,
-  ShoppingBag,
-  Sprout,
-  Store,
-} from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, Eye, EyeOff } from "lucide-react";
 import { registerUser } from "@/lib/api/customer";
 import { ApiClientError } from "@/lib/api/client";
+import { FloraHubMark } from "@/components/ui/FloraHubLogo";
 
 const labelClass = "mb-2 block text-sm font-semibold text-foreground";
 const errorTextClass = "mt-1.5 text-xs font-medium text-error";
@@ -27,25 +17,21 @@ const roleOptions: {
   value: PublicRole;
   title: string;
   description: string;
-  icon: typeof ShoppingBag;
 }[] = [
   {
     value: "CUSTOMER",
     title: "Pembeli",
     description: "Cari bunga & pantau pesanan",
-    icon: ShoppingBag,
   },
   {
     value: "FLORIST",
     title: "Florist",
     description: "Jual rangkaian & kelola toko",
-    icon: Store,
   },
   {
     value: "SUPPLIER",
     title: "Supplier",
     description: "Pasok bunga & jadwal panen",
-    icon: Sprout,
   },
 ];
 
@@ -97,7 +83,7 @@ function BrandPanel({ activeRole }: { activeRole: PublicRole }) {
     <aside className="hidden flex-col justify-between border-r border-white/10 bg-surface-dark px-12 py-10 text-white lg:flex xl:px-16">
       <div className="flex items-center justify-between gap-4">
         <Link href="/" className="inline-flex items-center gap-2.5">
-          <Flower2 className="h-5 w-5 text-kicker" aria-hidden="true" />
+          <FloraHubMark className="h-7 w-7" variant="dark" />
           <span className="text-xl font-bold tracking-tight text-white">
             Flora<span className="font-display font-normal italic text-kicker">Hub</span>
           </span>
@@ -129,9 +115,9 @@ function BrandPanel({ activeRole }: { activeRole: PublicRole }) {
               key={point}
               className="flex items-start gap-3 p-4 text-sm leading-relaxed text-white/80 sm:px-5"
             >
-              <CheckCircle
-                className="mt-0.5 h-4 w-4 shrink-0 text-kicker"
+              <span
                 aria-hidden="true"
+                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-kicker"
               />
               <span>{point}</span>
             </li>
@@ -141,7 +127,12 @@ function BrandPanel({ activeRole }: { activeRole: PublicRole }) {
 
       <div className="flex items-center justify-between border-t border-white/10 pt-5 text-xs text-white/50">
         <span>© {new Date().getFullYear()} FloraHub</span>
-        <span>Surabaya · Malang</span>
+        <span className="text-white/55">
+          Khusus Wilayah{" "}
+          <span className="font-display text-sm font-normal italic text-kicker">
+            Jawa Timur
+          </span>
+        </span>
       </div>
     </aside>
   );
@@ -265,7 +256,7 @@ function RegisterForm() {
             href="/"
             className="inline-flex items-center gap-2 text-foreground lg:hidden"
           >
-            <Flower2 className="h-5 w-5 text-primary" aria-hidden="true" />
+            <FloraHubMark className="h-6 w-6" variant="light" />
             <span className="text-lg font-bold tracking-tight">
               Flora<span className="font-display font-normal italic text-primary">Hub</span>
             </span>
@@ -318,12 +309,8 @@ function RegisterForm() {
           {successMessage && (
             <div
               role="status"
-              className="mt-6 flex items-start gap-3 rounded-xl border border-success/50 bg-secondary-container p-4 text-sm text-foreground"
+              className="mt-6 rounded-xl border border-success/50 bg-secondary-container p-4 text-sm text-foreground"
             >
-              <CheckCircle
-                className="mt-0.5 h-5 w-5 shrink-0 text-success-foreground"
-                aria-hidden="true"
-              />
               <span className="font-medium">{successMessage}</span>
             </div>
           )}
@@ -333,7 +320,6 @@ function RegisterForm() {
               <legend className={labelClass}>Saya mendaftar sebagai</legend>
               <div className="grid gap-2.5 sm:grid-cols-3">
                 {roleOptions.map((option) => {
-                  const Icon = option.icon;
                   const isSelected = role === option.value;
                   return (
                     <label
@@ -353,18 +339,14 @@ function RegisterForm() {
                         className="sr-only"
                       />
                       <div className="flex items-center justify-between gap-2">
-                        <Icon
-                          className={`h-4 w-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`}
-                          aria-hidden="true"
-                        />
+                        <span className="font-semibold text-foreground">
+                          {option.title}
+                        </span>
                         {isSelected && (
-                          <Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                          <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
                         )}
                       </div>
-                      <span className="mt-2.5 block font-semibold text-foreground">
-                        {option.title}
-                      </span>
-                      <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">
+                      <span className="mt-1 block text-xs leading-4 text-muted-foreground">
                         {option.description}
                       </span>
                     </label>

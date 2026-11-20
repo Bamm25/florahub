@@ -3,16 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
-import {
-  Flower2,
-  Plus,
-  Layers,
-  Edit,
-  Trash2,
-  Loader2,
-  ArrowUpDown,
-  Info,
-} from "lucide-react";
+import { Edit, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import {
   ConfirmDialog,
@@ -418,18 +409,16 @@ export default function RawMaterialsPage() {
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <Link
             href="/florist/products"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10"
           >
-            <Layers className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Produk Jadi & BOM</span>
+            Produk Jadi &amp; BOM
           </Link>
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Tambah Bahan Baku</span>
+            Tambah Bahan Baku
           </button>
         </div>
       </section>
@@ -559,7 +548,7 @@ export default function RawMaterialsPage() {
       </div>
 
       {/* Tabel Bahan Baku */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface">
         {isLoading ? (
           <LoadingSpinner message="Memuat data bahan baku..." />
         ) : error ? (
@@ -584,7 +573,6 @@ export default function RawMaterialsPage() {
                   ? {
                       label: "Tambah Bahan Baku Pertama",
                       onClick: () => setIsAddModalOpen(true),
-                      icon: <Plus className="w-4 h-4" />,
                     }
                   : undefined
               }
@@ -696,10 +684,9 @@ export default function RawMaterialsPage() {
                             <button
                               type="button"
                               onClick={() => setSelectedBOMInfo(material)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                              className="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                               title="Klik untuk melihat produk yang memakai bahan ini"
                             >
-                              <Layers className="w-3.5 h-3.5" />
                               {material.usedInBOMCount} Produk
                             </button>
                           ) : (
@@ -713,21 +700,20 @@ export default function RawMaterialsPage() {
                             <button
                               type="button"
                               onClick={() => openAdjustModal(material)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+                              className="inline-flex items-center px-3 py-1.5 rounded-sm text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                               title={
                                 material.isSelfSupplied
                                   ? "Tambah atau kurangi stok mandiri"
                                   : "Catat pengurangan bunga layu / rusak"
                               }
                             >
-                              <ArrowUpDown className="w-3.5 h-3.5" />
                               Stok
                             </button>
 
                             <button
                               type="button"
                               onClick={() => openEditModal(material)}
-                              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-surface-container transition-colors"
+                              className="p-1.5 text-muted-foreground hover:text-foreground rounded-sm hover:bg-surface-container transition-colors"
                               title="Edit detail bahan baku"
                               aria-label={`Edit ${material.name}`}
                             >
@@ -737,7 +723,7 @@ export default function RawMaterialsPage() {
                             <button
                               type="button"
                               onClick={() => handleDelete(material)}
-                              className="p-1.5 text-error rounded-lg hover:bg-error/10 transition-colors"
+                              className="p-1.5 text-error rounded-sm hover:bg-error/10 transition-colors"
                               title="Hapus bahan baku"
                               aria-label={`Hapus ${material.name}`}
                             >
@@ -785,8 +771,7 @@ export default function RawMaterialsPage() {
       >
         {/* Pilihan Cepat Preset Bunga & Material */}
         <div className="mb-5 p-3 rounded-xl bg-surface-container-low border border-border">
-          <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
-            <Info className="w-3.5 h-3.5 text-primary" />
+          <p className="text-xs font-medium text-foreground mb-2">
             Pilihan Cepat (Klik untuk mengisi otomatis):
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -795,7 +780,7 @@ export default function RawMaterialsPage() {
                 key={preset.name}
                 type="button"
                 onClick={() => applyPreset(preset)}
-                className="text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-primary text-muted-foreground hover:text-primary transition-colors text-left"
+                className="text-[11px] px-2.5 py-1 rounded-sm bg-surface border border-border hover:border-primary text-muted-foreground hover:text-primary transition-colors text-left"
               >
                 + {preset.name}
               </button>
@@ -967,14 +952,14 @@ export default function RawMaterialsPage() {
               type="button"
               onClick={() => setIsAddModalOpen(false)}
               disabled={isSubmittingAdd}
-              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
+              className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={isSubmittingAdd}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-sm bg-primary hover:bg-primary/90 px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors disabled:opacity-50"
             >
               {isSubmittingAdd && <Loader2 className="w-4 h-4 animate-spin" />}
               Simpan Bahan Baku
@@ -1031,23 +1016,20 @@ export default function RawMaterialsPage() {
 
               {isSupplierSourced && (
                 <div className="space-y-2.5 rounded-xl border border-info/25 bg-info/5 p-3.5 text-xs text-foreground">
-                  <div className="flex items-start gap-2">
-                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" aria-hidden="true" />
-                    <p className="leading-relaxed">
-                      Stok dari {selectedForAdjust.sourceLabel} bertambah otomatis saat pesanan diterima.
-                      Form ini khusus untuk mencatat bunga layu atau rusak.
-                    </p>
-                  </div>
+                  <p className="leading-relaxed">
+                    Stok dari {selectedForAdjust.sourceLabel} bertambah otomatis saat pesanan diterima.
+                    Form ini khusus untuk mencatat bunga layu atau rusak.
+                  </p>
                   <div className="flex flex-wrap gap-2 pt-0.5">
                     <Link
                       href="/florist/supplier-stocks"
-                      className="inline-flex min-h-8 items-center rounded-lg border border-primary/30 bg-card px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/5"
+                      className="inline-flex min-h-8 items-center rounded-sm border border-primary/30 bg-card px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/5"
                     >
                       Pasokan Kebun
                     </Link>
                     <Link
                       href="/florist/harvest-plans"
-                      className="inline-flex min-h-8 items-center rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+                      className="inline-flex min-h-8 items-center rounded-sm border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-surface-container-low"
                     >
                       Rencana Panen
                     </Link>
@@ -1169,14 +1151,14 @@ export default function RawMaterialsPage() {
                   type="button"
                   onClick={() => setIsAdjustModalOpen(false)}
                   disabled={isSubmittingAdjust}
-                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
+                  className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingAdjust || isSubmitDisabled}
-                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-sm bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
                   {isSubmittingAdjust && (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -1216,8 +1198,7 @@ export default function RawMaterialsPage() {
             )}
 
             {!selectedForEdit.isSelfSupplied && (
-              <div className="flex items-start gap-2 rounded-xl border border-info/25 bg-info/5 p-3 text-xs text-foreground">
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" aria-hidden="true" />
+              <div className="rounded-xl border border-info/25 bg-info/5 p-3 text-xs text-foreground">
                 <p className="leading-relaxed">
                   Data bunga mengikuti katalog {selectedForEdit.sourceLabel}. Anda tetap bisa mengubah{" "}
                   <strong className="font-semibold">Batas Minimum Peringatan</strong> dan{" "}
@@ -1358,14 +1339,14 @@ export default function RawMaterialsPage() {
                 type="button"
                 onClick={() => setIsEditModalOpen(false)}
                 disabled={isSubmittingEdit}
-                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
+                className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={isSubmittingEdit}
-                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-sm bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 {isSubmittingEdit && (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -1390,7 +1371,7 @@ export default function RawMaterialsPage() {
           <button
             type="button"
             onClick={() => setSelectedBOMInfo(null)}
-            className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+            className="inline-flex min-h-10 w-full items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
           >
             Tutup
           </button>
@@ -1415,7 +1396,9 @@ export default function RawMaterialsPage() {
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                      <Flower2 className="w-5 h-5" />
+                      <span className="font-display text-xs font-semibold italic">
+                        {p.name.slice(0, 2).toUpperCase()}
+                      </span>
                     </div>
                   )}
                   <div>

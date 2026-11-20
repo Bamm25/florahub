@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Package, AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import { produceFloristProduct } from "@/lib/api/florist";
 import { ApiClientError } from "@/lib/api/client";
@@ -156,7 +156,7 @@ export default function ProduceModal({
           <button
             type="button"
             onClick={handleClose}
-            className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low sm:w-auto"
+            className="inline-flex min-h-10 w-full items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low sm:w-auto"
             disabled={isProducing}
           >
             Batal
@@ -165,19 +165,12 @@ export default function ProduceModal({
             type="button"
             onClick={handleProduce}
             disabled={isProducing || !hasBOM || qty <= 0 || !allMaterialsSufficient}
-            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-sm bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
-            {isProducing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Memproduksi...
-              </>
-            ) : (
-              <>
-                <Package className="h-4 w-4" />
-                Produksi Sekarang
-              </>
+            {isProducing && (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             )}
+            <span>{isProducing ? "Memproduksi..." : "Produksi Sekarang"}</span>
           </button>
         </>
       }
@@ -224,7 +217,7 @@ export default function ProduceModal({
                   type="button"
                   disabled={isProducing || !hasBOM}
                   onClick={() => setQuantity(presetQty)}
-                  className={`rounded-lg border px-2.5 py-1 text-xs font-semibold tabular-nums transition-colors ${
+                  className={`rounded-sm border px-2.5 py-1 text-xs font-semibold tabular-nums transition-colors ${
                     quantity === presetQty
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-card text-muted-foreground hover:text-foreground"
@@ -322,9 +315,7 @@ export default function ProduceModal({
                         Tersedia: {available} {unit}
                       </p>
                     </div>
-                    {sufficient ? (
-                      <CheckCircle className="h-4 w-4 flex-shrink-0 text-success" aria-hidden="true" />
-                    ) : (
+                    {!sufficient && (
                       <AlertCircle className="h-4 w-4 flex-shrink-0 text-error" aria-hidden="true" />
                     )}
                   </div>

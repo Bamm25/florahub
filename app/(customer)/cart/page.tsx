@@ -2,14 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  AlertCircle,
-  ArrowLeft,
-  ArrowRight,
-  Flower2,
-  Store,
-  Trash2,
-} from "lucide-react";
+import { AlertCircle, ArrowLeft } from "lucide-react";
 import CartTable from "@/components/customer/CartTable";
 import { ConfirmDialog, LoadingSpinner } from "@/components/ui";
 import { useCartStore } from "@/lib/stores/cartStore";
@@ -113,9 +106,8 @@ export default function CartPage() {
                 <button
                   type="button"
                   onClick={() => setConfirmClearOpen(true)}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-white/15 px-4 text-xs font-semibold text-white/80 transition-colors hover:border-error/40 hover:bg-error/10 hover:text-white"
+                  className="inline-flex min-h-11 items-center rounded-xl border border-white/15 px-4 text-xs font-semibold text-white/80 transition-colors hover:border-error/40 hover:bg-error/10 hover:text-white"
                 >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   Kosongkan
                 </button>
               </div>
@@ -128,9 +120,6 @@ export default function CartPage() {
       <div className="container-custom pt-8 sm:pt-12">
         {items.length === 0 ? (
           <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-8 text-center sm:p-12">
-            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface-container-low text-primary">
-              <Flower2 className="h-6 w-6" aria-hidden="true" />
-            </div>
             <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Keranjang masih kosong
             </h2>
@@ -140,7 +129,7 @@ export default function CartPage() {
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link href="/products" className="btn-primary">
                 Lihat Katalog
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <span aria-hidden="true">→</span>
               </Link>
               <Link href="/stores" className="btn-secondary">
                 Lihat Toko
@@ -177,10 +166,6 @@ export default function CartPage() {
                             onClick={() => keepOnlyFlorist(group.floristId)}
                             className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
                           >
-                            <Store
-                              className="h-3.5 w-3.5 shrink-0 text-primary"
-                              aria-hidden="true"
-                            />
                             <span>Pakai {group.floristName}</span>
                             <span className="tabular-nums text-muted-foreground">
                               ({group.itemCount} · {formatRupiah(group.subtotal)})
@@ -270,7 +255,7 @@ export default function CartPage() {
                     className="btn-primary mt-6 w-full text-base font-semibold"
                   >
                     Checkout
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    <span aria-hidden="true">→</span>
                   </Link>
                 )}
 

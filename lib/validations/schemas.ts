@@ -224,6 +224,24 @@ export const updateHarvestAnnouncementSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+// Skema validasi pemindahan sisa panen (setelah QC supplier) ke stok biasa
+export const transferHarvestToStockSchema = z.object({
+  quantity: z
+    .number()
+    .int()
+    .min(1, "Jumlah stok layak jual minimal 1 tangkai"),
+  pricePerUnit: z
+    .number()
+    .int()
+    .min(0, "Harga per satuan tidak boleh negatif")
+    .optional(),
+  qcNotes: z
+    .string()
+    .trim()
+    .max(500, "Catatan QC maksimal 500 karakter")
+    .optional(),
+});
+
 // Skema validasi pembuatan pesanan prapesan dari pengumuman panen
 export const createPreorderSchema = z.object({
   harvestAnnouncementId: z
@@ -366,7 +384,6 @@ export const adminOrderStatusEnum = z.enum([
   "SHIPPED",
   "DELIVERED",
   "CANCELLED",
-  "REFUNDED",
 ]);
 
 export const adminOrderQuerySchema = z.object({
@@ -463,7 +480,6 @@ export const adminAuditActionEnum = z.enum([
   "LOGIN",
   "LOGOUT",
   "PAYMENT",
-  "REFUND",
 ]);
 
 export const adminAuditLogQuerySchema = z

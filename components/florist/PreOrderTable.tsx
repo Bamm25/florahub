@@ -3,7 +3,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import SupplierDeliveryStatus from "@/components/ui/SupplierDeliveryStatus";
 import ShipmentTrackingModal from "@/components/ui/ShipmentTrackingModal";
 import { formatDate, formatDateTime, formatRupiah } from "@/lib/utils/formatters";
-import { Loader2, CheckCircle2, Navigation, Printer } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // Interface data pre-order bunga ke supplier
 export interface PreOrder {
@@ -69,7 +69,7 @@ export default function PreOrderTable({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface">
         <div className="overflow-x-auto overscroll-x-contain">
           <table className="w-full min-w-[780px] text-left text-sm">
             <thead className="border-b border-border bg-surface-container-low/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -179,7 +179,7 @@ export default function PreOrderTable({
                               type="button"
                               disabled={payingOrderId === order.id}
                               onClick={() => onPayDeposit?.(order)}
-                              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-sm bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                             >
                               {payingOrderId === order.id ? (
                                 <>
@@ -187,7 +187,7 @@ export default function PreOrderTable({
                                     className="h-3.5 w-3.5 animate-spin"
                                     aria-hidden="true"
                                   />
-                                  <span>Membuka Midtrans...</span>
+                                  <span>Menyiapkan pembayaran...</span>
                                 </>
                               ) : (
                                 <span>
@@ -210,7 +210,7 @@ export default function PreOrderTable({
                               type="button"
                               disabled={payingOrderId === order.id}
                               onClick={() => onPayFinal?.(order)}
-                              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-sm bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                             >
                               {payingOrderId === order.id ? (
                                 <>
@@ -218,7 +218,7 @@ export default function PreOrderTable({
                                     className="h-3.5 w-3.5 animate-spin"
                                     aria-hidden="true"
                                   />
-                                  <span>Membuka Midtrans...</span>
+                                  <span>Menyiapkan pembayaran...</span>
                                 </>
                               ) : (
                                 <span>
@@ -260,25 +260,17 @@ export default function PreOrderTable({
                               <button
                                 type="button"
                                 onClick={() => setTrackingOrder(order)}
-                                className="inline-flex min-h-8 items-center gap-1 rounded-xl border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                                className="inline-flex min-h-8 items-center gap-1 rounded-sm border border-primary/25 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                               >
-                                <Navigation
-                                  className="h-3.5 w-3.5 text-primary"
-                                  aria-hidden="true"
-                                />
                                 <span>Lacak</span>
                               </button>
                               <a
                                 href={`/api/supplier/shipments/${order.id}/label`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex min-h-8 items-center gap-1 rounded-xl border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+                                className="inline-flex min-h-8 items-center gap-1 rounded-sm border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
                                 title="Cetak Label Pengiriman AWB"
                               >
-                                <Printer
-                                  className="h-3.5 w-3.5 text-primary"
-                                  aria-hidden="true"
-                                />
                                 <span>Label</span>
                               </a>
                             </div>
@@ -309,25 +301,17 @@ export default function PreOrderTable({
                                   <button
                                     type="button"
                                     onClick={() => setTrackingOrder(order)}
-                                    className="inline-flex min-h-8 items-center gap-1 rounded-xl border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                                    className="inline-flex min-h-8 items-center gap-1 rounded-sm border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
                                   >
-                                    <Navigation
-                                      className="h-3.5 w-3.5 text-primary"
-                                      aria-hidden="true"
-                                    />
                                     <span>Lacak</span>
                                   </button>
                                   <a
                                     href={`/api/supplier/shipments/${order.id}/label`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex min-h-8 items-center gap-1 rounded-xl border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+                                    className="inline-flex min-h-8 items-center gap-1 rounded-sm border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
                                     title="Cetak Label Pengiriman AWB"
                                   >
-                                    <Printer
-                                      className="h-3.5 w-3.5 text-primary"
-                                      aria-hidden="true"
-                                    />
                                     <span>Label</span>
                                   </a>
                                 </>
@@ -336,16 +320,11 @@ export default function PreOrderTable({
                                 type="button"
                                 disabled={isReceivingId === order.id}
                                 onClick={() => onReceiveOrder?.(order)}
-                                className="inline-flex min-h-8 items-center gap-1 rounded-xl bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+                                className="inline-flex min-h-8 items-center gap-1 rounded-sm bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                               >
-                                {isReceivingId === order.id ? (
+                                {isReceivingId === order.id && (
                                   <Loader2
                                     className="h-3.5 w-3.5 animate-spin"
-                                    aria-hidden="true"
-                                  />
-                                ) : (
-                                  <CheckCircle2
-                                    className="h-3.5 w-3.5"
                                     aria-hidden="true"
                                   />
                                 )}
@@ -378,12 +357,8 @@ export default function PreOrderTable({
                                 <button
                                   type="button"
                                   onClick={() => setTrackingOrder(order)}
-                                  className="inline-flex min-h-8 items-center gap-1 rounded-xl border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                                  className="inline-flex min-h-8 items-center gap-1 rounded-sm border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
                                 >
-                                  <Navigation
-                                    className="h-3.5 w-3.5 text-primary"
-                                    aria-hidden="true"
-                                  />
                                   <span>Riwayat Pengiriman</span>
                                 </button>
                               )}
@@ -391,13 +366,9 @@ export default function PreOrderTable({
                                 href={`/api/supplier/shipments/${order.id}/label`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex min-h-8 items-center gap-1 rounded-xl border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+                                className="inline-flex min-h-8 items-center gap-1 rounded-sm border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
                                 title="Cetak Label Pengiriman AWB"
                               >
-                                <Printer
-                                  className="h-3.5 w-3.5 text-primary"
-                                  aria-hidden="true"
-                                />
                                 <span>Label</span>
                               </a>
                             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, CheckCircle2 } from "lucide-react";
+import { Star } from "lucide-react";
 import type { Review } from "@/lib/api/products";
 import { formatRelativeTime } from "@/lib/utils/formatters";
 import ReviewForm from "./ReviewForm";
@@ -52,9 +52,8 @@ export default function ProductReviews({
       </div>
 
       {hasUserReviewed ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-success/30 bg-card p-5 text-sm text-foreground">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-success" aria-hidden="true" />
-          <span>Anda sudah mengulas produk ini.</span>
+        <div className="rounded-2xl border border-success/30 bg-card p-5 text-sm font-medium text-foreground">
+          Anda sudah mengulas produk ini.
         </div>
       ) : (
         <ReviewForm

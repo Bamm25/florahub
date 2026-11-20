@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import Image from "next/image";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import Modal from "@/components/forms/Modal";
 import FormField from "@/components/forms/FormField";
 import { uploadMediaFile } from "@/lib/api/florist";
@@ -209,11 +209,10 @@ export default function ProductModal({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-border hover:border-foreground/30 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-dashed border-border hover:border-foreground/30 rounded-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Upload className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {isUploading ? "Uploading..." : "Upload Gambar"}
+              <span className="text-sm font-medium text-muted-foreground">
+                {isUploading ? "Mengunggah gambar..." : "Pilih & Unggah Gambar"}
               </span>
             </button>
           ) : (
@@ -316,7 +315,7 @@ export default function ProductModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+            className="inline-flex min-h-10 flex-1 items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low"
             disabled={isSubmitting}
           >
             Batal
@@ -324,7 +323,7 @@ export default function ProductModal({
           <button
             type="submit"
             disabled={isSubmitting || isUploading || previewError}
-            className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-sm bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? (
               <>

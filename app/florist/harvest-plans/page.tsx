@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar } from "lucide-react";
 import SearchInput from "@/components/ui/SearchInput";
 import DataStateWrapper from "@/components/ui/DataStateWrapper";
 import Pagination from "@/components/ui/Pagination";
@@ -61,7 +60,7 @@ export default function FloristHarvestPlansPage() {
   const [selectedAnnouncement, setSelectedAnnouncement] =
     useState<HarvestAnnouncement | null>(null);
 
-  // State loading saat membuka Midtrans Snap dan umpan balik non-blocking
+  // State loading saat menyiapkan pembayaran dan umpan balik non-blocking
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "status" | "error"; message: string } | null>(null);
   const [pendingReceiveOrder, setPendingReceiveOrder] = useState<PreOrder | null>(null);
@@ -91,7 +90,7 @@ export default function FloristHarvestPlansPage() {
               setFeedback({
                 type: "error",
                 message:
-                  "Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.",
+                  "Pembayaran belum dapat diverifikasi. Periksa status pesanan kembali sebelum mencoba lagi.",
               });
             }
           },
@@ -107,7 +106,7 @@ export default function FloristHarvestPlansPage() {
             setFeedback({
               type: "error",
               message:
-                "Pembayaran Midtrans gagal atau dibatalkan. Pesanan belum lunas.",
+                "Pembayaran gagal atau dibatalkan. Pesanan belum lunas.",
             });
             void fetchMyPreOrders();
           },
@@ -118,7 +117,7 @@ export default function FloristHarvestPlansPage() {
       } else {
         setFeedback({
           type: "error",
-          message: "Midtrans Snap belum siap. Silakan muat ulang halaman.",
+          message: "Layanan pembayaran belum siap. Silakan muat ulang halaman.",
         });
       }
     } catch (err) {
@@ -127,7 +126,7 @@ export default function FloristHarvestPlansPage() {
         message:
           err instanceof Error
             ? err.message
-            : "Gagal memulai pembayaran DP Midtrans",
+            : "Gagal memulai pembayaran DP",
       });
     } finally {
       setPayingOrderId(null);
@@ -152,14 +151,14 @@ export default function FloristHarvestPlansPage() {
               setFeedback({
                 type: "status",
                 message:
-                  "Pelunasan berhasil terverifikasi! Supplier akan menyiapkan pengiriman Biteship.",
+                  "Pelunasan berhasil terverifikasi! Supplier akan menyiapkan pengiriman kurir.",
               });
             } catch {
               await fetchData();
               setFeedback({
                 type: "error",
                 message:
-                  "Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.",
+                  "Pembayaran belum dapat diverifikasi. Periksa status pesanan kembali sebelum mencoba lagi.",
               });
             }
           },
@@ -175,7 +174,7 @@ export default function FloristHarvestPlansPage() {
             setFeedback({
               type: "error",
               message:
-                "Pembayaran Midtrans gagal atau dibatalkan. Pesanan belum lunas.",
+                "Pembayaran gagal atau dibatalkan. Pesanan belum lunas.",
             });
             void fetchMyPreOrders();
           },
@@ -186,14 +185,14 @@ export default function FloristHarvestPlansPage() {
       } else {
         setFeedback({
           type: "error",
-          message: "Midtrans Snap belum siap. Silakan muat ulang halaman.",
+          message: "Layanan pembayaran belum siap. Silakan muat ulang halaman.",
         });
       }
     } catch (err) {
       setFeedback({
         type: "error",
         message:
-          err instanceof Error ? err.message : "Gagal memulai pelunasan Midtrans",
+          err instanceof Error ? err.message : "Gagal memulai pelunasan",
       });
     } finally {
       setPayingOrderId(null);
@@ -350,7 +349,7 @@ export default function FloristHarvestPlansPage() {
           <button
             type="button"
             onClick={fetchData}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Perbarui Jadwal
           </button>
@@ -385,7 +384,7 @@ export default function FloristHarvestPlansPage() {
               type="button"
               aria-pressed={activeTab === "browse"}
               onClick={() => setActiveTab("browse")}
-              className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
+              className={`min-h-10 rounded-sm border px-4 py-2 text-xs font-semibold transition-colors ${
                 activeTab === "browse"
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
@@ -397,7 +396,7 @@ export default function FloristHarvestPlansPage() {
               type="button"
               aria-pressed={activeTab === "my-orders"}
               onClick={() => setActiveTab("my-orders")}
-              className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
+              className={`min-h-10 rounded-sm border px-4 py-2 text-xs font-semibold transition-colors ${
                 activeTab === "my-orders"
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
@@ -446,7 +445,6 @@ export default function FloristHarvestPlansPage() {
           isLoading={isLoadingAnnouncements && announcements.length === 0}
           error={error}
           isEmpty={filteredAnnouncements.length === 0}
-          emptyIcon={<Calendar className="w-16 h-16 text-muted-foreground" />}
           emptyTitle={
             searchQuery
               ? "Tidak ada jadwal panen yang sesuai pencarian"
@@ -501,7 +499,6 @@ export default function FloristHarvestPlansPage() {
           isLoading={isLoadingPreOrders && myPreOrders.length === 0}
           error={preOrdersError}
           isEmpty={filteredPreOrders.length === 0}
-          emptyIcon={<Calendar className="w-16 h-16 text-muted-foreground" />}
           emptyTitle={
             searchQuery
               ? "Tidak ada pre-order yang sesuai pencarian"

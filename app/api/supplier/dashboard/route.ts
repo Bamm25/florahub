@@ -2,18 +2,20 @@ import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+const SETTLED_SALE_STATUSES = ["PAID", "SHIPPED", "DELIVERED"] as const;
+
 // Handler HTTP GET untuk mengambil metrik dan statistik dashboard supplier
 export async function GET(request: Request) {
   try {
     // Autentikasi dan verifikasi hak akses supplier
     const { userId } = await requireAuth(request, ["SUPPLIER"]);
-    // Hitung total pendapatan dari transaksi yang berstatus PAID
+    // Hitung total pendapatan dari transaksi yang sudah lunas hingga selesai
     const revenueData = await prisma.stockTransaction.aggregate({
       where: {
         stock: {
           supplierId: userId,
         },
-        status: "PAID",
+        status: { in: [...SETTLED_SALE_STATUSES] },
       },
       _sum: {
         totalPrice: true,
@@ -31,13 +33,13 @@ export async function GET(request: Request) {
       },
     });
 
-    // Hitung total kuantitas stok yang terjual pada transaksi berstatus PAID
+    // Hitung total kuantitas stok yang terjual pada transaksi yang sudah lunas hingga selesai
     const stockSoldData = await prisma.stockTransaction.aggregate({
       where: {
         stock: {
           supplierId: userId,
         },
-        status: "PAID",
+        status: { in: [...SETTLED_SALE_STATUSES] },
       },
       _sum: {
         quantity: true,
@@ -65,23 +67,48 @@ export async function GET(request: Request) {
       },
     });
 
-    // Hitung jumlah transaksi yang masih menunggu pembayaran (PENDING)
-    const pendingTransactions = await prisma.stockTransaction.count({
-      where: {
-        stock: {
-          supplierId: userId,
-        },
-        status: "PENDING",
-      },
-    });
+    // Hitung jumlah transaksi yang masih menunggu pembayaran (PENDING) dan siap dibuatkan resi
+    const [pendingTransactions, readyDirectSales, readyPreOrders] =
+      await Promise.all([
+        prisma.stockTransaction.count({
+          where: {
+            stock: {
+              supplierId: userId,
+            },
+            status: "PENDING",
+          },
+        }),
+        prisma.stockTransaction.count({
+          where: {
+            stock: {
+              supplierId: userId,
+            },
+            status: "PAID",
+            shippedAt: null,
+            biteshipOrderId: null,
+          },
+        }),
+        prisma.harvestPreOrder.count({
+          where: {
+            announcement: {
+              supplierId: userId,
+            },
+            status: "PAID",
+            shippedAt: null,
+            biteshipOrderId: null,
+          },
+        }),
+      ]);
 
-    // Hitung rata-rata nilai transaksi penjualan berstatus PAID
+    const readyToShipCount = readyDirectSales + readyPreOrders;
+
+    // Hitung rata-rata nilai transaksi penjualan yang sudah lunas hingga selesai
     const avgOrderData = await prisma.stockTransaction.aggregate({
       where: {
         stock: {
           supplierId: userId,
         },
-        status: "PAID",
+        status: { in: [...SETTLED_SALE_STATUSES] },
       },
       _avg: {
         totalPrice: true,
@@ -101,7 +128,7 @@ export async function GET(request: Request) {
         stock: {
           supplierId: userId,
         },
-        status: "PAID",
+        status: { in: [...SETTLED_SALE_STATUSES] },
         createdAt: {
           gte: sixMonthsAgo,
         },
@@ -139,7 +166,7 @@ export async function GET(request: Request) {
         stock: {
           supplierId: userId,
         },
-        status: "PAID",
+        status: { in: [...SETTLED_SALE_STATUSES] },
       },
       _sum: {
         quantity: true,
@@ -173,26 +200,35 @@ export async function GET(request: Request) {
       totalSold: item._sum.quantity || 0,
     }));
 
-    // Hitung jumlah pengumuman panen yang sedang aktif
-    const activeAnnouncements = await prisma.harvestAnnouncement.count({
-      where: {
-        supplierId: userId,
-        isActive: true,
-      },
-    });
-
-    // Hitung jumlah pre-order panen yang telah dikonfirmasi
-    const confirmedPreOrders = await prisma.harvestPreOrder.count({
-      where: {
-        announcement: {
-          supplierId: userId,
-        },
-        status: "CONFIRMED",
-      },
-    });
+    // Hitung jumlah pengumuman panen aktif, pre-order terkonfirmasi, dan pre-order menunggu konfirmasi
+    const [activeAnnouncements, confirmedPreOrders, pendingPreOrders] =
+      await Promise.all([
+        prisma.harvestAnnouncement.count({
+          where: {
+            supplierId: userId,
+            isActive: true,
+          },
+        }),
+        prisma.harvestPreOrder.count({
+          where: {
+            announcement: {
+              supplierId: userId,
+            },
+            status: "CONFIRMED",
+          },
+        }),
+        prisma.harvestPreOrder.count({
+          where: {
+            announcement: {
+              supplierId: userId,
+            },
+            status: "PENDING",
+          },
+        }),
+      ]);
 
     // Ambil riwayat 5 transaksi penjualan terkini
-    const recentSales = await prisma.stockTransaction.findMany({
+    const recentSalesRaw = await prisma.stockTransaction.findMany({
       where: {
         stock: {
           supplierId: userId,
@@ -208,12 +244,18 @@ export async function GET(request: Request) {
           select: {
             name: true,
             variety: true,
+            unit: true,
           },
         },
         florist: {
           select: {
             name: true,
             email: true,
+            floristProfile: {
+              select: {
+                shopName: true,
+              },
+            },
           },
         },
       },
@@ -222,6 +264,19 @@ export async function GET(request: Request) {
       },
       take: 5,
     });
+
+    const recentSales = recentSalesRaw.map((sale) => ({
+      id: sale.id,
+      quantity: sale.quantity,
+      totalPrice: sale.totalPrice,
+      status: sale.status,
+      createdAt: sale.createdAt,
+      stock: sale.stock,
+      florist: {
+        name: sale.florist.floristProfile?.shopName || sale.florist.name,
+        email: sale.florist.email,
+      },
+    }));
 
     // Kembalikan respon sukses data ringkasan dashboard supplier
     return NextResponse.json({
@@ -235,11 +290,13 @@ export async function GET(request: Request) {
           activeStocks,
           lowStockAlert,
           pendingTransactions,
+          readyToShipCount,
           averageOrderValue,
         },
         harvestMetrics: {
           activeAnnouncements,
           confirmedPreOrders,
+          pendingPreOrders,
         },
         charts: {
           monthlyRevenue: monthlyRevenueChart,

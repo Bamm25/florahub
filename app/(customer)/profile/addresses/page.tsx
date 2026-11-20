@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { ChevronRight, MapPin, Plus } from "lucide-react";
 import {
   getAddresses,
   createAddress,
@@ -162,7 +161,7 @@ export default function AddressManagementPage() {
       <section className="border-b border-white/10 bg-surface-dark py-10 text-white sm:py-14">
         <div className="container-custom">
           <nav aria-label="Breadcrumbs">
-            <ol className="flex flex-wrap items-center gap-1.5 text-xs text-white/60">
+            <ol className="flex flex-wrap items-center gap-2 text-xs text-white/60">
               <li>
                 <Link
                   href="/profile"
@@ -171,11 +170,10 @@ export default function AddressManagementPage() {
                   Profil
                 </Link>
               </li>
-              <li className="inline-flex items-center gap-1.5">
-                <ChevronRight
-                  className="h-3.5 w-3.5 text-white/35"
-                  aria-hidden="true"
-                />
+              <li aria-hidden="true" className="text-white/35">
+                /
+              </li>
+              <li>
                 <Link
                   href="/profile/addresses"
                   aria-current="page"
@@ -208,10 +206,9 @@ export default function AddressManagementPage() {
                 setEditingAddress(null);
                 setShowForm(true);
               }}
-              className="btn-primary inline-flex h-11 items-center gap-2 px-5 py-0 text-sm"
+              className="btn-primary inline-flex h-11 items-center px-5 py-0 text-sm"
             >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>Tambah Alamat</span>
+              Tambah Alamat
             </button>
           </div>
         </div>
@@ -232,9 +229,6 @@ export default function AddressManagementPage() {
             aria-label="Belum ada alamat"
             className="rounded-2xl border border-dashed border-border bg-card p-10 text-center sm:p-12"
           >
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-surface-container-low text-muted-foreground">
-              <MapPin className="h-5 w-5" aria-hidden="true" />
-            </div>
             <h2 className="text-lg font-bold text-foreground">
               Belum ada alamat tersimpan
             </h2>
@@ -244,10 +238,9 @@ export default function AddressManagementPage() {
                 setEditingAddress(null);
                 setShowForm(true);
               }}
-              className="btn-primary mt-6 inline-flex h-11 items-center gap-2 px-6 py-0 text-sm"
+              className="btn-primary mt-6 inline-flex h-11 items-center px-6 py-0 text-sm"
             >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              <span>Tambah Alamat</span>
+              Tambah Alamat
             </button>
           </section>
         ) : (

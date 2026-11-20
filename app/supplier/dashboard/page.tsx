@@ -1,21 +1,8 @@
 "use client";
-import {
-  getSupplierDashboard,
-  StockTransactionItem,
-} from "@/lib/api/supplier";
+import { getSupplierDashboard } from "@/lib/api/supplier";
 import { formatDate, formatRupiah } from "@/lib/utils/formatters";
-import { LoadingSpinner, ErrorState } from "@/components/ui";
+import { LoadingSpinner, ErrorState, StatusBadge } from "@/components/ui";
 import { useDataFetching } from "@/hooks";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Sprout,
-  TrendingUp,
-  XCircle,
-} from "lucide-react";
 import Link from "next/link";
 
 export default function SupplierDashboardPage() {
@@ -23,35 +10,6 @@ export default function SupplierDashboardPage() {
     (signal) => getSupplierDashboard(signal),
     [],
   );
-
-  const getStatusBadge = (status: StockTransactionItem["status"]) => {
-    switch (status) {
-      case "PAID":
-        return {
-          label: "Lunas",
-          color: "bg-success/10 text-success border-success/20",
-          icon: CheckCircle2,
-        };
-      case "PENDING":
-        return {
-          label: "Menunggu Konfirmasi",
-          color: "bg-warning/10 text-warning border-warning/25",
-          icon: Clock,
-        };
-      case "CANCELLED":
-        return {
-          label: "Dibatalkan",
-          color: "bg-surface-container text-muted-foreground border-border",
-          icon: XCircle,
-        };
-      default:
-        return {
-          label: status,
-          color: "bg-surface-container text-muted-foreground border-border",
-          icon: Clock,
-        };
-    }
-  };
 
   if (isLoading) {
     return <LoadingSpinner message="Memuat ringkasan kebun & penjualan..." />;
@@ -75,12 +33,14 @@ export default function SupplierDashboardPage() {
     activeStocks: 0,
     lowStockAlert: 0,
     pendingTransactions: 0,
+    readyToShipCount: 0,
     averageOrderValue: 0,
   };
 
   const harvestMetrics = data.harvestMetrics || {
     activeAnnouncements: 0,
     confirmedPreOrders: 0,
+    pendingPreOrders: 0,
   };
   const topStocks = data.charts?.topStocks || [];
   const recentSales = data.recentSales || [];
@@ -88,7 +48,7 @@ export default function SupplierDashboardPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-8 lg:space-y-10">
       {/* Header Banner Dasbor Supplier */}
-      <div className="flex flex-col gap-6 rounded-2xl bg-surface-dark px-6 py-9 text-white sm:px-9 sm:py-10 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-6 rounded-[24px] border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-9 sm:py-10 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Portal Operasional Mitra Kebun
@@ -97,24 +57,26 @@ export default function SupplierDashboardPage() {
             Ringkasan Kebun
           </h1>
           <p className="mt-3 max-w-lg text-sm leading-6 text-white/70">
-            Stok, panen, dan penjualan dalam satu tempat.
+            Pantau stok kebun, jadwal panen, pesanan masuk, dan pengiriman ke
+            florist.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/supplier/stocks"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Kelola Stok Bunga
           </Link>
           <Link
             href="/supplier/harvest-announcements"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            className="inline-flex min-h-11 items-center justify-center rounded-sm border border-white/20 bg-white/5 px-5 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             Jadwal Panen
           </Link>
         </div>
       </div>
+
       {/* Bagian 1: Kartu Tindakan Prioritas */}
       <section aria-labelledby="prioritas-heading">
         <h2
@@ -123,72 +85,77 @@ export default function SupplierDashboardPage() {
         >
           Perlu Tindakan
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Menunggu Konfirmasi Pembayaran */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Siap Dikirim (Perlu Resi) */}
           <Link
-            href="/supplier/sales"
+            href="/supplier/shipments"
             className="group rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-primary/40"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">
-                Menunggu Pembayaran Florist
-              </span>
-              <span className="rounded-lg bg-warning/15 p-2 text-warning">
-                <Clock className="h-5 w-5" />
-              </span>
-            </div>
+            <p className="text-sm font-medium text-muted-foreground">
+              Siap Dikirim (Perlu Resi)
+            </p>
             <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-foreground">
-              {summary.pendingTransactions}
+              {summary.readyToShipCount ?? 0}
             </p>
             <div className="mt-3 flex items-center gap-1 text-sm font-semibold text-primary group-hover:underline">
-              <span>Lihat status pembayaran</span>
-              <ArrowRight className="h-4 w-4" />
+              <span>Buat resi sekarang</span>
+              <span aria-hidden="true">→</span>
             </div>
           </Link>
+
+          {/* Pre-Order Panen Menunggu Konfirmasi */}
+          <Link
+            href="/supplier/harvest-announcements"
+            className="group rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-primary/40"
+          >
+            <p className="text-sm font-medium text-muted-foreground">
+              Pre-Order Menunggu
+            </p>
+            <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-foreground">
+              {harvestMetrics.pendingPreOrders ?? 0}
+            </p>
+            <div className="mt-3 flex items-center gap-1 text-sm font-semibold text-primary group-hover:underline">
+              <span>Tinjau pre-order</span>
+              <span aria-hidden="true">→</span>
+            </div>
+          </Link>
+
           {/* Stok Menipis */}
           <Link
             href="/supplier/stocks"
             className="m-card group rounded-2xl border border-border bg-surface p-6 hover:border-primary/40"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">
-                Stok Menipis (&lt; 50 unit)
-              </span>
-              <span className="rounded-lg bg-error/10 p-2 text-error">
-                <AlertTriangle className="h-5 w-5" />
-              </span>
-            </div>
+            <p className="text-sm font-medium text-muted-foreground">
+              Stok Menipis (&lt; 50)
+            </p>
             <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-foreground">
               {summary.lowStockAlert}
             </p>
             <div className="mt-3 flex items-center gap-1 text-sm font-semibold text-primary group-hover:underline">
-              <span>Tambah stok bunga</span>
-              <ArrowRight className="h-4 w-4" />
+              <span>Perbarui stok</span>
+              <span aria-hidden="true">→</span>
             </div>
           </Link>
-          {/* Pre-Order Panen Terkonfirmasi */}
+
+          {/* Menunggu Pembayaran Florist */}
           <Link
-            href="/supplier/harvest-announcements"
-            className="group rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-primary/40 sm:col-span-2 lg:col-span-1"
+            href="/supplier/sales"
+            className="group rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-primary/40"
           >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">
-                Pre-Order Terkonfirmasi
-              </span>
-              <span className="rounded-lg bg-primary/10 p-2 text-primary">
-                <Calendar className="h-5 w-5" />
-              </span>
-            </div>
-            <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">
-              {harvestMetrics.confirmedPreOrders}
+            <p className="text-sm font-medium text-muted-foreground">
+              Menunggu Pembayaran
+            </p>
+            <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-foreground">
+              {summary.pendingTransactions}
             </p>
             <div className="mt-3 flex items-center gap-1 text-sm font-semibold text-primary group-hover:underline">
-              <span>Lihat pesanan panen</span>
-              <ArrowRight className="h-4 w-4" />
+              <span>Lihat transaksi</span>
+              <span aria-hidden="true">→</span>
             </div>
           </Link>
         </div>
       </section>
+
       {/* Bagian 2: Ringkasan Metrik Finansial & Operasional */}
       <section aria-labelledby="kinerja-heading">
         <h2
@@ -202,18 +169,18 @@ export default function SupplierDashboardPage() {
             <p className="text-sm font-medium text-muted-foreground">
               Total Pendapatan Lunas
             </p>
-            <p className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            <p className="mt-3 text-2xl font-bold tracking-tight tabular-nums text-foreground sm:text-3xl">
               {formatRupiah(summary.totalRevenue)}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Dari transaksi berstatus lunas
+              Dari pesanan yang sudah lunas &amp; dikirim
             </p>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-6">
             <p className="text-sm font-medium text-muted-foreground">
               Total Bunga Terjual
             </p>
-            <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">
+            <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-foreground">
               {summary.stockSold.toLocaleString("id-ID")}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
@@ -224,7 +191,7 @@ export default function SupplierDashboardPage() {
             <p className="text-sm font-medium text-muted-foreground">
               Rata-rata Nilai Pesanan
             </p>
-            <p className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            <p className="mt-3 text-2xl font-bold tracking-tight tabular-nums text-foreground sm:text-3xl">
               {formatRupiah(summary.averageOrderValue)}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
@@ -235,7 +202,7 @@ export default function SupplierDashboardPage() {
             <p className="text-sm font-medium text-muted-foreground">
               Varietas Aktif
             </p>
-            <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">
+            <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-foreground">
               {summary.activeStocks}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
@@ -244,20 +211,18 @@ export default function SupplierDashboardPage() {
           </div>
         </div>
       </section>
+
       {/* Bagian 3: Bunga Terlaris & Jadwal Panen */}
       <section className="grid gap-6 lg:grid-cols-2">
         {/* Kolom Kiri: 5 Varietas Bunga Terlaris */}
         <div className="rounded-2xl border border-border bg-surface p-6">
-          <div className="flex items-center justify-between pb-4 border-b border-border">
-            <div>
-              <h3 className="text-base font-semibold text-foreground">
-                5 Bunga Terlaris
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Berdasarkan jumlah unit yang telah terbeli
-              </p>
-            </div>
-            <TrendingUp className="h-5 w-5 text-primary" />
+          <div className="pb-4 border-b border-border">
+            <h3 className="text-base font-semibold tracking-normal text-foreground">
+              5 Bunga Terlaris
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Berdasarkan jumlah tangkai yang terjual
+            </p>
           </div>
           <div className="mt-4 divide-y divide-border">
             {topStocks.length === 0 ? (
@@ -274,16 +239,16 @@ export default function SupplierDashboardPage() {
                     <p className="truncate text-sm font-medium text-foreground">
                       {stock.name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs tabular-nums text-muted-foreground">
                       Varietas: {stock.variety || "Standar"} • Sisa stok:{" "}
-                      {stock.quantity}
+                      {stock.quantity.toLocaleString("id-ID")}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-foreground">
+                    <p className="text-sm font-bold tabular-nums text-foreground">
                       {stock.totalSold.toLocaleString("id-ID")} terjual
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs tabular-nums text-muted-foreground">
                       {formatRupiah(stock.pricePerUnit)} / unit
                     </p>
                   </div>
@@ -292,26 +257,24 @@ export default function SupplierDashboardPage() {
             )}
           </div>
         </div>
+
         {/* Kolom Kanan: Status Rencana Panen */}
         <div className="rounded-2xl border border-border bg-surface p-6 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-4 border-b border-border">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">
-                  Status Pengumuman Panen
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Publikasi rencana panen mendatang ke jaringan florist
-                </p>
-              </div>
-              <Sprout className="h-5 w-5 text-primary" />
+            <div className="pb-4 border-b border-border">
+              <h3 className="text-base font-semibold tracking-normal text-foreground">
+                Status Pengumuman Panen
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Publikasi rencana panen mendatang untuk toko florist
+              </p>
             </div>
             <div className="mt-6 grid grid-cols-2 gap-4">
               <div className="rounded-xl bg-surface-container-low p-4 text-center">
                 <p className="text-xs font-medium text-muted-foreground">
                   Pengumuman Aktif
                 </p>
-                <p className="mt-2 text-3xl font-bold text-foreground">
+                <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">
                   {harvestMetrics.activeAnnouncements}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -322,11 +285,11 @@ export default function SupplierDashboardPage() {
                 <p className="text-xs font-medium text-muted-foreground">
                   Pre-Order Dikonfirmasi
                 </p>
-                <p className="mt-2 text-3xl font-bold text-foreground">
+                <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">
                   {harvestMetrics.confirmedPreOrders}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Menunggu waktu panen
+                  Menunggu DP &amp; panen
                 </p>
               </div>
             </div>
@@ -334,14 +297,15 @@ export default function SupplierDashboardPage() {
           <div className="mt-6 pt-4 border-t border-border">
             <Link
               href="/supplier/harvest-announcements"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-surface-container py-3 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-high"
+              className="flex w-full items-center justify-center gap-2 rounded-sm bg-surface-container py-3 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-high"
             >
-              <span>Kelola Jadwal & Pengumuman Panen</span>
-              <ArrowRight className="h-4 w-4" />
+              <span>Kelola Jadwal Panen</span>
+              <span aria-hidden="true">→</span>
             </Link>
           </div>
         </div>
       </section>
+
       {/* Bagian 4: Riwayat Penjualan Terkini */}
       <section
         aria-labelledby="sales-heading"
@@ -356,7 +320,7 @@ export default function SupplierDashboardPage() {
               Transaksi Penjualan Terkini
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Daftar pembelian bahan baku bunga terbaru oleh florist.
+              Pembelian bahan baku bunga terbaru dari toko florist.
             </p>
           </div>
           <Link
@@ -382,7 +346,7 @@ export default function SupplierDashboardPage() {
                     Florist
                   </th>
                   <th scope="col" className="px-6 py-3.5">
-                    Bunga & Jumlah
+                    Bunga &amp; Jumlah
                   </th>
                   <th scope="col" className="px-6 py-3.5">
                     Total Harga
@@ -396,53 +360,51 @@ export default function SupplierDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {recentSales.map((sale) => {
-                  const statusInfo = getStatusBadge(sale.status);
-                  const StatusIcon = statusInfo.icon;
-                  return (
-                    <tr
-                      key={sale.id}
-                      className="hover:bg-surface-container-lowest/50"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+                {recentSales.map((sale) => (
+                  <tr
+                    key={sale.id}
+                    className="hover:bg-surface-container-lowest/50"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+                      <time dateTime={sale.createdAt} className="tabular-nums">
                         {formatDate(sale.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <p className="font-medium text-foreground">
-                          {sale.florist.name}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-foreground">
-                          {sale.stock.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {sale.quantity} unit (
-                          {sale.stock.variety || "Standar"})
-                        </p>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap font-semibold text-foreground">
-                        {formatRupiah(sale.totalPrice)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${statusInfo.color}`}
-                        >
-                          <StatusIcon className="h-3.5 w-3.5" />
-                          <span>{statusInfo.label}</span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <Link
-                          href="/supplier/sales"
-                          className="font-semibold text-primary hover:underline"
-                        >
-                          Rincian
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
+                      </time>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="font-medium text-foreground">
+                        {sale.florist.name}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-foreground">
+                        {sale.stock.name}
+                      </p>
+                      <p className="text-xs tabular-nums text-muted-foreground">
+                        {sale.quantity.toLocaleString("id-ID")}{" "}
+                        {sale.stock.unit || "tangkai"} (
+                        {sale.stock.variety || "Standar"})
+                      </p>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-semibold tabular-nums text-foreground">
+                      {formatRupiah(sale.totalPrice)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusBadge
+                        status={sale.status}
+                        variant="shipment"
+                        size="sm"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <Link
+                        href="/supplier/sales"
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        Rincian
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}

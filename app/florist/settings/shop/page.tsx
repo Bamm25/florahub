@@ -3,15 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import {
-  MapPin,
-  Plus,
-  Edit2,
-  Trash2,
-  CheckCircle2,
-  Upload,
-  Loader2,
-} from "lucide-react";
+import { Edit2, Trash2, Loader2 } from "lucide-react";
 import { ConfirmDialog, LoadingSpinner, ErrorState } from "@/components/ui";
 import Modal from "@/components/forms/Modal";
 import {
@@ -334,7 +326,7 @@ export default function FloristSettingsShopPage() {
         {/* Kolom Kiri: Profil & Identitas Visual */}
         <div className="space-y-6 lg:col-span-7">
           {/* Informasi Toko */}
-          <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+          <section className="overflow-hidden rounded-2xl border border-border bg-surface">
             <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
               <div>
                 <h2 className="text-base font-bold tracking-tight text-foreground">
@@ -348,10 +340,9 @@ export default function FloristSettingsShopPage() {
                 <button
                   type="button"
                   onClick={() => setIsEditingShop(true)}
-                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+                  className="inline-flex min-h-9 items-center rounded-sm border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
                 >
-                  <Edit2 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                  <span>Edit Profil</span>
+                  Edit Profil
                 </button>
               )}
             </div>
@@ -404,19 +395,12 @@ export default function FloristSettingsShopPage() {
                       type="button"
                       onClick={handleSaveShopInfo}
                       disabled={isSavingShop}
-                      className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                      className="inline-flex min-h-10 items-center gap-2 rounded-sm bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                     >
-                      {isSavingShop ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                          <span>Menyimpan...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                          <span>Simpan Perubahan</span>
-                        </>
+                      {isSavingShop && (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                       )}
+                      <span>{isSavingShop ? "Menyimpan..." : "Simpan Perubahan"}</span>
                     </button>
                     <button
                       type="button"
@@ -428,7 +412,7 @@ export default function FloristSettingsShopPage() {
                         });
                       }}
                       disabled={isSavingShop}
-                      className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
+                      className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
                     >
                       Batal
                     </button>
@@ -478,10 +462,10 @@ export default function FloristSettingsShopPage() {
           </section>
 
           {/* Logo & Banner Toko */}
-          <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+          <section className="overflow-hidden rounded-2xl border border-border bg-surface">
             <div className="border-b border-border p-5 sm:p-6">
               <h2 className="text-base font-bold tracking-tight text-foreground">
-                Logo & Banner Toko
+                Logo &amp; Banner Toko
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Identitas visual halaman toko publik. Format JPG, PNG, WebP, atau GIF maksimal 5 MB.
@@ -517,8 +501,7 @@ export default function FloristSettingsShopPage() {
                     />
                   )}
                   <div className="flex flex-wrap items-center gap-3">
-                    <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low">
-                      <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                    <label className="inline-flex min-h-9 cursor-pointer items-center rounded-sm border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low">
                       <span>Pilih {field === "logo" ? "Logo" : "Banner"}</span>
                       <input
                         type="file"
@@ -537,7 +520,7 @@ export default function FloristSettingsShopPage() {
                         type="button"
                         onClick={() => void handleMediaSave(field)}
                         disabled={isUploadingMedia}
-                        className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+                        className="inline-flex min-h-9 items-center gap-2 rounded-sm bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                       >
                         {isUploadingMedia && (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -554,11 +537,11 @@ export default function FloristSettingsShopPage() {
 
         {/* Kolom Kanan: Alamat Toko & Titik Pickup */}
         <div className="lg:col-span-5">
-          <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+          <section className="overflow-hidden rounded-2xl border border-border bg-surface">
             <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
               <div>
                 <h2 className="text-base font-bold tracking-tight text-foreground">
-                  Alamat Toko & Titik Pickup
+                  Alamat Toko &amp; Titik Pickup
                 </h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Lokasi asal penjemputan kurir ekspedisi.
@@ -567,20 +550,15 @@ export default function FloristSettingsShopPage() {
               <button
                 type="button"
                 onClick={() => openAddressModal()}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
+                className="inline-flex min-h-9 items-center rounded-sm bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Tambah Alamat</span>
+                Tambah Alamat
               </button>
             </div>
 
             <div className="p-5 sm:p-6">
               {sortedAddresses.length === 0 ? (
                 <div className="py-10 text-center">
-                  <MapPin
-                    className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50"
-                    aria-hidden="true"
-                  />
                   <p className="text-sm font-semibold text-foreground">
                     Belum ada alamat terdaftar
                   </p>
@@ -632,7 +610,7 @@ export default function FloristSettingsShopPage() {
                             type="button"
                             onClick={() => openAddressModal(address)}
                             aria-label={`Ubah alamat ${address.label}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-surface text-foreground transition-colors hover:bg-surface-container-low"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-border bg-surface text-foreground transition-colors hover:bg-surface-container-low"
                           >
                             <Edit2 className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
@@ -640,7 +618,7 @@ export default function FloristSettingsShopPage() {
                             type="button"
                             onClick={() => setPendingDeleteAddressId(address.id)}
                             aria-label={`Hapus alamat ${address.label}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-error/20 bg-error/5 text-error transition-colors hover:bg-error/10"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-error/20 bg-error/5 text-error transition-colors hover:bg-error/10"
                           >
                             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
@@ -847,25 +825,18 @@ export default function FloristSettingsShopPage() {
               type="button"
               onClick={handleSaveAddress}
               disabled={isSavingAddress}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="inline-flex min-h-10 items-center gap-2 rounded-sm bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
-              {isSavingAddress ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  <span>Menyimpan...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  <span>Simpan Alamat</span>
-                </>
+              {isSavingAddress && (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               )}
+              <span>{isSavingAddress ? "Menyimpan..." : "Simpan Alamat"}</span>
             </button>
             <button
               type="button"
               onClick={closeAddressModal}
               disabled={isSavingAddress}
-              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
+              className="inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
             >
               Batal
             </button>

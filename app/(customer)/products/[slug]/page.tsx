@@ -6,16 +6,12 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
-  ArrowRight,
   Check,
   ChevronLeft,
   ChevronRight,
-  MapPin,
   Minus,
   Plus,
-  ShoppingCart,
   Star,
-  Store,
 } from "lucide-react";
 import ProductReviews from "@/components/customer/ProductReviews";
 import { PRODUCT_LOW_STOCK_THRESHOLD } from "@/lib/config/domain";
@@ -476,7 +472,6 @@ export default function ProductDetailPage() {
                 disabled={isOutOfStock}
                 className="btn-primary mt-2 h-14 w-full text-base disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <ShoppingCart className="h-5 w-5" aria-hidden="true" />
                 {isOutOfStock ? "Stok Habis" : "Tambah ke Keranjang"}
               </button>
 
@@ -495,7 +490,7 @@ export default function ProductDetailPage() {
                       className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-4 hover:underline"
                     >
                       Lihat keranjang
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span aria-hidden="true">→</span>
                     </Link>
                   </div>
                 )}
@@ -520,10 +515,9 @@ export default function ProductDetailPage() {
                       unoptimized
                     />
                   ) : (
-                    <Store
-                      className="h-5 w-5 text-muted-foreground"
-                      aria-hidden="true"
-                    />
+                    <span className="font-display text-base italic text-primary">
+                      {product.florist.shopName.slice(0, 2).toUpperCase()}
+                    </span>
                   )}
                 </div>
                 <div className="min-w-0">
@@ -531,9 +525,8 @@ export default function ProductDetailPage() {
                     {product.florist.shopName}
                   </p>
                   {product.florist.city && (
-                    <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{product.florist.city}</span>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {product.florist.city}
                     </p>
                   )}
                 </div>
@@ -541,10 +534,7 @@ export default function ProductDetailPage() {
 
               <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary sm:text-sm">
                 Lihat toko
-                <ArrowRight
-                  className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
-                  aria-hidden="true"
-                />
+                <span aria-hidden="true">→</span>
               </span>
             </Link>
 
@@ -610,7 +600,7 @@ export default function ProductDetailPage() {
                 className="inline-flex min-h-10 shrink-0 items-center gap-1.5 text-sm font-semibold text-primary underline-offset-4 hover:underline"
               >
                 Lihat toko
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <span aria-hidden="true">→</span>
               </Link>
             </div>
 

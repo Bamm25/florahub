@@ -7,6 +7,7 @@ import {
 } from "@/lib/config/domain";
 import { createHarvestAnnouncementSchema } from "@/lib/validations/schemas";
 import { harvestDayEndWib } from "@/lib/supply-chain/midtrans-payments";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -14,7 +15,11 @@ import { z } from "zod";
 // Handler HTTP GET untuk mengambil daftar pengumuman panen (wajib terautentikasi B2B/Admin)
 export async function GET(request: Request) {
   try {
-    await requireAuth(request, ["SUPPLIER", "FLORIST", "ADMIN"]);
+    const { userId, userRole } = await requireAuth(request, [
+      "SUPPLIER",
+      "FLORIST",
+      "ADMIN",
+    ]);
 
     const { searchParams } = new URL(request.url);
     const supplierId = searchParams.get("supplierId");
@@ -23,7 +28,9 @@ export async function GET(request: Request) {
     // Susun kondisi filter pengumuman panen
     const whereClause: Prisma.HarvestAnnouncementWhereInput = {};
 
-    if (supplierId) {
+    if (userRole === "SUPPLIER") {
+      whereClause.supplierId = userId;
+    } else if (supplierId) {
       whereClause.supplierId = supplierId;
     }
 
@@ -195,6 +202,11 @@ export async function POST(request: Request) {
       });
 
       // Kembalikan respon sukses pembuatan pengumuman panen
+      safeRevalidatePaths([
+        "/supplier/dashboard",
+        "/supplier/harvest-announcements",
+        "/florist/harvest-plans",
+      ]);
       return NextResponse.json(
         {
           success: true,

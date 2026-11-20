@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Flame, MapPin, Package, Star, Store } from "lucide-react";
+import { Star } from "lucide-react";
 import { SearchInput } from "@/components/ui";
 import {
   Select,
@@ -104,7 +104,6 @@ export default function StoresDirectoryClient({
   if (stores.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-surface-container-low/60 p-12 text-center">
-        <Store className="mx-auto mb-4 h-12 w-12 text-muted-foreground opacity-50" />
         <h3 className="text-lg font-bold text-foreground">
           Belum ada toko
         </h3>
@@ -194,7 +193,6 @@ export default function StoresDirectoryClient({
       {/* Empty Search Results */}
       {filteredStores.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-card/50 p-12 text-center">
-          <Store className="mx-auto mb-3 h-10 w-10 text-muted-foreground opacity-50" />
           <h3 className="text-lg font-bold text-foreground">
             Toko tidak ditemukan
           </h3>
@@ -236,8 +234,7 @@ export default function StoresDirectoryClient({
                 )}
 
                 <div className="absolute left-4 top-4">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-surface-dark/90 px-3.5 py-1.5 text-xs font-semibold text-kicker">
-                    <Flame className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="inline-flex items-center rounded-full border border-white/15 bg-surface-dark/90 px-3.5 py-1.5 text-xs font-semibold text-kicker">
                     Toko Pilihan
                   </span>
                 </div>
@@ -277,8 +274,8 @@ export default function StoresDirectoryClient({
                           unoptimized
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center">
-                          <Store className="h-6 w-6 text-muted-foreground" />
+                        <div className="flex h-full items-center justify-center font-display text-lg italic text-primary">
+                          {leadStore.shopName.slice(0, 2).toUpperCase()}
                         </div>
                       )}
                     </div>
@@ -287,13 +284,10 @@ export default function StoresDirectoryClient({
                         {leadStore.shopName}
                       </h3>
                       {(leadStore.city || leadStore.province) && (
-                        <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground sm:text-sm">
-                          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                          <span>
-                            {[leadStore.city, leadStore.province]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </span>
+                        <p className="mt-1 text-xs font-medium text-muted-foreground sm:text-sm">
+                          {[leadStore.city, leadStore.province]
+                            .filter(Boolean)
+                            .join(", ")}
                         </p>
                       )}
                     </div>
@@ -321,8 +315,7 @@ export default function StoresDirectoryClient({
 
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
                   <div className="flex flex-wrap items-center gap-4 text-xs tabular-nums sm:text-sm">
-                    <span className="inline-flex items-center gap-1.5 font-semibold text-foreground">
-                      <Package className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    <span className="font-semibold text-foreground">
                       {leadStore.productCount} produk
                     </span>
                     {leadStore.metrics.minPrice !== null && (
@@ -345,7 +338,7 @@ export default function StoresDirectoryClient({
 
                   <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary transition-transform group-hover:translate-x-0.5">
                     Lihat Toko
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    <span aria-hidden="true">→</span>
                   </span>
                 </div>
               </div>
@@ -388,8 +381,7 @@ export default function StoresDirectoryClient({
 
                         {store.city && (
                           <div className="absolute right-3 top-3">
-                            <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-surface-dark/85 px-3 py-1 text-xs font-medium text-white backdrop-blur-xs">
-                              <MapPin className="h-3 w-3 shrink-0 text-kicker" aria-hidden="true" />
+                            <span className="inline-flex items-center rounded-full border border-white/15 bg-surface-dark/85 px-3 py-1 text-xs font-medium text-white backdrop-blur-xs">
                               {store.city}
                             </span>
                           </div>
@@ -421,8 +413,8 @@ export default function StoresDirectoryClient({
                                 unoptimized
                               />
                             ) : (
-                              <div className="flex h-full items-center justify-center bg-surface-container-low">
-                                <Store className="h-6 w-6 text-muted-foreground" />
+                              <div className="flex h-full items-center justify-center bg-surface-container-low font-display text-lg italic text-primary">
+                                {monogram}
                               </div>
                             )}
                           </div>
@@ -506,7 +498,7 @@ export default function StoresDirectoryClient({
                       </div>
                       <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-primary transition-transform group-hover:translate-x-0.5">
                         Lihat Toko
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span aria-hidden="true">→</span>
                       </span>
                     </div>
                   </Link>
