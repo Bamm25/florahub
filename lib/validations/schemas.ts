@@ -9,6 +9,22 @@ export const registerSchema = z.object({
   role: z.enum(["CUSTOMER", "FLORIST", "SUPPLIER"]),
 });
 
+// Skema validasi permintaan lupa kata sandi dan pengaturan ulang kata sandi
+export const forgotPasswordSchema = z.object({
+  email: z.email("Email tidak valid").trim().toLowerCase(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z
+    .string()
+    .trim()
+    .regex(/^[a-f0-9]{64}$/i, "Tautan pengaturan ulang kata sandi tidak valid"),
+  password: z
+    .string()
+    .min(8, "Kata sandi minimal 8 karakter")
+    .max(128, "Kata sandi maksimal 128 karakter"),
+});
+
 // Skema validasi pembuatan alamat pengiriman baru
 export const createAddressSchema = z.object({
   label: z.string().min(1, "Label wajib diisi").max(50),

@@ -15,6 +15,11 @@ export const SITE_AUTHOR =
 export const SUPPORT_EMAIL =
   process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "support@florahub.biz.id";
 
+export const EMAIL_FROM =
+  process.env.EMAIL_FROM?.trim() || "FloraHub <noreply@florahub.biz.id>";
+
+export const PASSWORD_RESET_TTL_MINUTES = 30;
+
 export const SUPPORT_MAILTO_URL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
   "Bantuan & Pengaduan Akun FloraHub",
 )}`;

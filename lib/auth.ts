@@ -9,6 +9,7 @@ import {
   DEFAULT_MAX_AGE_SECONDS,
   decodeRfc7519Jwt,
   encodeRfc7519Jwt,
+  isTokenIssuedBeforePasswordChange,
 } from "./jwt-rfc7519";
 
 // Konfigurasi opsi autentikasi NextAuth dengan strategi JWT standar RFC 7519 (JWS HS256)
@@ -87,12 +88,14 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, trigger, session }) {
+      const isFreshSignIn = Boolean(user);
       if (user) {
         token.id = user.id;
         token.sub = user.id;
         token.name = user.name;
         token.email = user.email;
         token.role = (user as typeof user & { role: Role }).role;
+        token.authTime = Date.now();
       }
       if (!token.id && token.sub) {
         token.id = token.sub;
@@ -112,6 +115,7 @@ export const authOptions: NextAuthOptions = {
                   role: true,
                   name: true,
                   isActive: true,
+                  passwordChangedAt: true,
                   floristProfile: { select: { shopName: true } },
                 },
               })
@@ -122,10 +126,27 @@ export const authOptions: NextAuthOptions = {
                   role: true,
                   name: true,
                   isActive: true,
+                  passwordChangedAt: true,
                   floristProfile: { select: { shopName: true } },
                 },
               });
           if (!dbUser || !dbUser.isActive) {
+            return {
+              ...token,
+              id: "",
+              sub: "",
+              isActive: false,
+            };
+          }
+          if (isFreshSignIn && dbUser.passwordChangedAt) {
+            token.authTime = Math.max(
+              Date.now(),
+              dbUser.passwordChangedAt.getTime(),
+            );
+          } else if (
+            !isFreshSignIn &&
+            isTokenIssuedBeforePasswordChange(token, dbUser.passwordChangedAt)
+          ) {
             return {
               ...token,
               id: "",

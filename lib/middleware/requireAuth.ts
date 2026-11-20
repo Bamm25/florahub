@@ -4,6 +4,7 @@ import { authOptions } from "../auth";
 import {
   DEFAULT_MAX_AGE_SECONDS,
   decodeRfc7519Jwt,
+  isTokenIssuedBeforePasswordChange,
 } from "../jwt-rfc7519";
 import { NextResponse } from "next/server";
 import { Role } from "@prisma/client";
@@ -39,6 +40,7 @@ export async function requireAuth(
 ): Promise<AuthResult> {
   let session = await getServerSession(authOptions);
   let activeUser = session?.user as SessionUser | undefined;
+  let decodedBearerToken: JWT | null = null;
 
   // Fallback verifikasi Authorization: Bearer <JWT> standar RFC 7519 untuk API client
   if (!activeUser) {
@@ -51,6 +53,7 @@ export async function requireAuth(
       });
 
       if (decoded) {
+        decodedBearerToken = decoded;
         activeUser = {
           id: typeof decoded.id === "string" ? decoded.id : decoded.sub,
           sub: decoded.sub,
@@ -90,7 +93,14 @@ export async function requireAuth(
   let dbUser = userId
     ? await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, role: true, name: true, email: true, isActive: true },
+        select: {
+          id: true,
+          role: true,
+          name: true,
+          email: true,
+          isActive: true,
+          passwordChangedAt: true,
+        },
       })
     : null;
 
@@ -98,7 +108,14 @@ export async function requireAuth(
   if (!dbUser && activeUser.email) {
     dbUser = await prisma.user.findUnique({
       where: { email: activeUser.email },
-      select: { id: true, role: true, name: true, email: true, isActive: true },
+      select: {
+        id: true,
+        role: true,
+        name: true,
+        email: true,
+        isActive: true,
+        passwordChangedAt: true,
+      },
     });
   }
 
@@ -109,6 +126,20 @@ export async function requireAuth(
         success: false,
         message:
           "Sesi Anda sudah kedaluwarsa atau akun tidak aktif. Silakan login kembali.",
+      },
+      { status: 401 },
+    );
+  }
+
+  if (
+    decodedBearerToken &&
+    isTokenIssuedBeforePasswordChange(decodedBearerToken, dbUser.passwordChangedAt)
+  ) {
+    throw NextResponse.json(
+      {
+        success: false,
+        message:
+          "Sesi Anda sudah kedaluwarsa karena kata sandi telah diubah. Silakan login kembali.",
       },
       { status: 401 },
     );

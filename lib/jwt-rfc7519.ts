@@ -25,6 +25,7 @@ export interface Rfc7519Claims extends JWT {
   name?: string | null;
   email?: string | null;
   role?: Role;
+  authTime?: number;
 }
 
 function toBase64Url(input: string | Buffer): string {
@@ -86,6 +87,9 @@ export async function encodeRfc7519Jwt(
     ...(rawToken.name !== undefined ? { name: rawToken.name } : {}),
     ...(rawToken.email !== undefined ? { email: rawToken.email } : {}),
     ...(typeof rawToken.role === "string" ? { role: rawToken.role as Role } : {}),
+    ...(typeof rawToken.authTime === "number" && Number.isFinite(rawToken.authTime)
+      ? { authTime: rawToken.authTime }
+      : {}),
   };
 
   const headerB64 = toBase64Url(JSON.stringify(header));
@@ -186,4 +190,25 @@ export async function decodeRfc7519Jwt(
   } catch {
     return null;
   }
+}
+
+/**
+ * Menolak token JWT yang diterbitkan sebelum pembaruan kata sandi terakhir.
+ */
+export function isTokenIssuedBeforePasswordChange(
+  token: JWT | { authTime?: unknown; iat?: unknown },
+  passwordChangedAt: Date | null | undefined,
+): boolean {
+  if (!passwordChangedAt) {
+    return false;
+  }
+  const claims = token as { authTime?: unknown; iat?: unknown };
+  const changedAtMs = passwordChangedAt.getTime();
+  if (typeof claims.authTime === "number" && Number.isFinite(claims.authTime)) {
+    return claims.authTime < changedAtMs;
+  }
+  if (typeof claims.iat === "number" && Number.isFinite(claims.iat)) {
+    return claims.iat * 1000 < changedAtMs;
+  }
+  return true;
 }

@@ -73,6 +73,7 @@ scripts/
 !/tests/admin-audit-logs.test.ts
 !/tests/admin-portal-acceptance.test.ts
 !/tests/auth-rfc7519-jwt.test.ts
+!/tests/auth-password-reset.test.ts
 !/tests/security-redundancy-audit.test.ts
 !/tests/modern-web-and-taste-audit.test.ts
 !/tests/star-products.test.ts

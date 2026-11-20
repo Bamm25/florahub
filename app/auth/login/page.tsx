@@ -279,9 +279,20 @@ function LoginForm() {
             </div>
 
             <div>
-              <label htmlFor="password" className={labelClass}>
-                Kata sandi
-              </label>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-semibold text-foreground"
+                >
+                  Kata sandi
+                </label>
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-xs font-semibold text-primary underline-offset-4 hover:underline"
+                >
+                  Lupa kata sandi?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   id="password"

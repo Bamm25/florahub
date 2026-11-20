@@ -29,6 +29,12 @@ type RuntimeModelFields = Array<{ name: string }>;
 type PrismaClientWithRuntime = PrismaClient & {
   _runtimeDataModel?: {
     models?: {
+      User?: {
+        fields?: RuntimeModelFields;
+      };
+      PasswordResetToken?: {
+        fields?: RuntimeModelFields;
+      };
       HarvestAnnouncement?: {
         fields?: RuntimeModelFields;
       };
@@ -51,6 +57,18 @@ function sanitizeRuntimeSchema(client: PrismaClient): void {
 
 function hasLatestRuntimeSchema(client: PrismaClient): boolean {
   const models = (client as PrismaClientWithRuntime)._runtimeDataModel?.models;
+  const userFields = models?.User?.fields;
+  if (Array.isArray(userFields)) {
+    const userNames = new Set(userFields.map((field) => field.name));
+    if (!userNames.has("passwordChangedAt")) {
+      return false;
+    }
+  }
+
+  if (models && !models.PasswordResetToken?.fields) {
+    return false;
+  }
+
   const harvestFields = models?.HarvestAnnouncement?.fields;
   if (Array.isArray(harvestFields)) {
     const harvestNames = new Set(harvestFields.map((field) => field.name));
