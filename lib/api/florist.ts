@@ -82,7 +82,9 @@ export interface FloristOrderDetail {
   totalAmount: number;
   shippingCost: number;
   status: string;
+  notes?: string | null;
   createdAt: string;
+  updatedAt?: string;
   user: {
     name: string;
     email: string;
@@ -95,6 +97,7 @@ export interface FloristOrderDetail {
     product: {
       id: string;
       name: string;
+      slug?: string;
       image: string;
     };
   }>;
@@ -110,10 +113,14 @@ export interface FloristOrderDetail {
     courier: string;
     service: string | null;
     trackingNumber: string | null;
+    biteshipOrderId?: string | null;
+    biteshipLabelUrl?: string | null;
+    createdAt?: string | null;
     shippedAt: string | null;
     deliveredAt: string | null;
   } | null;
   shippingAddress: {
+    label?: string | null;
     recipientName: string;
     phone: string;
     fullAddress: string;

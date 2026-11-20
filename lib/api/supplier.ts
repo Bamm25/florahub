@@ -1,4 +1,5 @@
 import { fetchJson } from "./client";
+import type { TrackingTimelineEvent } from "@/lib/order-tracking-timeline";
 
 export interface SupplierDashboardData {
   summary: {
@@ -630,14 +631,48 @@ export async function autoCreateSupplierShipment(payload: {
   return result.data;
 }
 
-// Melacak pengiriman Biteship
+export interface SupplierShipmentTrackingResponse {
+  status: string;
+  orderStatus?: string;
+  courier?: {
+    company?: string;
+    waybill_id?: string | null;
+    link?: string | null;
+  };
+  timeline?: TrackingTimelineEvent[];
+  history: Array<{
+    note?: string;
+    status?: string;
+    statusTitle?: string;
+    updated_at?: string;
+    date?: string;
+    dateStr?: string;
+    timeStr?: string;
+    location?: string;
+    isCancelled?: boolean;
+  }>;
+  link?: string | null;
+  route?: {
+    senderName: string;
+    senderLocation: string | null;
+    recipientName: string;
+    recipientLocation: string | null;
+  };
+  timestamps?: {
+    createdAt: string;
+    shippedAt: string | null;
+    deliveredAt: string | null;
+  };
+}
+
+// Melacak pengiriman kurir
 export async function trackSupplierShipment(
   shipmentId: string,
   signal?: AbortSignal,
-): Promise<{ status: string; history: Array<{ note?: string; status?: string; updated_at?: string; date?: string }>; link?: string | null }> {
+): Promise<SupplierShipmentTrackingResponse> {
   const result = await fetchJson<{
     success: boolean;
-    data: { tracking: { status: string; history: Array<{ note?: string; status?: string; updated_at?: string; date?: string }>; link?: string | null } };
+    data: { tracking: SupplierShipmentTrackingResponse };
   }>(`/api/supplier/shipments/${shipmentId}/track`, {
     method: "GET",
     cache: "no-store",

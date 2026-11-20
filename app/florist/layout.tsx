@@ -4,7 +4,8 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, X, Bell } from "lucide-react";
+import { Menu, X, Bell, ExternalLink } from "lucide-react";
+import { getFloristProfile } from "@/lib/api/florist";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { LoadingSpinner } from "@/components/ui";
 
@@ -44,7 +45,19 @@ export default function FloristLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [liveShopName, setLiveShopName] = useState<string | null>(null);
   const unreadCount = useUnreadNotificationCount(status, pathname);
+
+  const activeNavItem = navigationSections
+    .flatMap((section) =>
+      section.items.map((item) => ({ ...item, sectionTitle: section.title })),
+    )
+    .find(
+      (item) =>
+        pathname === item.href ||
+        (item.href !== "/florist/dashboard" &&
+          pathname.startsWith(item.href + "/")),
+    );
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -56,6 +69,38 @@ export default function FloristLayout({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    const userRole = (session?.user as { role?: string } | undefined)?.role;
+    if (status !== "authenticated" || userRole !== "FLORIST") return;
+
+    const controller = new AbortController();
+    void getFloristProfile(controller.signal)
+      .then((profileData) => {
+        if (!controller.signal.aborted && profileData?.profile?.shopName) {
+          setLiveShopName(profileData.profile.shopName);
+        }
+      })
+      .catch(() => {
+        // Abaikan error sementara saat memuat nama toko
+      });
+
+    const handleProfileUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ shopName?: string }>).detail;
+      if (detail?.shopName) {
+        setLiveShopName(detail.shopName);
+      }
+    };
+
+    window.addEventListener("florahub:florist-profile-updated", handleProfileUpdated);
+    return () => {
+      controller.abort();
+      window.removeEventListener(
+        "florahub:florist-profile-updated",
+        handleProfileUpdated,
+      );
+    };
+  }, [status, session]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -73,7 +118,7 @@ export default function FloristLayout({
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
+      <div className="min-h-dvh bg-surface flex items-center justify-center">
         <LoadingSpinner message="Memuat area florist..." />
       </div>
     );
@@ -88,8 +133,10 @@ export default function FloristLayout({
     return null;
   }
 
+  const displayShopName = liveShopName || session?.user?.name || "Toko florist";
+
   return (
-    <div className="flex min-h-screen bg-surface-dim">
+    <div className="flex min-h-dvh bg-surface-dim">
       {mobileMenuOpen && (
         <div
           className="fixed inset-0 z-40 bg-foreground/40 lg:hidden"
@@ -105,8 +152,17 @@ export default function FloristLayout({
         }`}
       >
         <div className="flex min-h-20 items-center justify-between border-b border-white/10 px-6">
-          <Link href="/florist/dashboard" onClick={() => setMobileMenuOpen(false)} className="leading-tight">
-            <span className="text-xl font-bold tracking-tight text-white">FloraHub</span>
+          <Link
+            href="/florist/dashboard"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-2.5 leading-tight"
+          >
+            <span className="text-xl font-bold tracking-tight text-white">
+              FloraHub
+            </span>
+            <span className="rounded-md border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-kicker">
+              Studio
+            </span>
           </Link>
           <button
             type="button"
@@ -114,23 +170,26 @@ export default function FloristLayout({
             aria-label="Tutup menu"
             className="rounded-lg p-2 text-white/60 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
           >
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="border-b border-white/10 px-6 py-5">
-          <p className="truncate text-sm font-semibold text-white">
-            {session?.user?.name || "Toko florist"}
+        <div className="border-b border-white/10 px-6 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/50">
+            Toko Florist
+          </p>
+          <p className="mt-1 truncate text-sm font-semibold text-white">
+            {displayShopName}
           </p>
         </div>
 
         <nav aria-label="Navigasi florist" className="flex-1 overflow-y-auto px-3 py-5">
           {navigationSections.map((section) => (
             <div key={section.title} className="mb-6 last:mb-0">
-              <h2 className="mb-2 px-3 text-xs font-semibold text-white/60">
+              <h2 className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/50">
                 {section.title}
               </h2>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {section.items.map((item) => {
                   const isActive =
                     pathname === item.href ||
@@ -141,15 +200,15 @@ export default function FloristLayout({
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
                       aria-current={isActive ? "page" : undefined}
-                      className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                         isActive
-                          ? "bg-white/10 font-semibold text-white"
-                          : "text-white/70 hover:bg-white/10 hover:text-white"
+                          ? "bg-primary font-semibold text-primary-foreground"
+                          : "text-white/75 hover:bg-white/10 hover:text-white"
                       }`}
                     >
                       <span>{item.name}</span>
                       {item.href === "/florist/notifications" && unreadCount > 0 && (
-                        <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                        <span className="inline-flex items-center justify-center rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold tabular-nums text-warning-foreground">
                           {unreadCount > 99 ? "99+" : unreadCount}
                         </span>
                       )}
@@ -165,7 +224,7 @@ export default function FloristLayout({
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/auth/login" })}
-            className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-white/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-white/65 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             Keluar
           </button>
@@ -173,7 +232,7 @@ export default function FloristLayout({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex min-h-20 items-center justify-between gap-3 border-b border-border bg-surface px-4 sm:px-6 lg:px-10">
+        <header className="sticky top-0 z-30 flex min-h-18 items-center justify-between gap-3 border-b border-border bg-surface px-4 sm:px-6 lg:px-10">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -183,22 +242,34 @@ export default function FloristLayout({
               aria-expanded={mobileMenuOpen}
               className="rounded-lg p-2 text-foreground hover:bg-surface-container focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:hidden"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
-            <span className="truncate text-sm font-semibold text-foreground sm:text-base">
-              {session?.user?.name || "Area florist"}
-            </span>
+            <div className="flex min-w-0 items-center gap-2 text-sm">
+              <span className="truncate font-semibold text-foreground">
+                {displayShopName}
+              </span>
+              {activeNavItem && (
+                <>
+                  <span className="text-muted-foreground" aria-hidden="true">
+                    /
+                  </span>
+                  <span className="truncate text-muted-foreground">
+                    {activeNavItem.name}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Link
               href="/florist/notifications"
-              className="relative rounded-xl border border-border bg-surface p-2 text-foreground hover:bg-surface-container transition-colors shadow-2xs"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-foreground transition-colors hover:bg-surface-container-low"
               title="Notifikasi"
               aria-label="Lihat notifikasi"
             >
-              <Bell className="h-4 w-4 text-muted-foreground" />
+              <Bell className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-bold tabular-nums text-warning-foreground">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -207,9 +278,10 @@ export default function FloristLayout({
               href={`/stores/${(session?.user as { id?: string } | undefined)?.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:text-sm"
+              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-surface px-3.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:text-sm"
             >
-              Lihat toko
+              <span>Lihat toko</span>
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
             </Link>
           </div>
         </header>

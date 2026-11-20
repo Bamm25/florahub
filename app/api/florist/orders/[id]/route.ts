@@ -34,6 +34,7 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
+                slug: true,
                 image: true,
                 floristId: true,
               },
@@ -55,6 +56,9 @@ export async function GET(
             courier: true,
             service: true,
             trackingNumber: true,
+            biteshipOrderId: true,
+            biteshipLabelUrl: true,
+            createdAt: true,
             shippedAt: true,
             deliveredAt: true,
           },

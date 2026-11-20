@@ -92,11 +92,23 @@ export const authOptions: NextAuthOptions = {
           const dbUser = lookupId
             ? await prisma.user.findUnique({
                 where: { id: lookupId },
-                select: { id: true, role: true, name: true, isActive: true },
+                select: {
+                  id: true,
+                  role: true,
+                  name: true,
+                  isActive: true,
+                  floristProfile: { select: { shopName: true } },
+                },
               })
             : await prisma.user.findUnique({
                 where: { email: token.email as string },
-                select: { id: true, role: true, name: true, isActive: true },
+                select: {
+                  id: true,
+                  role: true,
+                  name: true,
+                  isActive: true,
+                  floristProfile: { select: { shopName: true } },
+                },
               });
           if (!dbUser || !dbUser.isActive) {
             return {
@@ -110,8 +122,12 @@ export const authOptions: NextAuthOptions = {
           token.sub = dbUser.id;
           token.role = dbUser.role;
           token.isActive = true;
-          if (dbUser.name) {
-            token.name = dbUser.name;
+          const resolvedName =
+            dbUser.role === "FLORIST" && dbUser.floristProfile?.shopName
+              ? dbUser.floristProfile.shopName
+              : dbUser.name;
+          if (resolvedName) {
+            token.name = resolvedName;
           }
         } catch {
           // Abaikan galat pembacaan basis data selama proses verifikasi token

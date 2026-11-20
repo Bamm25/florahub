@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { X, Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Loader2, AlertCircle } from "lucide-react";
+import Modal from "@/components/forms/Modal";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { fetchPaginatedCollection } from "@/lib/fetchPaginatedCollection";
 import { addProductComponent, deleteProductComponent } from "@/lib/api/florist";
 
@@ -55,6 +57,8 @@ export default function BOMModal({
   const [inventoryList, setInventoryList] = useState<FloristInventory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const [newComponent, setNewComponent] = useState({
@@ -152,67 +156,86 @@ export default function BOMModal({
     }
   };
 
-  const handleDeleteComponent = async (componentId: string) => {
-    if (!confirm("Hapus komponen ini dari BOM?")) return;
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    setIsDeleting(true);
+    setError("");
 
     try {
-      await deleteProductComponent(productId, componentId);
+      await deleteProductComponent(productId, pendingDeleteId);
+      setPendingDeleteId(null);
       await fetchComponents();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal menghapus komponen");
+      setError(err instanceof Error ? err.message : "Gagal menghapus komponen");
+      setPendingDeleteId(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  if (!isOpen) return null;
+  const selectedInventory = inventoryList.find(
+    (inv) => inv.id === newComponent.inventoryId,
+  );
+  const maxProducible =
+    components.length > 0
+      ? Math.min(
+          ...components.map((comp) =>
+            Math.floor(
+              (comp.inventory?.currentStock ?? 0) / Math.max(1, comp.quantity),
+            ),
+          ),
+        )
+      : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Komponen Produk ${productName}`}
-        className="rounded-2xl border border-border bg-card w-full max-w-3xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden"
-      >
-        <div className="sticky top-0 z-50 bg-surface-dark text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">Bill of Materials</p>
-            <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
-              Komponen Produk (BOM)
-            </h2>
-            <p className="text-xs text-white/70 mt-0.5">
-              {productName} — formula kebutuhan bahan baku per buket
-            </p>
-          </div>
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        size="lg"
+        headerVariant="dark"
+        kicker="Bill of Materials"
+        title="Komponen Produk (BOM)"
+        subtitle={`${productName} — formula kebutuhan bahan baku per buket`}
+        footer={
           <button
             type="button"
-            aria-label="Tutup dialog BOM"
             onClick={onClose}
-            className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+            className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low sm:w-auto"
           >
-            <X className="w-5 h-5" />
+            Tutup
           </button>
-        </div>
-
-        <div className="min-h-0 p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
+        }
+      >
+        <div className="space-y-5">
           {error && (
-            <div className="flex items-start gap-3 p-4 bg-error/5 border border-error/20 rounded-xl">
-              <AlertCircle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
+            <div role="alert" className="flex items-start gap-3 rounded-xl border border-error/20 bg-error/5 p-3.5">
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-error" />
               <p className="text-sm text-error">{error}</p>
             </div>
           )}
 
-          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
-            <h3 className="font-medium text-foreground flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Tambah Komponen Baru
-            </h3>
+          <div className="space-y-4 rounded-2xl border border-border bg-surface-container-low/40 p-4 sm:p-5">
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-semibold tracking-normal text-foreground">
+                <Plus className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>Tambah Komponen Baru</span>
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Tentukan bahan baku dan takaran untuk merakit 1 unit buket.
+              </p>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-foreground mb-1.5">
-                  Pilih Inventory
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+              <div className="sm:col-span-8">
+                <label
+                  htmlFor="bom-inventory-select"
+                  className="mb-1.5 block text-xs font-medium text-foreground"
+                >
+                  Pilih Bahan Baku Inventori
                 </label>
                 <select
+                  id="bom-inventory-select"
                   value={newComponent.inventoryId}
                   onChange={(e) =>
                     setNewComponent((prev) => ({
@@ -227,18 +250,22 @@ export default function BOMModal({
                   {inventoryList.map((inv) => (
                     <option key={inv.id} value={inv.id}>
                       {inv.stock.name}
-                      {inv.stock.variety && ` (${inv.stock.variety})`} - Stok:{" "}
+                      {inv.stock.variety && ` (${inv.stock.variety})`} — Stok:{" "}
                       {inv.quantity} {inv.stock.unit}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1.5">
-                  Jumlah Dibutuhkan ({inventoryList.find((inv) => inv.id === newComponent.inventoryId)?.stock.unit || "tangkai"} per Buket)
+              <div className="sm:col-span-4">
+                <label
+                  htmlFor="bom-quantity-input"
+                  className="mb-1.5 block text-xs font-medium text-foreground"
+                >
+                  Jumlah ({selectedInventory?.stock.unit || "tangkai"}/buket)
                 </label>
                 <input
+                  id="bom-quantity-input"
                   type="number"
                   value={newComponent.quantity}
                   onChange={(e) =>
@@ -249,106 +276,148 @@ export default function BOMModal({
                   }
                   placeholder="Contoh: 10"
                   min="1"
-                  max={
-                    inventoryList.find((inv) => inv.id === newComponent.inventoryId)
-                      ?.quantity || undefined
-                  }
-                  className="input-field w-full text-sm"
+                  max={selectedInventory?.quantity || undefined}
+                  className="input-field w-full text-sm tabular-nums"
                   disabled={isAdding}
                 />
-                {newComponent.inventoryId && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Stok tersedia:{" "}
-                    {inventoryList.find((inv) => inv.id === newComponent.inventoryId)
-                      ?.quantity || 0}{" "}
-                    {inventoryList.find((inv) => inv.id === newComponent.inventoryId)
-                      ?.stock.unit}
-                  </p>
-                )}
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleAddComponent}
-              disabled={isAdding || !newComponent.inventoryId || !newComponent.quantity}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 w-full sm:w-auto"
-            >
-              {isAdding ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Menambahkan...
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4" />
-                  Tambah ke BOM
-                </>
-              )}
-            </button>
+            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs tabular-nums text-muted-foreground">
+                {selectedInventory ? (
+                  <>
+                    Stok tersedia saat ini:{" "}
+                    <strong className="font-semibold text-foreground">
+                      {selectedInventory.quantity} {selectedInventory.stock.unit}
+                    </strong>
+                  </>
+                ) : (
+                  "Pilih bahan baku untuk melihat sisa stok inventori."
+                )}
+              </p>
+
+              <button
+                type="button"
+                onClick={handleAddComponent}
+                disabled={isAdding || !newComponent.inventoryId || !newComponent.quantity}
+                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                {isAdding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Menambahkan...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Tambah ke BOM
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           <div>
-            <h3 className="font-medium text-foreground mb-3">
-              Daftar Komponen ({components.length})
-            </h3>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold tracking-normal text-foreground">
+                  Daftar Komponen
+                </h3>
+                <span className="inline-flex items-center rounded-full border border-border bg-surface-container-low px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
+                  {components.length} bahan
+                </span>
+              </div>
+              {components.length > 0 && (
+                <span
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tabular-nums ${
+                    maxProducible > 0
+                      ? "border-primary/25 bg-primary/10 text-primary"
+                      : "border-warning/30 bg-warning/10 text-warning"
+                  }`}
+                >
+                  Maks. produksi: {maxProducible} buket
+                </span>
+              )}
+            </div>
 
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-7 w-7 animate-spin text-primary" />
               </div>
             ) : components.length === 0 ? (
-              <div className="text-center py-10 border border-dashed border-border rounded-xl bg-card/40">
+              <div className="rounded-xl border border-dashed border-border bg-card/40 py-9 text-center">
                 <p className="text-sm font-semibold text-foreground">
                   Belum ada komponen di BOM
                 </p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                <p className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground">
                   Pilih bahan baku dari daftar inventori di atas untuk menyusun resep perakitan buket ini.
                 </p>
               </div>
             ) : (
               <div className="space-y-2">
-                {components.map((comp) => (
-                  <div
-                    key={comp.id}
-                    className="flex items-center justify-between p-4 border border-border rounded-xl bg-surface-container-low/40 hover:bg-surface-container-low transition-colors"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">
-                        {comp.inventory?.stock?.name ?? "Unknown"}
-                        {comp.inventory?.stock?.variety && (
-                          <span className="text-sm text-muted-foreground ml-1">
-                            ({comp.inventory.stock.variety})
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        Kebutuhan: {comp.quantity ?? 0}{" "}
-                        {comp.inventory?.stock?.unit || "tangkai"} • Stok tersedia:{" "}
-                        {comp.inventory?.currentStock ?? 0}{" "}
-                        {comp.inventory?.stock?.unit || "tangkai"}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteComponent(comp.id)}
-                      className="ml-3 p-2 text-error hover:bg-error/10 rounded-lg transition-colors"
-                      title="Hapus komponen"
+                {components.map((comp) => {
+                  const currentStock = comp.inventory?.currentStock ?? 0;
+                  const unit = comp.inventory?.stock?.unit || "tangkai";
+                  const isInsufficient = currentStock < (comp.quantity ?? 0);
+
+                  return (
+                    <div
+                      key={comp.id}
+                      className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
+                        isInsufficient
+                          ? "border-warning/35 bg-warning/5"
+                          : "border-border bg-surface-container-low/40 hover:bg-surface-container-low"
+                      }`}
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {comp.inventory?.stock?.name ?? "Unknown"}
+                          {comp.inventory?.stock?.variety && (
+                            <span className="ml-1 text-xs font-normal text-muted-foreground">
+                              ({comp.inventory.stock.variety})
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                          Kebutuhan:{" "}
+                          <strong className="font-semibold text-foreground">
+                            {comp.quantity ?? 0} {unit}
+                          </strong>{" "}
+                          • Stok tersedia:{" "}
+                          <span className={isInsufficient ? "font-semibold text-warning" : ""}>
+                            {currentStock} {unit}
+                          </span>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeleteId(comp.id)}
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-error transition-colors hover:bg-error/10"
+                        title="Hapus komponen"
+                        aria-label="Hapus komponen dari BOM"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
+      </Modal>
 
-        <div className="sticky bottom-0 bg-card border-t border-border p-4 sm:p-6 flex-shrink-0">
-          <button onClick={onClose} className="btn-secondary min-h-11 w-full sm:w-auto text-sm">
-            Tutup
-          </button>
-        </div>
-      </div>
-    </div>
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeleteId)}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Komponen BOM"
+        description="Hapus komponen bahan baku ini dari resep perakitan produk?"
+        confirmLabel="Hapus Komponen"
+        variant="danger"
+        loading={isDeleting}
+      />
+    </>
   );
 }

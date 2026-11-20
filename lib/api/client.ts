@@ -24,9 +24,11 @@ export async function fetchJson<T>(
 ): Promise<T> {
   const isFormData =
     typeof FormData !== "undefined" && options?.body instanceof FormData;
+  const method = (options?.method ?? "GET").toUpperCase();
 
   const response = await fetch(url, {
     ...options,
+    cache: options?.cache ?? (method === "GET" ? "no-store" : undefined),
     headers: isFormData
       ? { ...(options?.headers || {}) }
       : {

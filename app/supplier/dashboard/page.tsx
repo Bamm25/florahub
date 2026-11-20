@@ -35,19 +35,19 @@ export default function SupplierDashboardPage() {
       case "PENDING":
         return {
           label: "Menunggu Konfirmasi",
-          color: "bg-amber-50 text-amber-800 border-amber-200",
+          color: "bg-warning/10 text-warning border-warning/25",
           icon: Clock,
         };
       case "CANCELLED":
         return {
           label: "Dibatalkan",
-          color: "bg-gray-100 text-gray-700 border-gray-200",
+          color: "bg-surface-container text-muted-foreground border-border",
           icon: XCircle,
         };
       default:
         return {
           label: status,
-          color: "bg-gray-100 text-gray-700 border-gray-200",
+          color: "bg-surface-container text-muted-foreground border-border",
           icon: Clock,
         };
     }
@@ -133,11 +133,11 @@ export default function SupplierDashboardPage() {
               <span className="text-sm font-medium text-muted-foreground">
                 Menunggu Pembayaran Florist
               </span>
-              <span className="rounded-lg bg-amber-50 p-2 text-amber-700">
+              <span className="rounded-lg bg-warning/15 p-2 text-warning">
                 <Clock className="h-5 w-5" />
               </span>
             </div>
-            <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">
+            <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-foreground">
               {summary.pendingTransactions}
             </p>
             <div className="mt-3 flex items-center gap-1 text-sm font-semibold text-primary group-hover:underline">
@@ -148,17 +148,17 @@ export default function SupplierDashboardPage() {
           {/* Stok Menipis */}
           <Link
             href="/supplier/stocks"
-            className="group rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-primary/40"
+            className="m-card group rounded-2xl border border-border bg-surface p-6 hover:border-primary/40"
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-muted-foreground">
                 Stok Menipis (&lt; 50 unit)
               </span>
-              <span className="rounded-lg bg-rose-50 p-2 text-rose-700">
+              <span className="rounded-lg bg-error/10 p-2 text-error">
                 <AlertTriangle className="h-5 w-5" />
               </span>
             </div>
-            <p className="mt-3 text-3xl font-bold tracking-tight text-foreground">
+            <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums text-foreground">
               {summary.lowStockAlert}
             </p>
             <div className="mt-3 flex items-center gap-1 text-sm font-semibold text-primary group-hover:underline">

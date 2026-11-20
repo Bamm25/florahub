@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import { createAddressSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -49,6 +50,8 @@ export async function POST(request: Request) {
       }
       return address;
     });
+
+    safeRevalidatePaths(["/stores", `/stores/${userId}`]);
 
     // Kembalikan respon sukses penambahan alamat
     return NextResponse.json({

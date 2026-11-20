@@ -20,7 +20,6 @@ interface ProductFormData {
   weight: string;
   tags: string;
   isActive: boolean;
-  isFeatured: boolean;
 }
 
 interface ProductModalProps {
@@ -110,11 +109,13 @@ export default function ProductModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      headerVariant="dark"
+      kicker={mode === "create" ? "Katalog Studio" : "Pembaruan Katalog"}
       title={mode === "create" ? "Tambah Produk Baru" : "Edit Produk"}
       subtitle={
         mode === "create"
-          ? "Isi detail produk yang akan dijual"
-          : "Perbarui informasi produk"
+          ? "Lengkapi rincian rangkaian bunga yang akan ditampilkan di katalog toko"
+          : "Perbarui informasi produk katalog toko"
       }
       size="md"
     >
@@ -286,29 +287,28 @@ export default function ProductModal({
           placeholder="romantis, premium, ulang tahun (pisahkan dengan koma)"
         />
 
-        <div className="space-y-3 pt-2">
-          <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-border bg-surface-container-low/40 px-3 py-2.5">
+        <div className="pt-2">
+          <label
+            className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 px-3.5 py-3 transition-colors ${
+              formData.isActive
+                ? "border-primary bg-primary/5"
+                : "border-border bg-surface-container-low/40 hover:border-foreground/30"
+            }`}
+          >
             <input
               type="checkbox"
               checked={formData.isActive}
               onChange={(e) => onChange("isActive", e.target.checked)}
-              className="w-4 h-4 text-primary rounded focus:ring-2 focus:ring-primary"
+              className="h-4 w-4 rounded text-primary focus:ring-2 focus:ring-primary"
             />
-            <span className="text-sm text-foreground">
-              Produk Aktif (tampil di katalog)
-            </span>
-          </label>
-
-          <label className="flex items-center gap-3 cursor-pointer rounded-lg border border-border bg-surface-container-low/40 px-3 py-2.5">
-            <input
-              type="checkbox"
-              checked={formData.isFeatured}
-              onChange={(e) => onChange("isFeatured", e.target.checked)}
-              className="w-4 h-4 text-primary rounded focus:ring-2 focus:ring-primary"
-            />
-            <span className="text-sm text-foreground">
-              Featured (tampil di halaman utama)
-            </span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Produk Aktif
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Tampilkan produk ini di katalog publik toko
+              </p>
+            </div>
           </label>
         </div>
 
@@ -316,7 +316,7 @@ export default function ProductModal({
           <button
             type="button"
             onClick={onClose}
-            className="btn-secondary min-h-11 flex-1 text-sm"
+            className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-container-low"
             disabled={isSubmitting}
           >
             Batal
@@ -324,7 +324,7 @@ export default function ProductModal({
           <button
             type="submit"
             disabled={isSubmitting || isUploading || previewError}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:cursor-not-allowed disabled:opacity-50 min-h-11 flex-1"
+            className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? (
               <>

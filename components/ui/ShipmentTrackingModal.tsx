@@ -1,16 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Modal from "@/components/forms/Modal";
 import {
   trackSupplierShipment,
   simulateShipmentStatus,
   receivePreOrder,
   receiveDirectPurchase,
 } from "@/lib/api/supplier";
-import { formatDateTime } from "@/lib/utils/formatters";
+import { buildSupplierTrackingTimeline } from "@/lib/order-tracking-timeline";
 import {
-  Navigation,
-  X,
   Package,
   Truck,
   MapPin,
@@ -51,6 +50,8 @@ export default function ShipmentTrackingModal({
   currentStatus,
   recipientName,
   recipientAddress,
+  shippedAt,
+  deliveredAt,
   userRole = "SUPPLIER",
   onStatusUpdated,
 }: ShipmentTrackingModalProps) {
@@ -76,6 +77,9 @@ export default function ShipmentTrackingModal({
     try {
       const data = await trackSupplierShipment(shipmentId);
       setTracking(data);
+      if (data.orderStatus) {
+        setActiveStatus(data.orderStatus);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat pelacakan");
     } finally {
@@ -90,12 +94,10 @@ export default function ShipmentTrackingModal({
     }
   }, [isOpen, loadTracking]);
 
-  if (!isOpen) return null;
-
   const handleCopyResi = (resi: string) => {
-    navigator.clipboard.writeText(resi);
+    void navigator.clipboard.writeText(resi);
     setCopiedResi(true);
-    setTimeout(() => setCopiedResi(false), 2000);
+    window.setTimeout(() => setCopiedResi(false), 2000);
   };
 
   // Hitung langkah stepper aktif (0-3)
@@ -107,7 +109,7 @@ export default function ShipmentTrackingModal({
     ["picking_up", "picked", "dropping_off"].includes(
       tracking?.status?.toLowerCase() || "",
     );
-  const isBooked = true; // Selama modal tracking dibuka, booking Biteship sudah terbit
+  const isBooked = true;
 
   let currentStep = 1;
   if (isDelivered) currentStep = 3;
@@ -117,22 +119,26 @@ export default function ShipmentTrackingModal({
   const steps = [
     {
       title: "Pesanan & Pembayaran",
-      desc: "Lunas 100% via Midtrans",
+      desc: "Pembayaran terverifikasi",
       icon: Package,
     },
     {
-      title: "Booking Biteship",
-      desc: `Resi terbit (${courierName || "Kurir"})`,
+      title: "Resi Diterbitkan",
+      desc: `Kurir ${courierName || "ekspedisi"} dikonfirmasi`,
       icon: RefreshCw,
     },
     {
-      title: "Kurir Menjemput",
-      desc: isShipped ? "Dalam perjalanan ke florist" : "Menunggu penjemputan",
+      title: "Dalam Perjalanan",
+      desc: isShipped
+        ? "Paket sedang menuju toko florist"
+        : "Menunggu penjemputan kurir",
       icon: Truck,
     },
     {
       title: "Bunga Diterima",
-      desc: isDelivered ? "Tiba di toko bunga florist" : "Menunggu paket tiba",
+      desc: isDelivered
+        ? "Tiba di toko & masuk inventaris"
+        : "Menunggu paket tiba",
       icon: CheckCircle2,
     },
   ];
@@ -171,7 +177,9 @@ export default function ShipmentTrackingModal({
         await receiveDirectPurchase(shipmentId);
       }
       setActiveStatus("DELIVERED");
-      setSuccessMsg("Bunga berhasil dikonfirmasi diterima! Stok bunga masuk ke inventaris Anda.");
+      setSuccessMsg(
+        "Bunga berhasil dikonfirmasi diterima! Stok bunga masuk ke inventaris Anda.",
+      );
       await loadTracking();
       onStatusUpdated?.();
     } catch (err) {
@@ -183,41 +191,56 @@ export default function ShipmentTrackingModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Pelacakan Pengiriman ${orderNumber}`}
-        className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
-      >
-        {/* Header Modal */}
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-primary/10 p-2.5 text-primary border border-primary/20">
-              <Navigation className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-foreground">
-                Pelacakan Pengiriman: {orderNumber}
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Kurir: <strong>{courierName || "Biteship Kurir"}</strong>
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            aria-label="Tutup dialog pelacakan"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-container transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+  const timelineEvents =
+    tracking?.timeline && tracking.timeline.length > 0
+      ? tracking.timeline
+      : buildSupplierTrackingTimeline({
+          orderType,
+          orderNumber,
+          status: activeStatus,
+          flowerName: "Pesanan Bunga",
+          quantity: 1,
+          supplierName: tracking?.route?.senderName || undefined,
+          floristName:
+            tracking?.route?.recipientName || recipientName || undefined,
+          courier: courierName,
+          trackingNumber,
+          createdAt:
+            tracking?.timestamps?.createdAt ||
+            shippedAt ||
+            deliveredAt ||
+            new Date().toISOString(),
+          updatedAt:
+            deliveredAt ||
+            shippedAt ||
+            tracking?.timestamps?.createdAt ||
+            new Date().toISOString(),
+          shippedAt: tracking?.timestamps?.shippedAt || shippedAt || null,
+          deliveredAt: tracking?.timestamps?.deliveredAt || deliveredAt || null,
+        });
 
-        {/* Resi & Salin */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-container-lowest p-3.5">
+  const senderDisplayName =
+    tracking?.route?.senderName || "Mitra Kebun Supplier";
+  const senderDisplayLocation =
+    tracking?.route?.senderLocation || "Dijemput Kurir Ekspedisi";
+  const recipientDisplayName =
+    tracking?.route?.recipientName || recipientName || "Studio Florist";
+  const recipientDisplayLocation =
+    tracking?.route?.recipientLocation || recipientAddress || "";
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+      headerVariant="dark"
+      kicker="Pelacakan Pengiriman"
+      title={orderNumber}
+      subtitle={`Kurir: ${courierName || "Kurir Ekspedisi"}`}
+    >
+      <div className="space-y-6">
+        {/* Resi & Salin + Cetak Label */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-container-lowest p-3.5">
           <div className="space-y-0.5">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Nomor Resi Pengiriman (AWB)
@@ -226,30 +249,43 @@ export default function ShipmentTrackingModal({
               {trackingNumber || "Resi sedang diterbitkan"}
             </p>
           </div>
-          {trackingNumber && (
-            <button
-              type="button"
-              onClick={() => handleCopyResi(trackingNumber)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-container transition-colors"
-            >
-              {copiedResi ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-primary">Tersalin</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5" />
-                  <span>Salin Resi</span>
-                </>
-              )}
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {trackingNumber && (
+              <button
+                type="button"
+                onClick={() => handleCopyResi(trackingNumber)}
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container"
+              >
+                {copiedResi ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                    <span className="text-primary">Tersalin</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Salin Resi</span>
+                  </>
+                )}
+              </button>
+            )}
+            {shipmentId && (
+              <a
+                href={`/api/supplier/shipments/${shipmentId}/label`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                <span>Cetak Label</span>
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Pesan Sukses / Error */}
         {error && (
-          <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+          <div role="alert" className="mt-3 rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error">
             {error}
           </div>
         )}
@@ -311,37 +347,48 @@ export default function ShipmentTrackingModal({
           </div>
         </div>
 
-        {/* Informasi Rute Pengiriman (Asal Kebun ➔ Toko Florist) */}
+        {/* Informasi Rute Pengiriman (Asal Kebun -> Studio Florist) */}
         <div className="mt-6 rounded-xl border border-border bg-surface p-4 space-y-3">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Rute Pengiriman
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
             <div className="flex items-start gap-2.5">
-              <Building className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <Building
+                className="mt-0.5 h-4 w-4 shrink-0 text-warning"
+                aria-hidden="true"
+              />
               <div>
-                <p className="font-semibold text-foreground">Lokasi Pengirim (Kebun Supplier)</p>
-                <p className="text-muted-foreground text-[11px] mt-0.5">
-                  Mitra Kebun FloraHub • Dijemput Kurir
+                <p className="font-semibold text-foreground">
+                  {senderDisplayName}
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {senderDisplayLocation}
                 </p>
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <MapPin
+                className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                aria-hidden="true"
+              />
               <div>
-                <p className="font-semibold text-foreground">Tujuan (Toko Bunga Florist)</p>
-                <p className="text-muted-foreground text-[11px] mt-0.5">
-                  {recipientName ? <strong>{recipientName}</strong> : "Florist Mitra"}
-                  {recipientAddress && ` • ${recipientAddress}`}
+                <p className="font-semibold text-foreground">
+                  {recipientDisplayName}
                 </p>
+                {recipientDisplayLocation && (
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                    {recipientDisplayLocation}
+                  </p>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Timeline Riwayat Biteship Aktual */}
+        {/* Timeline Riwayat Pengiriman Lengkap (Start -> End) */}
         <div className="mt-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3 flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Riwayat Aktivitas Logistik
             </h3>
@@ -351,75 +398,76 @@ export default function ShipmentTrackingModal({
               onClick={loadTracking}
               className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 disabled:opacity-50"
             >
-              <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-3 w-3 ${loading ? "animate-spin" : ""}`}
+                aria-hidden="true"
+              />
               <span>Perbarui Status</span>
             </button>
           </div>
 
           {loading ? (
-            <div className="py-8 flex justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          ) : !tracking || !tracking.history || tracking.history.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">
-              Booking kurir Biteship telah berhasil dibuat dan resi telah diterbitkan. Menunggu pembaruan penjemputan dari kurir.
+            <div className="flex justify-center py-8">
+              <Loader2
+                className="h-6 w-6 animate-spin text-primary"
+                aria-hidden="true"
+              />
             </div>
           ) : (
-            <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
-              {(tracking.history as { location?: string; description?: string; time?: string; note?: string; status?: string; updated_at?: string; date?: string }[]).map((entry, idx: number) => {
+            <ol className="relative ml-3 space-y-5 border-l border-border pl-6">
+              {timelineEvents.map((event, idx) => {
                 const isLatest = idx === 0;
+                const isCancelledEvent = Boolean(event.isCancelled);
                 return (
-                  <div key={idx} className="relative">
+                  <li key={event.id} className="relative">
                     <span
-                      className={`absolute -left-6 top-1 h-3 w-3 rounded-full border-2 ${
-                        isLatest
-                          ? "border-primary bg-primary ring-4 ring-primary/15"
-                          : "border-zinc-300 bg-surface"
+                      className={`absolute -left-[30px] top-1 h-3 w-3 rounded-full border-2 ${
+                        isCancelledEvent
+                          ? "border-error bg-error"
+                          : isLatest
+                            ? "border-primary bg-primary ring-4 ring-primary/15"
+                            : "border-border bg-surface"
                       }`}
+                      aria-hidden="true"
                     />
                     <div className="flex flex-wrap items-center gap-2">
-                      <p
-                        className={`text-xs leading-relaxed ${
-                          isLatest
-                            ? "font-bold text-foreground"
-                            : "font-medium text-foreground/80"
-                        }`}
+                      <time
+                        dateTime={event.isoDate}
+                        className="text-xs font-medium tabular-nums text-muted-foreground"
                       >
-                        {entry.note || entry.status || "Status Pengiriman"}
-                      </p>
+                        {event.dateStr} · {event.timeStr}
+                      </time>
                       {isLatest && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary">
+                        <span className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
                           Status Terkini
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
-                      <span>
-                        {entry.updated_at || entry.date
-                          ? formatDateTime(entry.updated_at || entry.date || null)
-                          : "Waktu tercatat"}
-                      </span>
-                      {entry.location && (
-                        <span className="inline-flex items-center gap-1 text-muted-foreground font-medium">
-                          📍 {entry.location}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                    <p
+                      className={`mt-0.5 text-sm font-bold ${
+                        isCancelledEvent ? "text-error" : "text-foreground"
+                      }`}
+                    >
+                      {event.statusTitle}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                      {event.description}
+                    </p>
+                  </li>
                 );
               })}
-            </div>
+            </ol>
           )}
 
-          {tracking?.link && (
+          {tracking?.link && tracking.link.startsWith("https://") && (
             <a
               href={tracking.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 underline"
+              className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-primary underline hover:text-primary/80"
             >
-              <span>Buka halaman pelacakan kurir Biteship</span>
-              <ExternalLink className="h-3 w-3" />
+              <span>Peta Pelacakan Kurir</span>
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </a>
           )}
         </div>
@@ -462,17 +510,17 @@ export default function ShipmentTrackingModal({
           {/* Kontrol simulasi hanya tampil di mode development bila flag diaktifkan */}
           {process.env.NEXT_PUBLIC_ENABLE_BITESHIP_SIMULATOR === "true" &&
             (userRole === "SUPPLIER" || userRole === "ADMIN") && (
-            <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50/50 p-4">
-              <p className="text-xs font-semibold text-amber-950">Simulasi pengiriman</p>
+            <div className="rounded-xl border border-dashed border-warning/40 bg-warning/10 p-4">
+              <p className="text-xs font-semibold text-foreground">Simulasi pengiriman</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {!isShipped && (
                   <button
                     type="button"
                     disabled={actionLoading}
                     onClick={() => handleSimulate("SHIPPED")}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50 transition-colors shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-warning/40 bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-warning/15 disabled:opacity-50 transition-colors"
                   >
-                    <Truck className="h-3.5 w-3.5 text-amber-700" />
+                    <Truck className="h-3.5 w-3.5 text-warning" />
                     <span>Simulasikan penjemputan</span>
                   </button>
                 )}
@@ -498,6 +546,6 @@ export default function ShipmentTrackingModal({
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

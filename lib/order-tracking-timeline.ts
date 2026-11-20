@@ -312,3 +312,267 @@ export function buildOrderTrackingTimeline({
     (a, b) => b.timestampMs - a.timestampMs || b.phaseRank - a.phaseRank,
   );
 }
+
+export interface BuildSupplierTrackingTimelineInput {
+  orderType: "PREORDER" | "DIRECT_SALE";
+  orderNumber: string;
+  status: string;
+  flowerName: string;
+  quantity: number;
+  unit?: string | null;
+  supplierName?: string | null;
+  floristName?: string | null;
+  courier?: string | null;
+  trackingNumber?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+  confirmedAt?: string | null;
+  depositPaidAt?: string | null;
+  finalPaidAt?: string | null;
+  shippedAt?: string | null;
+  deliveredAt?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
+  remoteHistory?: Array<{
+    note?: string | null;
+    status?: string | null;
+    updated_at?: string | null;
+  }>;
+}
+
+export function buildSupplierTrackingTimeline({
+  orderType,
+  orderNumber,
+  status,
+  flowerName,
+  quantity,
+  unit,
+  supplierName,
+  floristName,
+  courier,
+  trackingNumber,
+  createdAt,
+  updatedAt,
+  confirmedAt,
+  depositPaidAt,
+  finalPaidAt,
+  shippedAt,
+  deliveredAt,
+  cancelledAt,
+  cancelReason,
+  remoteHistory = [],
+}: BuildSupplierTrackingTimelineInput): TrackingTimelineEvent[] {
+  const createdDate = new Date(createdAt);
+  const fallbackCreated = Number.isNaN(createdDate.getTime())
+    ? new Date()
+    : createdDate;
+  const orderUpdatedAt = updatedAt || createdAt;
+  const unitLabel = unit?.trim() || "tangkai";
+  const supplierLabel = supplierName?.trim() || "Mitra Kebun";
+  const floristLabel = floristName?.trim() || "Studio Florist";
+  const courierRaw = courier?.trim() ?? "";
+  const courierDisplayName = courierRaw
+    ? courierRaw.toUpperCase()
+    : "Kurir Ekspedisi";
+
+  const events: TrackingTimelineEvent[] = [];
+
+  // 1. Milestone pembuatan pesanan / pre-order
+  const createdTs = formatEventTimestamp(createdAt, fallbackCreated);
+  events.push({
+    id: "sup-ev-created",
+    ...createdTs,
+    phaseRank: 10,
+    statusTitle:
+      orderType === "PREORDER" ? "Pre-Order Dibuat" : "Pesanan Pasokan Dibuat",
+    description:
+      orderType === "PREORDER"
+        ? `Pre-Order #${orderNumber} dibuat untuk ${flowerName} (${quantity} ${unitLabel}).`
+        : `Pesanan #${orderNumber} dibuat untuk ${flowerName} (${quantity} ${unitLabel}).`,
+  });
+
+  // 2. Milestone persetujuan supplier (khusus Pre-Order)
+  if (orderType === "PREORDER" && confirmedAt) {
+    const confirmedTs = formatEventTimestamp(confirmedAt, fallbackCreated);
+    events.push({
+      id: "sup-ev-confirmed",
+      ...confirmedTs,
+      phaseRank: 15,
+      statusTitle: "Kuota Disetujui Supplier",
+      description: `Supplier ${supplierLabel} menyetujui alokasi panen.`,
+    });
+  }
+
+  // 3. Milestone pembayaran (DP 50% / Pelunasan / Pembayaran penuh)
+  const isPaidOrFurther = ["PAID", "SHIPPED", "DELIVERED"].includes(status);
+  if (orderType === "PREORDER") {
+    if (depositPaidAt) {
+      const dpTs = formatEventTimestamp(depositPaidAt, fallbackCreated);
+      events.push({
+        id: "sup-ev-deposit-paid",
+        ...dpTs,
+        phaseRank: 20,
+        statusTitle: "DP 50% Terverifikasi",
+        description: "Pembayaran uang muka 50% telah diterima dan diverifikasi.",
+      });
+    }
+    if (finalPaidAt) {
+      const finalTs = formatEventTimestamp(finalPaidAt, fallbackCreated);
+      events.push({
+        id: "sup-ev-final-paid",
+        ...finalTs,
+        phaseRank: 25,
+        statusTitle: "Pelunasan Terverifikasi",
+        description:
+          "Pelunasan 100% terverifikasi, supplier menyiapkan pengemasan bunga.",
+      });
+    } else if (!depositPaidAt && isPaidOrFurther) {
+      const paidTs = formatEventTimestamp(
+        confirmedAt || createdAt,
+        fallbackCreated,
+      );
+      events.push({
+        id: "sup-ev-paid",
+        ...paidTs,
+        phaseRank: 25,
+        statusTitle: "Pembayaran Terverifikasi",
+        description:
+          "Pembayaran terverifikasi, supplier menyiapkan pengemasan bunga.",
+      });
+    }
+  } else if (isPaidOrFurther) {
+    const paidTs = formatEventTimestamp(createdAt, fallbackCreated);
+    events.push({
+      id: "sup-ev-paid",
+      ...paidTs,
+      phaseRank: 20,
+      statusTitle: "Pembayaran Terverifikasi",
+      description:
+        "Pembayaran terverifikasi, supplier menyiapkan pengemasan bunga.",
+    });
+  }
+
+  // 4. Seluruh riwayat dari API kurir (dilokalisasi ke Bahasa Indonesia)
+  let hasRemoteConfirmedOrAllocated = false;
+  let hasRemoteShipped = false;
+  let hasRemoteDelivered = false;
+  let hasRemoteCancelled = false;
+
+  remoteHistory.forEach((entry, idx) => {
+    if (!entry.status && !entry.note) return;
+    const normalized = (entry.status || "confirmed").trim().toLowerCase();
+    if (normalized === "confirmed" || normalized === "allocated") {
+      hasRemoteConfirmedOrAllocated = true;
+    }
+    if (normalized === "picked" || normalized === "dropping_off") {
+      hasRemoteShipped = true;
+    }
+    if (normalized === "delivered") {
+      hasRemoteDelivered = true;
+    }
+    if (normalized === "cancelled") {
+      hasRemoteCancelled = true;
+    }
+
+    const remoteTs = formatEventTimestamp(
+      entry.updated_at || orderUpdatedAt,
+      fallbackCreated,
+    );
+
+    events.push({
+      id: `sup-courier-event-${idx}`,
+      ...remoteTs,
+      phaseRank: REMOTE_STATUS_PHASE_RANK[normalized] ?? 40,
+      statusTitle: formatTrackingEventTitle(normalized),
+      description: formatCourierNote(entry.note, courierRaw, normalized),
+      isCancelled: normalized === "cancelled",
+    });
+  });
+
+  // 5. Fallback milestone database bila belum tercakup riwayat kurir
+  const isDelivered = status === "DELIVERED" || Boolean(deliveredAt);
+  const isShippedOrDelivered =
+    status === "SHIPPED" || isDelivered || Boolean(shippedAt);
+  const isCancelledOrExpired = status === "CANCELLED" || status === "EXPIRED";
+
+  if (
+    trackingNumber &&
+    !hasRemoteConfirmedOrAllocated &&
+    !isShippedOrDelivered
+  ) {
+    const awbTs = formatEventTimestamp(orderUpdatedAt, fallbackCreated);
+    events.push({
+      id: "sup-ev-awb-created",
+      ...awbTs,
+      phaseRank: 30,
+      statusTitle: "Resi Diterbitkan",
+      description: `No. resi ${trackingNumber} (${courierDisplayName}).`,
+    });
+  }
+
+  if (isShippedOrDelivered && !hasRemoteShipped) {
+    const shippedTs = formatEventTimestamp(
+      shippedAt || orderUpdatedAt,
+      fallbackCreated,
+    );
+    events.push({
+      id: "sup-ev-shipped",
+      ...shippedTs,
+      phaseRank: 45,
+      statusTitle: "Diserahkan ke Kurir",
+      description: `Paket ${flowerName} (${quantity} ${unitLabel}) dikirim dari ${supplierLabel} melalui ${courierDisplayName}${
+        trackingNumber ? ` · resi ${trackingNumber}` : ""
+      }.`,
+    });
+  }
+
+  if (isDelivered && !hasRemoteDelivered) {
+    let deliveredTs = formatEventTimestamp(
+      deliveredAt || orderUpdatedAt,
+      fallbackCreated,
+    );
+    if (!deliveredAt) {
+      const highestActiveTs = events
+        .filter((ev) => !ev.isCancelled)
+        .reduce((max, ev) => Math.max(max, ev.timestampMs), 0);
+      if (highestActiveTs > deliveredTs.timestampMs) {
+        deliveredTs = formatEventTimestamp(
+          new Date(highestActiveTs).toISOString(),
+          fallbackCreated,
+        );
+      }
+    }
+    events.push({
+      id: "sup-ev-delivered",
+      ...deliveredTs,
+      phaseRank: 60,
+      statusTitle: "Bunga Diterima Florist",
+      description: `Diterima oleh ${floristLabel} dan stok otomatis masuk ke inventaris bahan baku.`,
+    });
+  }
+
+  if (isCancelledOrExpired && !hasRemoteCancelled) {
+    const cancelledTs = formatEventTimestamp(
+      cancelledAt || orderUpdatedAt,
+      fallbackCreated,
+    );
+    const trimmedReason = cancelReason?.trim();
+    events.push({
+      id: "sup-ev-cancelled",
+      ...cancelledTs,
+      phaseRank: 70,
+      statusTitle:
+        status === "EXPIRED" ? "Pre-Order Kedaluwarsa" : "Pesanan Dibatalkan",
+      description: trimmedReason
+        ? `Alasan: ${trimmedReason}`
+        : status === "EXPIRED"
+          ? "Batas waktu pembayaran telah terlewati."
+          : "Pesanan dibatalkan.",
+      isCancelled: true,
+    });
+  }
+
+  return events.toSorted(
+    (a, b) => b.timestampMs - a.timestampMs || b.phaseRank - a.phaseRank,
+  );
+}

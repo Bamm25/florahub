@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   buildOrderTrackingTimeline,
+  buildSupplierTrackingTimeline,
   formatCourierNote,
 } from "../lib/order-tracking-timeline";
 
@@ -184,4 +185,158 @@ test("UI detail dan pelacakan pesanan menyambungkan confirmOrderDelivery dan Con
   }
   assert.match(detailPage, /Tulis Ulasan/);
   assert.match(trackingPage, /buildOrderTrackingTimeline/);
+});
+
+test("buildSupplierTrackingTimeline menggabungkan milestone Pre-Order DB dengan event sandbox confirmed menjadi timeline Bahasa Indonesia lengkap", () => {
+  const events = buildSupplierTrackingTimeline({
+    orderType: "PREORDER",
+    orderNumber: "PO-O249IUPD",
+    status: "DELIVERED",
+    flowerName: "Mawar Merah Semi Holland",
+    quantity: 100,
+    unit: "tangkai",
+    supplierName: "Kebun Batu Sejuk",
+    floristName: "Studio Flora Indah",
+    courier: "jne",
+    trackingNumber: "WYB-1794637475192",
+    createdAt: "2026-11-14T06:20:00.000Z",
+    confirmedAt: "2026-11-14T06:21:00.000Z",
+    depositPaidAt: "2026-11-14T06:22:00.000Z",
+    finalPaidAt: "2026-11-14T06:23:00.000Z",
+    shippedAt: "2026-11-14T06:26:00.000Z",
+    deliveredAt: "2026-11-14T06:35:00.000Z",
+    remoteHistory: [
+      {
+        status: "confirmed",
+        note: "Courier order is confirmed. jne has been notified to pick up. Pickup Number: WYB-1794637475192",
+        updated_at: "2026-11-14T06:24:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(events.length, 7);
+  assert.deepEqual(
+    events.map((ev) => ev.statusTitle),
+    [
+      "Bunga Diterima Florist",
+      "Diserahkan ke Kurir",
+      "Pesanan Kurir Dikonfirmasi",
+      "Pelunasan Terverifikasi",
+      "DP 50% Terverifikasi",
+      "Kuota Disetujui Supplier",
+      "Pre-Order Dibuat",
+    ],
+  );
+  assert.equal(
+    events.some((ev) => /Courier order is confirmed/i.test(ev.description)),
+    false,
+  );
+  assert.match(events[2].description, /JNE/);
+  assert.match(events[2].description, /WYB-1794637475192/);
+});
+
+test("buildSupplierTrackingTimeline menyusun timeline pasokan langsung (DIRECT_SALE) berstatus SHIPPED dengan event sandbox confirmed", () => {
+  const events = buildSupplierTrackingTimeline({
+    orderType: "DIRECT_SALE",
+    orderNumber: "SO-ABC12345",
+    status: "SHIPPED",
+    flowerName: "Tulip Import",
+    quantity: 50,
+    unit: "tangkai",
+    supplierName: "Kebun Lembang",
+    floristName: "Studio Melati",
+    courier: "sicepat",
+    trackingNumber: "WYB-998877",
+    createdAt: "2026-11-14T08:00:00.000Z",
+    shippedAt: "2026-11-14T08:15:00.000Z",
+    remoteHistory: [
+      {
+        status: "confirmed",
+        note: "Courier order is confirmed. sicepat has been notified to pick up. Pickup Number: WYB-998877",
+        updated_at: "2026-11-14T08:05:00.000Z",
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    events.map((ev) => ev.statusTitle),
+    [
+      "Diserahkan ke Kurir",
+      "Pesanan Kurir Dikonfirmasi",
+      "Pembayaran Terverifikasi",
+      "Pesanan Pasokan Dibuat",
+    ],
+  );
+  assert.equal(
+    events.some((ev) => /Courier order is confirmed/i.test(ev.description)),
+    false,
+  );
+});
+
+test("buildSupplierTrackingTimeline menduplikasi milestone secara aman saat riwayat kurir produksi sudah memuat picked dan delivered", () => {
+  const events = buildSupplierTrackingTimeline({
+    orderType: "PREORDER",
+    orderNumber: "PO-PROD01",
+    status: "DELIVERED",
+    flowerName: "Lily Putih",
+    quantity: 40,
+    courier: "jne",
+    trackingNumber: "JNE-PROD-01",
+    createdAt: "2026-11-15T07:00:00.000Z",
+    confirmedAt: "2026-11-15T07:05:00.000Z",
+    depositPaidAt: "2026-11-15T07:10:00.000Z",
+    finalPaidAt: "2026-11-15T07:15:00.000Z",
+    shippedAt: "2026-11-15T08:00:00.000Z",
+    deliveredAt: "2026-11-15T12:00:00.000Z",
+    remoteHistory: [
+      {
+        status: "confirmed",
+        note: "Courier order is confirmed. jne has been notified to pick up. Pickup Number: PKP-88",
+        updated_at: "2026-11-15T07:20:00.000Z",
+      },
+      {
+        status: "picked",
+        note: "Paket sudah dijemput kurir",
+        updated_at: "2026-11-15T08:00:00.000Z",
+      },
+      {
+        status: "delivered",
+        note: "Paket telah diterima oleh Studio Florist",
+        updated_at: "2026-11-15T12:00:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(events.length, 7);
+  assert.deepEqual(
+    events.map((ev) => ev.statusTitle),
+    [
+      "Paket Diterima",
+      "Paket Dijemput Kurir",
+      "Pesanan Kurir Dikonfirmasi",
+      "Pelunasan Terverifikasi",
+      "DP 50% Terverifikasi",
+      "Kuota Disetujui Supplier",
+      "Pre-Order Dibuat",
+    ],
+  );
+});
+
+test("Route track supplier dan ShipmentTrackingModal menggunakan buildSupplierTrackingTimeline serta bebas teks mentah/jargon vendor", () => {
+  const trackRoute = readProjectFile(
+    "app/api/supplier/shipments/[id]/track/route.ts",
+  );
+  const trackingModal = readProjectFile(
+    "components/ui/ShipmentTrackingModal.tsx",
+  );
+  const preOrderTable = readProjectFile("components/florist/PreOrderTable.tsx");
+
+  assert.match(trackRoute, /buildSupplierTrackingTimeline/);
+  assert.match(trackingModal, /buildSupplierTrackingTimeline/);
+  assert.match(trackingModal, /event\.statusTitle/);
+  assert.match(trackingModal, /event\.description/);
+  assert.match(trackingModal, /timelineEvents/);
+  assert.doesNotMatch(trackingModal, /Booking Biteship/);
+  assert.doesNotMatch(trackingModal, /Lunas 100% via Midtrans/);
+  assert.match(preOrderTable, /onRefresh\?\.\(\)/);
 });

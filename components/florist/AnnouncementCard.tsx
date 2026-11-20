@@ -44,38 +44,38 @@ export default function AnnouncementCard({
     : 0;
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden hover:border-foreground/30 transition-colors flex flex-col justify-between">
+    <article className="m-card group flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-surface shadow-xs transition-colors hover:border-foreground/30">
       <div>
-        <div className="relative h-44 bg-surface-container-low overflow-hidden">
+        <div className="relative h-48 overflow-hidden bg-surface-container-low">
           {announcement.image ? (
             <Image
               src={announcement.image}
               alt={announcement.flowerName}
               fill
               unoptimized
-              className="object-cover transition-transform duration-300 hover:scale-105"
+              className="m-zoom object-cover"
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground/50">
-              <Flower2 className="h-10 w-10 stroke-[1.5]" />
+            <div className="flex h-full items-center justify-center text-muted-foreground/50">
+              <Flower2 className="h-10 w-10 stroke-[1.5]" aria-hidden="true" />
             </div>
           )}
-          <div className="absolute top-2.5 right-2.5">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-primary/90 text-primary-foreground backdrop-blur-xs">
+          <div className="absolute right-3 top-3">
+            <span className="inline-flex items-center rounded-md bg-primary/90 px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground backdrop-blur-xs">
               Aktif
             </span>
           </div>
         </div>
 
-        <div className="p-4 space-y-3">
+        <div className="space-y-3 p-5">
           <div>
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               {announcement.supplier.name}
             </span>
-            <h3 className="font-semibold text-foreground text-sm line-clamp-1 mt-0.5">
+            <h3 className="mt-0.5 line-clamp-1 text-base font-bold text-foreground">
               {announcement.flowerName}
               {announcement.variety && (
-                <span className="text-xs text-muted-foreground font-normal ml-1">
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
                   ({announcement.variety})
                 </span>
               )}
@@ -84,38 +84,46 @@ export default function AnnouncementCard({
 
           <div className="space-y-1.5 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-primary" />
-              <span>Panen: {formatDate(announcement.harvestDate)}</span>
+              <Calendar className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+              <span>
+                Panen:{" "}
+                <time dateTime={announcement.harvestDate}>
+                  {formatDate(announcement.harvestDate)}
+                </time>
+              </span>
             </div>
             {announcement.location && (
               <div className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                 <span className="truncate">{announcement.location}</span>
               </div>
             )}
           </div>
 
-          <div className="pt-2.5 border-t border-border/80 space-y-2">
+          <div className="space-y-2 border-t border-border/80 pt-3">
             <div className="flex items-baseline justify-between">
-              <span className="text-xs text-muted-foreground">Harga per Tangkai</span>
-              <span className="text-base font-bold text-foreground tabular-nums">
+              <span className="text-xs text-muted-foreground">
+                Harga per Tangkai
+              </span>
+              <span className="text-base font-bold tabular-nums text-foreground">
                 {formatRupiah(announcement.pricePerUnit)}
               </span>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Sisa kuota</span>
-                <span className="text-foreground font-semibold tabular-nums">
-                  {available.toLocaleString("id-ID")} / {announcement.estimatedQuantity.toLocaleString("id-ID")}
+                <span className="text-muted-foreground">Sisa Kuota</span>
+                <span className="font-semibold tabular-nums text-foreground">
+                  {available.toLocaleString("id-ID")} /{" "}
+                  {announcement.estimatedQuantity.toLocaleString("id-ID")}
                 </span>
               </div>
-              <div className="w-full bg-surface-container-low rounded-full h-1.5 overflow-hidden">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-container-low">
                 <div
                   className={`h-1.5 rounded-full transition-all ${
                     percentBooked >= 80
-                      ? "bg-rose-500"
+                      ? "bg-error"
                       : percentBooked >= 50
-                        ? "bg-amber-400"
+                        ? "bg-warning"
                         : "bg-primary"
                   }`}
                   style={{ width: `${percentBooked}%` }}
@@ -126,17 +134,17 @@ export default function AnnouncementCard({
         </div>
       </div>
 
-      <div className="p-4 pt-0">
+      <div className="p-5 pt-0">
         <button
           type="button"
           onClick={() => onCreatePreOrder(announcement)}
           disabled={available <= 0}
-          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+          className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Plus className="w-4 h-4" />
-          {available > 0 ? "Ajukan Pre-Order" : "Kuota Habis"}
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          <span>{available > 0 ? "Ajukan Pre-Order" : "Kuota Habis"}</span>
         </button>
       </div>
-    </div>
+    </article>
   );
 }

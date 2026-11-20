@@ -799,7 +799,7 @@ export default function AdminOrdersMonitoringPage() {
           if (!open) setSelectedOrder(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               Detail Observasi Pesanan {selectedOrder?.orderNumber}
@@ -985,7 +985,7 @@ export default function AdminOrdersMonitoringPage() {
           if (!open) setSelectedSupply(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               Detail Pasokan B2B — {selectedSupply?.flowerName}

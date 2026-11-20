@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Eye, Receipt, X, Truck, Navigation } from "lucide-react";
+import { Eye, Receipt, Truck, Navigation } from "lucide-react";
+import Modal from "@/components/forms/Modal";
 import { getSupplierSales, StockTransactionItem } from "@/lib/api/supplier";
 import StatusBadge from "@/components/ui/StatusBadge";
 import SupplierDeliveryStatus from "@/components/ui/SupplierDeliveryStatus";
@@ -260,132 +261,115 @@ export default function SupplierSalesPage() {
       )}
 
       {/* Rincian transaksi dan status pembayaran otomatis */}
-      {isModalOpen && selectedSale && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-foreground">
-                  Rincian Transaksi Penjualan
-                </h2>
-                <p className="font-mono text-xs text-muted-foreground">
-                  ID: #{selectedSale.id}
-                </p>
+      <Modal
+        isOpen={isModalOpen && Boolean(selectedSale)}
+        onClose={() => setIsModalOpen(false)}
+        size="sm"
+        title="Rincian Transaksi Penjualan"
+        subtitle={selectedSale ? `ID: #${selectedSale.id}` : undefined}
+        footer={
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(false)}
+            className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-container"
+          >
+            Tutup
+          </button>
+        }
+      >
+        {selectedSale && (
+          <div className="space-y-4 text-sm">
+            {/* Rincian Pemesan & Bunga */}
+            <div className="rounded-xl bg-surface-container-low p-4 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Florist Pemesan:
+                </span>
+                <span className="font-semibold text-foreground">
+                  {selectedSale.florist.name} ({selectedSale.florist.email})
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-surface-container"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-4 text-sm">
-              {/* Rincian Pemesan & Bunga */}
-              <div className="rounded-xl bg-surface-container-low p-4 space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Florist Pemesan:
-                  </span>
-                  <span className="font-semibold text-foreground">
-                    {selectedSale.florist.name} ({selectedSale.florist.email})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Bunga Dipesan:</span>
-                  <span className="font-semibold text-foreground">
-                    {selectedSale.stock.name} (
-                    {selectedSale.stock.variety || "Standar"})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Kuantitas:</span>
-                  <span className="font-semibold text-foreground">
-                    {selectedSale.quantity.toLocaleString("id-ID")} tangkai
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Waktu Pemesanan:
-                  </span>
-                  <span className="text-foreground">
-                    {formatDateTime(selectedSale.createdAt)}
-                  </span>
-                </div>
-                <div className="flex justify-between border-t border-border pt-2 text-sm font-bold text-foreground">
-                  <span>Total Tagihan:</span>
-                  <span className="text-foreground">
-                    {formatRupiah(selectedSale.totalPrice)}
-                  </span>
-                </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Bunga Dipesan:</span>
+                <span className="font-semibold text-foreground">
+                  {selectedSale.stock.name} (
+                  {selectedSale.stock.variety || "Standar"})
+                </span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Kuantitas:</span>
+                <span className="font-semibold text-foreground tabular-nums">
+                  {selectedSale.quantity.toLocaleString("id-ID")} tangkai
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Waktu Pemesanan:
+                </span>
+                <span className="text-foreground">
+                  {formatDateTime(selectedSale.createdAt)}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-border pt-2 text-sm font-bold text-foreground">
+                <span>Total Tagihan:</span>
+                <span className="text-foreground tabular-nums">
+                  {formatRupiah(selectedSale.totalPrice)}
+                </span>
+              </div>
+            </div>
 
-              {selectedSale.status === "PENDING" && (
-                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                  Menunggu pembayaran florist melalui Midtrans. Hanya pembayaran yang terverifikasi otomatis dapat diproses untuk pengiriman.
+            {selectedSale.status === "PENDING" && (
+              <p className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
+                Menunggu pembayaran florist melalui Midtrans. Hanya pembayaran yang terverifikasi otomatis dapat diproses untuk pengiriman.
+              </p>
+            )}
+            {selectedSale.biteshipOrderId && (
+              <div className="rounded-xl border border-border bg-surface-container-low p-4 space-y-3">
+                <SupplierDeliveryStatus
+                  status={selectedSale.status}
+                  booked={true}
+                  courier={selectedSale.courier}
+                  trackingNumber={selectedSale.trackingNumber}
+                  bookedAt={selectedSale.shippedAt}
+                  deliveredAt={selectedSale.deliveredAt}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const saleToTrack = selectedSale;
+                    setIsModalOpen(false);
+                    setTrackingSale(saleToTrack);
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+                >
+                  <Navigation className="h-4 w-4" />
+                  <span>Buka Pelacakan & Kontrol Serah Terima Kurir</span>
+                </button>
+              </div>
+            )}
+
+            {/* Arahkan ke menu Pengiriman Biteship saat status Lunas (PAID) */}
+            {selectedSale.status === "PAID" && !selectedSale.biteshipOrderId && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2 text-xs text-foreground">
+                <div className="flex items-center gap-2 font-semibold text-primary">
+                  <Truck className="h-4 w-4" />
+                  <span>Pesanan Lunas — Siap Diproses untuk Pengiriman</span>
+                </div>
+                <p className="text-muted-foreground">
+                  Buka menu Pengiriman untuk memilih kurir Biteship, menghitung ongkos kirim, dan menerbitkan resi otomatis.
                 </p>
-              )}
-              {selectedSale.biteshipOrderId && (
-                <div className="rounded-xl border border-border bg-surface-container-low p-4 space-y-3">
-                  <SupplierDeliveryStatus
-                    status={selectedSale.status}
-                    booked={true}
-                    courier={selectedSale.courier}
-                    trackingNumber={selectedSale.trackingNumber}
-                    bookedAt={selectedSale.shippedAt}
-                    deliveredAt={selectedSale.deliveredAt}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const saleToTrack = selectedSale;
-                      setIsModalOpen(false);
-                      setTrackingSale(saleToTrack);
-                    }}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
-                  >
-                    <Navigation className="h-4 w-4" />
-                    <span>Buka Pelacakan & Kontrol Serah Terima Kurir</span>
-                  </button>
-                </div>
-              )}
-
-              {/* Arahkan ke menu Pengiriman Biteship saat status Lunas (PAID) */}
-              {selectedSale.status === "PAID" && !selectedSale.biteshipOrderId && (
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2 text-xs text-foreground">
-                  <div className="flex items-center gap-2 font-semibold text-primary">
-                    <Truck className="h-4 w-4" />
-                    <span>Pesanan Lunas — Siap Diproses untuk Pengiriman</span>
-                  </div>
-                  <p className="text-muted-foreground">
-                    Buka menu Pengiriman untuk memilih kurir Biteship, menghitung ongkos kirim, dan menerbitkan resi otomatis.
-                  </p>
-                  <a
-                    href="/supplier/shipments"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    <Truck className="h-3.5 w-3.5" />
-                    <span>Atur Pengiriman Biteship</span>
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {/* Tombol Aksi */}
-            <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-container"
-              >
-                Tutup
-              </button>
-
-            </div>
+                <a
+                  href="/supplier/shipments"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <Truck className="h-3.5 w-3.5" />
+                  <span>Atur Pengiriman Biteship</span>
+                </a>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* MODAL PELACAKAN PENGIRIMAN PASOKAN UNTUK SUPPLIER */}
       {trackingSale && (

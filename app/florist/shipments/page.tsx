@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Package, Loader2, X, Truck } from "lucide-react";
+import { Package, Loader2, Truck } from "lucide-react";
+import Modal from "@/components/forms/Modal";
+import { Pagination } from "@/components/ui";
 import TabNavigation from "@/components/ui/TabNavigation";
 import DataStateWrapper from "@/components/ui/DataStateWrapper";
 import { ShipmentTable } from "@/components/florist/ShipmentTable";
@@ -15,7 +17,6 @@ import {
   trackFloristShipment,
   getFloristShipmentRates,
   autoCreateFloristShipment,
-  createManualFloristShipment,
   updateFloristShipment,
   type FloristShipmentRate,
 } from "@/lib/api/florist";
@@ -69,6 +70,9 @@ interface Order {
   };
 }
 
+const SHIPMENTS_PER_PAGE = 10;
+const PAID_ORDERS_PER_PAGE = 9;
+
 export default function FloristShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [paidOrders, setPaidOrders] = useState<Order[]>([]);
@@ -79,6 +83,8 @@ export default function FloristShipmentsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [shipmentsPage, setShipmentsPage] = useState(1);
+  const [paidOrdersPage, setPaidOrdersPage] = useState(1);
   const [activeTab, setActiveTab] = useState<"shipments" | "create">("shipments");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -97,8 +103,7 @@ export default function FloristShipmentsPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // State untuk mode pengiriman otomatis Biteship dan pilihan tarif kurir
-  const [shipmentMode, setShipmentMode] = useState<"auto" | "manual">("auto");
+  // State untuk pilihan tarif kurir otomatis Biteship
   const [availableRates, setAvailableRates] = useState<FloristShipmentRate[]>([]);
   const [selectedRate, setSelectedRate] = useState<string>("");
   const [isFetchingRates, setIsFetchingRates] = useState(false);
@@ -151,7 +156,16 @@ export default function FloristShipmentsPage() {
   };
 
   useEffect(() => {
-    void fetchData();
+    const timer = window.setTimeout(() => {
+      void fetchData();
+      const params = new URLSearchParams(window.location.search);
+      const targetOrderId = params.get("orderId");
+      if (targetOrderId) {
+        setActiveTab("create");
+        void openCreateModal(targetOrderId);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -168,12 +182,11 @@ export default function FloristShipmentsPage() {
       status: "PENDING",
     });
     setFormErrors({});
-    setShipmentMode("auto");
     setAvailableRates([]);
     setSelectedRate("");
     setIsModalOpen(true);
 
-    // Auto-fetch rates untuk mode otomatis
+    // Auto-fetch rates kurir Biteship
     if (orderId) {
       await fetchRates(orderId);
     }
@@ -184,6 +197,9 @@ export default function FloristShipmentsPage() {
     try {
       const rates = await getFloristShipmentRates(orderId);
       setAvailableRates(rates);
+      if (rates.length > 0) {
+        setSelectedRate(rates[0].rate_id);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error fetching rates";
 
@@ -214,49 +230,15 @@ export default function FloristShipmentsPage() {
     setSelectedOrderId("");
   };
 
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-
-    if (modalMode === "create" && !selectedOrderId) {
-      errors.orderId = "Pilih order yang sudah dibayar";
-    }
-
-    if (!formData.courier.trim()) errors.courier = "Courier wajib diisi";
-
-    const requiresTracking = formData.status === "SHIPPED" || formData.status === "DELIVERED";
-    if (requiresTracking && !formData.trackingNumber?.trim() && !selectedShipment?.biteshipOrderId) {
-      errors.trackingNumber = "Nomor resi wajib untuk status SHIPPED";
-    }
-
-    const hasEstimatedDays = formData.estimatedDays && formData.estimatedDays.trim();
-    if (hasEstimatedDays) {
-      const daysValue = parseInt(formData.estimatedDays, 10);
-      if (isNaN(daysValue)) {
-        errors.estimatedDays = "Estimasi hari harus berupa angka valid";
-      } else if (daysValue < 0) {
-        errors.estimatedDays = "Estimasi hari tidak boleh negatif";
-      }
-    }
-
-    const hasWeight = formData.weight && formData.weight.trim();
-    if (hasWeight) {
-      const weightValue = parseFloat(formData.weight);
-      if (isNaN(weightValue)) {
-        errors.weight = "Berat harus berupa angka valid";
-      } else if (weightValue <= 0) {
-        errors.weight = "Berat harus lebih dari 0";
-      }
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (shipmentMode === "auto" && modalMode === "create") {
-      // Mode otomatis via Biteship
+    if (modalMode === "create") {
+      // Penerbitan resi otomatis via Biteship
+      if (!selectedOrderId) {
+        setFormErrors({ submit: "Pilih pesanan yang sudah lunas terlebih dahulu" });
+        return;
+      }
       if (!selectedRate) {
         setFormErrors({ rates: "Pilih kurir terlebih dahulu" });
         return;
@@ -264,8 +246,10 @@ export default function FloristShipmentsPage() {
 
       setIsSubmitting(true);
       try {
-        const selectedRateData = availableRates.find(r => r.rate_id === selectedRate);
-        if (!selectedRateData) throw new Error("Rate tidak ditemukan");
+        const selectedRateData = availableRates.find(
+          (r) => r.rate_id === selectedRate,
+        );
+        if (!selectedRateData) throw new Error("Tarif kurir tidak ditemukan");
 
         await autoCreateFloristShipment({
           orderId: selectedOrderId,
@@ -286,40 +270,18 @@ export default function FloristShipmentsPage() {
       return;
     }
 
-    // Mode manual (existing logic)
-    if (!validateForm()) return;
+    // Mode update status pengiriman
+    if (!selectedShipment?.id) {
+      setFormErrors({ submit: "Shipment tidak ditemukan" });
+      return;
+    }
 
     setIsSubmitting(true);
 
     try {
-      const payload: Record<string, unknown> = {
-        courier: formData.courier.trim(),
-        service: formData.service.trim() || null,
-        trackingNumber: formData.trackingNumber.trim() || null,
-        estimatedDays: formData.estimatedDays ? parseInt(formData.estimatedDays, 10) : null,
-        weight: formData.weight ? parseFloat(formData.weight) : null,
-      };
-
-      // Validasi akhir nilai numerik sebelum dikirim ke server
-      if (
-        (payload.estimatedDays !== null && isNaN(Number(payload.estimatedDays))) ||
-        (payload.weight !== null && isNaN(Number(payload.weight)))
-      ) {
-        throw new Error("Invalid numeric values");
-      }
-
-      if (modalMode === "create") {
-        payload.orderId = selectedOrderId;
-        payload.status = "PENDING";
-        await createManualFloristShipment(payload);
-        await fetchPaidOrders();
-      } else {
-        if (!selectedShipment?.id) {
-          throw new Error("Shipment tidak ditemukan");
-        }
-        payload.status = formData.status;
-        await updateFloristShipment(selectedShipment.id, payload);
-      }
+      await updateFloristShipment(selectedShipment.id, {
+        status: formData.status,
+      });
 
       await fetchData();
       closeModal();
@@ -327,10 +289,12 @@ export default function FloristShipmentsPage() {
     } catch (err) {
       if (err instanceof ApiClientError && Array.isArray(err.errors)) {
         const fieldErrors: Record<string, string> = {};
-        err.errors.forEach((fieldErr: { path?: (string | number)[]; message: string }) => {
-          const field = fieldErr.path?.[0] || "submit";
-          fieldErrors[String(field)] = fieldErr.message;
-        });
+        err.errors.forEach(
+          (fieldErr: { path?: (string | number)[]; message: string }) => {
+            const field = fieldErr.path?.[0] || "submit";
+            fieldErrors[String(field)] = fieldErr.message;
+          },
+        );
         setFormErrors(fieldErrors);
         return;
       }
@@ -367,24 +331,46 @@ export default function FloristShipmentsPage() {
     ? shipments.filter(filterShipment)
     : [];
 
+  const shipmentsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredShipments.length / SHIPMENTS_PER_PAGE),
+  );
+  const safeShipmentsPage = Math.min(shipmentsPage, shipmentsTotalPages);
+  const shipmentsStart = (safeShipmentsPage - 1) * SHIPMENTS_PER_PAGE;
+  const paginatedShipments = filteredShipments.slice(
+    shipmentsStart,
+    shipmentsStart + SHIPMENTS_PER_PAGE,
+  );
+
+  const paidOrdersTotalPages = Math.max(
+    1,
+    Math.ceil(paidOrders.length / PAID_ORDERS_PER_PAGE),
+  );
+  const safePaidOrdersPage = Math.min(paidOrdersPage, paidOrdersTotalPages);
+  const paidOrdersStart = (safePaidOrdersPage - 1) * PAID_ORDERS_PER_PAGE;
+  const paginatedPaidOrders = paidOrders.slice(
+    paidOrdersStart,
+    paidOrdersStart + PAID_ORDERS_PER_PAGE,
+  );
+
   const tabs = [
-    { id: "shipments", label: "Daftar Pengiriman" },
-    { id: "create", label: "Buat Pengiriman" },
+    { id: "shipments", label: `Daftar Pengiriman (${shipments.length})` },
+    { id: "create", label: `Buat Pengiriman (${paidOrders.length})` },
   ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
-      {/* Restrained Dark Header for Rhythm */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      {/* Editorial Dark Header */}
+      <section className="flex flex-col gap-6 rounded-[24px] border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
-            Logistik & Pengiriman
+            Logistik & Ekspedisi
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
-            Pengiriman
+            Pengiriman Customer
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
-            Buat resi, pilih kurir, dan pantau paket ke customer.
+            Terbitkan resi otomatis melalui kurir Biteship, cetak label pengiriman, dan pantau status pengantaran paket.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -396,14 +382,14 @@ export default function FloristShipmentsPage() {
             Perbarui Status
           </button>
         </div>
-      </div>
+      </section>
 
       <ShipmentStats
         shipments={shipments}
         paidOrdersCount={paidOrders.length}
       />
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 sm:flex-row sm:items-center sm:p-5">
         <TabNavigation
           tabs={tabs}
           activeTab={activeTab}
@@ -413,9 +399,15 @@ export default function FloristShipmentsPage() {
         {activeTab === "shipments" && (
           <ShipmentFilters
             statusFilter={statusFilter}
-            onStatusChange={setStatusFilter}
+            onStatusChange={(value) => {
+              setStatusFilter(value);
+              setShipmentsPage(1);
+            }}
             searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            onSearchChange={(value) => {
+              setSearchQuery(value);
+              setShipmentsPage(1);
+            }}
           />
         )}
       </div>
@@ -426,24 +418,47 @@ export default function FloristShipmentsPage() {
           error={error}
           isEmpty={filteredShipments.length === 0}
           onRetry={fetchData}
-          emptyIcon={<Truck className="w-16 h-16" />}
+          emptyIcon={<Truck className="h-12 w-12" aria-hidden="true" />}
           emptyTitle={
             searchQuery || statusFilter !== "ALL"
-              ? "Tidak ada shipment yang sesuai filter"
-              : "Belum ada shipment untuk florist ini"
+              ? "Tidak ada pengiriman yang sesuai filter"
+              : "Belum ada pengiriman tercatat"
           }
           emptyDescription={
             searchQuery || statusFilter !== "ALL"
-              ? "Coba ubah filter pencarian"
-              : "Shipment akan muncul setelah dibuat untuk order yang sudah dibayar"
+              ? "Coba sesuaikan kata kunci pencarian atau pilih status lainnya."
+              : "Resi pengiriman akan muncul di sini setelah diterbitkan untuk pesanan yang telah lunas."
           }
         >
-          <ShipmentTable
-            shipments={filteredShipments}
-            onEdit={openEditModal}
-            onSync={handleSyncShipment}
-            syncingId={syncingId}
-          />
+          <div className="space-y-4">
+            <ShipmentTable
+              shipments={paginatedShipments}
+              onEdit={openEditModal}
+              onSync={handleSyncShipment}
+              syncingId={syncingId}
+            />
+            {filteredShipments.length > SHIPMENTS_PER_PAGE && (
+              <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-3.5 sm:flex-row">
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  Menampilkan {shipmentsStart + 1}–
+                  {Math.min(
+                    shipmentsStart + SHIPMENTS_PER_PAGE,
+                    filteredShipments.length,
+                  )}{" "}
+                  dari {filteredShipments.length} pengiriman
+                </p>
+                <Pagination
+                  currentPage={safeShipmentsPage}
+                  totalPages={shipmentsTotalPages}
+                  onPageChange={(page) => {
+                    setShipmentsPage(page);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  ariaLabel="Navigasi halaman pengiriman"
+                />
+              </div>
+            )}
+          </div>
         </DataStateWrapper>
       )}
 
@@ -453,274 +468,245 @@ export default function FloristShipmentsPage() {
           error={ordersError}
           isEmpty={paidOrders.length === 0}
           onRetry={fetchPaidOrders}
-          emptyIcon={<Package className="w-16 h-16" />}
-          emptyTitle="Tidak ada order PAID yang perlu dibuat shipment"
-          emptyDescription="Order yang sudah dibayar dan belum memiliki shipment akan muncul di sini"
+          emptyIcon={<Package className="h-12 w-12" aria-hidden="true" />}
+          emptyTitle="Semua pesanan lunas sudah memiliki resi"
+          emptyDescription="Pesanan baru yang pembayarannya telah diverifikasi akan muncul di sini untuk dibuatkan resi pengiriman."
         >
-          <OutgoingShipmentTable orders={paidOrders} onCreateShipment={openCreateModal} />
+          <div className="space-y-4">
+            <OutgoingShipmentTable
+              orders={paginatedPaidOrders}
+              onCreateShipment={openCreateModal}
+            />
+            {paidOrders.length > PAID_ORDERS_PER_PAGE && (
+              <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-3.5 sm:flex-row">
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  Menampilkan {paidOrdersStart + 1}–
+                  {Math.min(
+                    paidOrdersStart + PAID_ORDERS_PER_PAGE,
+                    paidOrders.length,
+                  )}{" "}
+                  dari {paidOrders.length} pesanan siap kirim
+                </p>
+                <Pagination
+                  currentPage={safePaidOrdersPage}
+                  totalPages={paidOrdersTotalPages}
+                  onPageChange={(page) => {
+                    setPaidOrdersPage(page);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  ariaLabel="Navigasi halaman buat pengiriman"
+                />
+              </div>
+            )}
+          </div>
         </DataStateWrapper>
       )}
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 backdrop-blur-sm p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={modalMode === "create" ? "Buat Shipment Logistik" : "Update Status Pengiriman"}
-            className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
-          >
-            <div className="sticky top-0 z-50 bg-surface-dark text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">
-                  {modalMode === "create" ? "Penerbitan Resi" : "Pembaruan Status"}
-                </p>
-                <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
-                  {modalMode === "create" ? "Buat Shipment Logistik" : "Update Status Pengiriman"}
-                </h2>
-                <p className="text-xs text-white/70 mt-0.5">
-                  {modalMode === "create" ? "Pilih kurir Biteship otomatis atau masukkan nomor resi manual" : "Perbarui status atau detail pengiriman pesanan"}
-                </p>
-              </div>
-              <button
-                type="button"
-                aria-label="Tutup dialog shipment"
-                onClick={closeModal}
-                className="text-white/60 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        size="md"
+        headerVariant="dark"
+        kicker={
+          modalMode === "create"
+            ? "Penerbitan Resi Biteship"
+            : "Pembaruan Status"
+        }
+        title={
+          modalMode === "create"
+            ? "Terbitkan Resi Pengiriman"
+            : "Perbarui Status Pengiriman"
+        }
+        subtitle={
+          modalMode === "create"
+            ? "Pilih tarif dan layanan kurir Biteship untuk menerbitkan nomor resi otomatis"
+            : "Perbarui status pengiriman pesanan customer"
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {formErrors.submit && (
+            <div
+              role="alert"
+              className="rounded-xl border border-error/20 bg-error/5 p-3 text-sm text-error"
+            >
+              {formErrors.submit}
             </div>
+          )}
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
-              {formErrors.submit && (
-                <div className="p-3 bg-error/5 border border-error/20 rounded-xl text-sm text-error">
-                  {formErrors.submit}
+          {modalMode === "edit" && selectedShipment && (
+            <>
+              <dl className="space-y-2 rounded-xl border border-border bg-surface-container-low p-4 text-xs">
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">No. Pesanan</dt>
+                  <dd className="font-mono font-bold text-foreground">
+                    {selectedShipment.order.orderNumber}
+                  </dd>
                 </div>
-              )}
-
-              {modalMode === "edit" && selectedShipment && (
-                <div className="p-4 bg-surface-container-low rounded-xl">
-                  <p className="text-sm font-medium text-foreground mb-1">Order: {selectedShipment.order.orderNumber}</p>
-                  <p className="text-xs text-muted-foreground">Customer: {selectedShipment.order.user.name}</p>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Customer</dt>
+                  <dd className="font-semibold text-foreground">
+                    {selectedShipment.order.user.name}
+                  </dd>
                 </div>
-              )}
-
-              {modalMode === "create" && (
-                <div className="flex gap-2 p-1 bg-surface-container-low rounded-xl border border-border">
-                  <button
-                    type="button"
-                    onClick={() => setShipmentMode("auto")}
-                    className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
-                      shipmentMode === "auto"
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Otomatis (Biteship)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShipmentMode("manual")}
-                    className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
-                      shipmentMode === "manual"
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Input Manual
-                  </button>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Kurir &amp; Layanan</dt>
+                  <dd className="font-semibold text-foreground">
+                    {selectedShipment.courier}
+                    {selectedShipment.service
+                      ? ` · ${selectedShipment.service}`
+                      : ""}
+                  </dd>
                 </div>
-              )}
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Nomor Resi (AWB)</dt>
+                  <dd className="font-mono font-semibold text-foreground">
+                    {selectedShipment.trackingNumber || "-"}
+                  </dd>
+                </div>
+              </dl>
 
-              {modalMode === "edit" && (
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Status <span className="text-error">*</span>
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="input-field"
-                  >
-                    {getNextStatuses(selectedShipment?.status || "").map((status) => (
+              <div>
+                <label
+                  htmlFor="modal-shipment-status"
+                  className="mb-2 block text-sm font-medium text-foreground"
+                >
+                  Status Pengiriman <span className="text-error">*</span>
+                </label>
+                <select
+                  id="modal-shipment-status"
+                  value={formData.status}
+                  onChange={(e) =>
+                    setFormData({ ...formData, status: e.target.value })
+                  }
+                  className="input-field"
+                >
+                  {getNextStatuses(selectedShipment.status || "").map(
+                    (status) => (
                       <option key={status} value={status}>
                         {status === "PENDING"
-                          ? "PENDING (Menunggu)"
+                          ? "Menunggu Penjemputan (PENDING)"
                           : status === "PROCESSING"
-                          ? "PROCESSING (Sedang Dirakit / Diproses)"
-                          : status === "SHIPPED"
-                          ? "SHIPPED (Dalam Pengiriman)"
-                          : status === "DELIVERED"
-                          ? "DELIVERED (Telah Diterima)"
-                          : status === "CANCELLED"
-                          ? "CANCELLED (Dibatalkan)"
-                          : status}
+                            ? "Sedang Dirakit / Diproses (PROCESSING)"
+                            : status === "SHIPPED"
+                              ? "Dalam Pengiriman (SHIPPED)"
+                              : status === "DELIVERED"
+                                ? "Telah Diterima Customer (DELIVERED)"
+                                : status === "CANCELLED"
+                                  ? "Dibatalkan (CANCELLED)"
+                                  : status}
                       </option>
-                    ))}
-                  </select>
+                    ),
+                  )}
+                </select>
+              </div>
+            </>
+          )}
+
+          {modalMode === "create" && (
+            <div>
+              <p className="mb-2 block text-sm font-medium text-foreground">
+                Pilih Kurir &amp; Layanan Biteship{" "}
+                <span className="text-error">*</span>
+              </p>
+              {isFetchingRates ? (
+                <div className="flex items-center justify-center rounded-xl bg-surface-container-low p-8">
+                  <Loader2
+                    className="mr-2 h-5 w-5 animate-spin text-primary"
+                    aria-hidden="true"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Mengambil tarif kurir Biteship...
+                  </span>
+                </div>
+              ) : formErrors.rates ? (
+                <div className="rounded-xl border border-error/20 bg-error/5 p-3 text-sm text-error">
+                  {formErrors.rates}
+                </div>
+              ) : availableRates.length === 0 ? (
+                <div className="rounded-xl border border-warning/20 bg-warning/5 p-4 text-sm text-warning">
+                  Tidak ada kurir tersedia. Pastikan alamat toko florist dan alamat customer sudah dilengkapi kode pos.
+                </div>
+              ) : (
+                <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                  {availableRates.map((rate) => {
+                    const isSelected = selectedRate === rate.rate_id;
+                    return (
+                      <label
+                        key={rate.rate_id}
+                        className={`flex cursor-pointer items-center justify-between rounded-xl border-2 p-3.5 transition-colors ${
+                          isSelected
+                            ? "border-primary bg-primary/5"
+                            : "border-border bg-card hover:border-foreground/30"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="courier"
+                            value={rate.rate_id}
+                            checked={isSelected}
+                            onChange={() => setSelectedRate(rate.rate_id)}
+                            className="h-4 w-4 text-primary"
+                          />
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {rate.courier.name} · {rate.courier.service_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {rate.rate_name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold tabular-nums text-primary">
+                            {formatRupiah(rate.price)}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
+            </div>
+          )}
 
-              {shipmentMode === "auto" && modalMode === "create" ? (
+          <div className="flex gap-3 border-t border-border pt-4">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="btn-secondary flex-1 rounded-xl text-sm"
+              disabled={isSubmitting}
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={
+                isSubmitting ||
+                (modalMode === "create" &&
+                  (isFetchingRates || availableRates.length === 0 || !selectedRate))
+              }
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              {isSubmitting ? (
                 <>
-                  {/* Mode Otomatis - Pilih dari rates Biteship */}
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Pilih Kurir & Layanan <span className="text-error">*</span>
-                    </label>
-                    {isFetchingRates ? (
-                      <div className="flex items-center justify-center p-8 bg-surface-container-low rounded-xl">
-                        <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
-                        <span className="text-sm text-muted-foreground">Mengambil daftar kurir...</span>
-                      </div>
-                    ) : formErrors.rates ? (
-                      <div className="p-3 bg-error/5 border border-error/20 rounded-xl text-sm text-error">
-                        {formErrors.rates}
-                      </div>
-                    ) : availableRates.length === 0 ? (
-                      <div className="p-4 bg-warning/5 border border-warning/20 rounded-xl text-sm text-warning">
-                        Tidak ada kurir tersedia. Pastikan alamat florist dan customer sudah lengkap dengan kode pos.
-                      </div>
-                    ) : (
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {availableRates.map((rate) => (
-                          <label
-                            key={rate.rate_id}
-                            className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${
-                              selectedRate === rate.rate_id
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name="courier"
-                                value={rate.rate_id}
-                                checked={selectedRate === rate.rate_id}
-                                onChange={() => setSelectedRate(rate.rate_id)}
-                                className="w-4 h-4 text-primary"
-                              />
-                              <div>
-                                <p className="font-medium text-foreground">
-                                  {rate.courier.name} - {rate.courier.service_name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">{rate.rate_name}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-primary">
-                                {formatRupiah(rate.price)}
-                              </p>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span>Menyimpan...</span>
                 </>
               ) : (
                 <>
-                  {/* Mode Manual - Input field existing */}
-                  <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Courier <span className="text-error">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.courier}
-                  onChange={(e) => setFormData({ ...formData, courier: e.target.value })}
-                  className={`input-field ${formErrors.courier ? "border-error" : ""}`}
-                  placeholder="JNE, J&T, SiCepat, dll"
-                />
-                {formErrors.courier && <p className="mt-1 text-sm text-error">{formErrors.courier}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Service</label>
-                <input
-                  type="text"
-                  value={formData.service}
-                  onChange={(e) => setFormData({ ...formData, service: e.target.value })}
-                  className={`input-field ${formErrors.service ? "border-error" : ""}`}
-                  placeholder="REG, YES, Express, dll"
-                />
-                {formErrors.service && <p className="mt-1 text-sm text-error">{formErrors.service}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Nomor Resi {formData.status === "SHIPPED" && !Boolean(selectedShipment?.biteshipOrderId) && <span className="text-error">*</span>}
-                </label>
-                <input
-                  type="text"
-                  value={formData.trackingNumber}
-                  onChange={(e) => setFormData({ ...formData, trackingNumber: e.target.value })}
-                  disabled={Boolean(selectedShipment?.biteshipOrderId)}
-                  readOnly={Boolean(selectedShipment?.biteshipOrderId)}
-                  className={`input-field ${formErrors.trackingNumber ? "border-error" : ""} ${Boolean(selectedShipment?.biteshipOrderId) ? "cursor-not-allowed bg-muted opacity-80" : ""}`}
-                  placeholder={Boolean(selectedShipment?.biteshipOrderId) ? "Resi otomatis dari Biteship" : "Tracking number dari courier"}
-                />
-                {formErrors.trackingNumber && <p className="mt-1 text-sm text-error">{formErrors.trackingNumber}</p>}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Estimasi (Hari)</label>
-                  <input
-                    type="number"
-                    value={formData.estimatedDays}
-                    onChange={(e) => setFormData({ ...formData, estimatedDays: e.target.value })}
-                    className={`input-field ${formErrors.estimatedDays ? "border-error" : ""}`}
-                    placeholder="3"
-                    min="0"
-                  />
-                  {formErrors.estimatedDays && <p className="mt-1 text-sm text-error">{formErrors.estimatedDays}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Berat (Kg)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.weight}
-                    onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                    className={`input-field ${formErrors.weight ? "border-error" : ""}`}
-                    placeholder="2.5"
-                    min="0"
-                  />
-                  {formErrors.weight && <p className="mt-1 text-sm text-error">{formErrors.weight}</p>}
-                </div>
-              </div>
+                  <Truck className="h-4 w-4" aria-hidden="true" />
+                  <span>
+                    {modalMode === "create"
+                      ? "Terbitkan Resi Biteship"
+                      : "Simpan Perubahan"}
+                  </span>
                 </>
               )}
-
-              <div className="flex gap-3 pt-4 border-t border-border">
-                <button type="button" onClick={closeModal} className="flex-1 btn-secondary text-sm rounded-lg" disabled={isSubmitting}>
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors shadow-xs disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <Truck className="w-4 h-4" />
-                      {modalMode === "create" ? "Buat Shipment" : "Simpan Perubahan"}
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+            </button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
     </div>
   );
 }

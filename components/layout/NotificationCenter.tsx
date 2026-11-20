@@ -22,6 +22,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingSpinner,
+  Pagination,
 } from "@/components/ui";
 import { useNotifications } from "@/hooks";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils/formatters";
@@ -75,8 +76,6 @@ function getNotificationIcon(
 export function NotificationCenter({
   kicker = "Notifikasi",
   subtitle,
-  totalDescription = "Total pemberitahuan",
-  unreadDescription = "Belum dibuka",
   emptyDescription = "Belum ada pemberitahuan.",
   loadingMessage = "Memuat notifikasi...",
   variant = "portal",
@@ -103,8 +102,21 @@ export function NotificationCenter({
     requireSessionGate ? { enabled: status === "authenticated" } : undefined,
   );
 
+  const NOTIFICATIONS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const totalNotificationsPages = Math.max(
+    1,
+    Math.ceil(notifications.length / NOTIFICATIONS_PER_PAGE),
+  );
+  const safePage = Math.min(currentPage, totalNotificationsPages);
+  const startIndex = (safePage - 1) * NOTIFICATIONS_PER_PAGE;
+  const paginatedNotifications = notifications.slice(
+    startIndex,
+    startIndex + NOTIFICATIONS_PER_PAGE,
+  );
 
   useEffect(() => {
     if (requireSessionGate && status === "unauthenticated") {
@@ -165,7 +177,10 @@ export function NotificationCenter({
         <button
           type="button"
           aria-pressed={filter === "ALL"}
-          onClick={() => setFilter("ALL")}
+          onClick={() => {
+            setFilter("ALL");
+            setCurrentPage(1);
+          }}
           className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors sm:text-sm ${
             filter === "ALL"
               ? "border-primary bg-primary text-primary-foreground"
@@ -177,7 +192,10 @@ export function NotificationCenter({
         <button
           type="button"
           aria-pressed={filter === "UNREAD"}
-          onClick={() => setFilter("UNREAD")}
+          onClick={() => {
+            setFilter("UNREAD");
+            setCurrentPage(1);
+          }}
           className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors sm:text-sm ${
             filter === "UNREAD"
               ? "border-primary bg-primary text-primary-foreground"
@@ -215,130 +233,151 @@ export function NotificationCenter({
           description={filter === "UNREAD" ? "" : emptyDescription}
         />
       ) : (
-        <div className="space-y-3">
-          {notifications.map((notification) => {
-            const isUnread = !notification.isRead;
-            return (
-              <article
-                key={notification.id}
-                className={`rounded-2xl border p-5 transition-colors ${
-                  isUnread
-                    ? "border-border border-l-4 border-l-primary bg-primary/[0.03]"
-                    : "border-border bg-card"
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="mt-0.5 shrink-0">
-                    <div
-                      className={`rounded-xl p-2.5 ${
-                        isUnread
-                          ? "bg-primary/10 text-primary"
-                          : "bg-surface-container-low text-muted-foreground"
-                      }`}
-                    >
-                      {getNotificationIcon(notification.type, portalRole)}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {paginatedNotifications.map((notification) => {
+              const isUnread = !notification.isRead;
+              return (
+                <article
+                  key={notification.id}
+                  className={`rounded-2xl border p-5 transition-colors ${
+                    isUnread
+                      ? "border-border border-l-4 border-l-primary bg-primary/[0.03]"
+                      : "border-border bg-card"
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="mt-0.5 shrink-0">
+                      <div
+                        className={`rounded-xl p-2.5 ${
+                          isUnread
+                            ? "bg-primary/10 text-primary"
+                            : "bg-surface-container-low text-muted-foreground"
+                        }`}
+                      >
+                        {getNotificationIcon(notification.type, portalRole)}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h2
-                            className={`text-sm ${
-                              isUnread
-                                ? "font-bold text-foreground"
-                                : "font-semibold text-muted-foreground"
-                            }`}
-                          >
-                            {notification.title}
-                          </h2>
-                          {isUnread && (
-                            <span
-                              className="inline-block h-2 w-2 shrink-0 rounded-full bg-primary"
-                              aria-hidden="true"
-                            />
-                          )}
-                        </div>
-
-                        <p
-                          className={`mt-1 text-sm leading-relaxed ${
-                            isUnread
-                              ? "text-foreground"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {notification.message}
-                        </p>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs tabular-nums text-muted-foreground">
-                          <time dateTime={notification.createdAt}>
-                            {notification.createdAt
-                              ? formatRelativeTime(notification.createdAt)
-                              : "Waktu tidak tersedia"}
-                          </time>
-                          {notification.createdAt && (
-                            <>
-                              <span aria-hidden="true">·</span>
-                              <span>
-                                {formatDateTime(notification.createdAt)}
-                              </span>
-                            </>
-                          )}
-                        </div>
-
-                        {notification.link && (
-                          <div className="mt-3">
-                            <Link
-                              href={notification.link}
-                              onClick={() => {
-                                if (isUnread) {
-                                  void markAsRead(notification.id);
-                                }
-                              }}
-                              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h2
+                              className={`text-sm ${
+                                isUnread
+                                  ? "font-bold text-foreground"
+                                  : "font-semibold text-muted-foreground"
+                              }`}
                             >
-                              <span>
-                                Lihat Detail
-                                <span className="sr-only">
-                                  : {notification.title}
-                                </span>
-                              </span>
-                              <ArrowRight
-                                className="h-3 w-3 text-muted-foreground"
+                              {notification.title}
+                            </h2>
+                            {isUnread && (
+                              <span
+                                className="inline-block h-2 w-2 shrink-0 rounded-full bg-primary"
                                 aria-hidden="true"
                               />
-                            </Link>
+                            )}
                           </div>
-                        )}
-                      </div>
 
-                      <div className="flex shrink-0 items-center gap-1">
-                        {isUnread && (
+                          <p
+                            className={`mt-1 text-sm leading-relaxed ${
+                              isUnread
+                                ? "text-foreground"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {notification.message}
+                          </p>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs tabular-nums text-muted-foreground">
+                            <time dateTime={notification.createdAt}>
+                              {notification.createdAt
+                                ? formatRelativeTime(notification.createdAt)
+                                : "Waktu tidak tersedia"}
+                            </time>
+                            {notification.createdAt && (
+                              <>
+                                <span aria-hidden="true">·</span>
+                                <span>
+                                  {formatDateTime(notification.createdAt)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+
+                          {notification.link && (
+                            <div className="mt-3">
+                              <Link
+                                href={notification.link}
+                                onClick={() => {
+                                  if (isUnread) {
+                                    void markAsRead(notification.id);
+                                  }
+                                }}
+                                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+                              >
+                                <span>
+                                  Lihat Detail
+                                  <span className="sr-only">
+                                    : {notification.title}
+                                  </span>
+                                </span>
+                                <ArrowRight
+                                  className="h-3 w-3 text-muted-foreground"
+                                  aria-hidden="true"
+                                />
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          {isUnread && (
+                            <button
+                              type="button"
+                              onClick={() => void markAsRead(notification.id)}
+                              aria-label={`Tandai dibaca: ${notification.title}`}
+                              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl text-primary transition-colors hover:bg-primary/10"
+                            >
+                              <Check className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => void markAsRead(notification.id)}
-                            aria-label={`Tandai dibaca: ${notification.title}`}
-                            className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl text-primary transition-colors hover:bg-primary/10"
+                            onClick={() => setPendingDeleteId(notification.id)}
+                            aria-label={`Hapus notifikasi: ${notification.title}`}
+                            className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl text-error transition-colors hover:bg-error/10"
                           >
-                            <Check className="h-4 w-4" aria-hidden="true" />
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setPendingDeleteId(notification.id)}
-                          aria-label={`Hapus notifikasi: ${notification.title}`}
-                          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl text-error transition-colors hover:bg-error/10"
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </article>
-            );
-          })}
+                </article>
+              );
+            })}
+          </div>
+
+          {notifications.length > NOTIFICATIONS_PER_PAGE && (
+            <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-3.5 sm:flex-row">
+              <p className="text-xs tabular-nums text-muted-foreground">
+                Menampilkan {startIndex + 1}–
+                {Math.min(startIndex + NOTIFICATIONS_PER_PAGE, notifications.length)}{" "}
+                dari {notifications.length} notifikasi
+              </p>
+              <Pagination
+                currentPage={safePage}
+                totalPages={totalNotificationsPages}
+                onPageChange={(page) => {
+                  setCurrentPage(page);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                ariaLabel="Navigasi halaman notifikasi"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -397,15 +436,22 @@ export function NotificationCenter({
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
-      {/* Header Banner Portal */}
-      <div className="flex flex-col gap-6 rounded-2xl border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      {/* Editorial Dark Header Portal */}
+      <section className="flex flex-col gap-6 rounded-[24px] border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             {kicker}
           </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
-            Notifikasi
-          </h1>
+          <div className="mt-3 flex flex-wrap items-baseline gap-3">
+            <h1 className="text-3xl font-bold tracking-tight text-white lg:text-4xl">
+              Notifikasi
+            </h1>
+            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-0.5 text-xs font-semibold tabular-nums text-white/80">
+              {unreadCount > 0
+                ? `${unreadCount} belum dibaca · ${notifications.length} total`
+                : `${notifications.length} notifikasi`}
+            </span>
+          </div>
           {subtitle && (
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/70">
               {subtitle}
@@ -422,37 +468,7 @@ export function NotificationCenter({
             <span>Tandai Semua Dibaca</span>
           </button>
         )}
-      </div>
-
-      {/* Ringkasan Statistik Portal */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Total Notifikasi
-          </p>
-          <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums text-foreground">
-            {notifications.length}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {totalDescription}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Belum Dibaca
-          </p>
-          <p
-            className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${
-              unreadCount > 0 ? "text-warning" : "text-foreground"
-            }`}
-          >
-            {unreadCount}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {unreadDescription}
-          </p>
-        </div>
-      </div>
+      </section>
 
       {notificationListBlock}
     </div>

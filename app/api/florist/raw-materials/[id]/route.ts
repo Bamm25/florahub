@@ -90,6 +90,18 @@ export async function PUT(
       const type = validated.adjustmentType || "ADD";
       const amount = validated.amount ?? 0;
 
+      // Stok dari pasokan supplier B2B tidak boleh ditambah atau diatur ulang sepihak tanpa transaksi B2B
+      if (inventory.stock.supplierId !== userId && type !== "SUBTRACT") {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Stok pasokan supplier hanya dapat dikurangi (mis. bunga layu/rusak); penambahan stok dilakukan melalui penerimaan pesanan B2B",
+          },
+          { status: 403 },
+        );
+      }
+
       let newQuantity = inventory.quantity;
       if (type === "ADD") {
         newQuantity += amount;
@@ -97,18 +109,6 @@ export async function PUT(
         newQuantity = Math.max(0, newQuantity - amount);
       } else if (type === "SET") {
         newQuantity = Math.max(0, amount);
-      }
-
-      // Stok dari pasokan supplier B2B tidak boleh dinaikkan sepihak tanpa transaksi & penerimaan
-      if (inventory.stock.supplierId !== userId && newQuantity > inventory.quantity) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Penambahan stok pasokan supplier hanya dapat dilakukan melalui penerimaan pesanan B2B",
-          },
-          { status: 403 },
-        );
       }
 
       // Mutasi penyesuaian kuantitas dalam transaksi database atomic

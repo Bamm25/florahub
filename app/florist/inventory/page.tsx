@@ -15,11 +15,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import {
+  ConfirmDialog,
   LoadingSpinner,
   ErrorState,
   EmptyState,
+  Pagination,
   SearchInput,
 } from "@/components/ui";
+import Modal from "@/components/forms/Modal";
 import {
   getFloristRawMaterials,
   createFloristRawMaterial,
@@ -80,6 +83,8 @@ export default function RawMaterialsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const MATERIALS_PER_PAGE = 10;
 
   // Modal Tambah Bahan Baku Baru
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -98,7 +103,7 @@ export default function RawMaterialsPage() {
   // Modal Sesuaikan Stok
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [selectedForAdjust, setSelectedForAdjust] = useState<RawMaterialItem | null>(null);
-  const [adjustType, setAdjustType] = useState<"ADD" | "SUBTRACT" | "SET">("ADD");
+  const [adjustType, setAdjustType] = useState<"ADD" | "SUBTRACT">("ADD");
   const [adjustAmount, setAdjustAmount] = useState("10");
   const [adjustReason, setAdjustReason] = useState("");
   const [isSubmittingAdjust, setIsSubmittingAdjust] = useState(false);
@@ -116,8 +121,13 @@ export default function RawMaterialsPage() {
   });
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
-  // Modal Info BOM
+  // Modal Info BOM & Non-blocking Feedback/Confirm Dialog State
   const [selectedBOMInfo, setSelectedBOMInfo] = useState<RawMaterialItem | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [pendingDeleteMaterial, setPendingDeleteMaterial] = useState<RawMaterialItem | null>(null);
+  const [isDeletingMaterial, setIsDeletingMaterial] = useState(false);
 
   const fetchInventoryData = useCallback(
     async (signal?: AbortSignal) => {
@@ -237,21 +247,42 @@ export default function RawMaterialsPage() {
     }
   };
 
-  // Handle penyesuaian stok mandiri
+  // Handle penyesuaian stok mandiri / pengurangan stok supplier
   const handleAdjustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedForAdjust) return;
 
     const amount = parseInt(adjustAmount, 10);
-    if (isNaN(amount) || amount < 0) return;
+    if (isNaN(amount) || amount <= 0) {
+      setAdjustError("Masukkan jumlah lebih dari 0.");
+      return;
+    }
+
+    const isSupplierSourced = !selectedForAdjust.isSelfSupplied;
+    const effectiveType: "ADD" | "SUBTRACT" = isSupplierSourced
+      ? "SUBTRACT"
+      : adjustType;
+    const unitLabel = selectedForAdjust.unit || "tangkai";
+
+    if (effectiveType === "SUBTRACT" && amount > selectedForAdjust.quantity) {
+      setAdjustError(
+        `Jumlah pengurangan harus antara 1 sampai ${selectedForAdjust.quantity} ${unitLabel}.`
+      );
+      return;
+    }
 
     setIsSubmittingAdjust(true);
+    setAdjustError(null);
     try {
       await updateFloristRawMaterial(selectedForAdjust.id, {
         action: "ADJUST_STOCK",
-        adjustmentType: adjustType,
+        adjustmentType: effectiveType,
         amount,
-        reason: adjustReason.trim() || "Penyesuaian stok mandiri florist",
+        reason:
+          adjustReason.trim() ||
+          (effectiveType === "ADD"
+            ? "Penambahan stok mandiri"
+            : "Pengurangan stok bunga layu/rusak"),
       });
 
       setIsAdjustModalOpen(false);
@@ -260,7 +291,7 @@ export default function RawMaterialsPage() {
       await fetchInventoryData();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal memperbarui stok";
-      alert(message);
+      setAdjustError(message);
     } finally {
       setIsSubmittingAdjust(false);
     }
@@ -272,6 +303,7 @@ export default function RawMaterialsPage() {
     if (!selectedForEdit) return;
 
     setIsSubmittingEdit(true);
+    setEditError(null);
     try {
       await updateFloristRawMaterial(selectedForEdit.id, {
         action: "UPDATE_DETAILS",
@@ -288,40 +320,54 @@ export default function RawMaterialsPage() {
       await fetchInventoryData();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal menyimpan perubahan";
-      alert(message);
+      setEditError(message);
     } finally {
       setIsSubmittingEdit(false);
     }
   };
 
   // Handle hapus bahan baku
-  const handleDelete = async (material: RawMaterialItem) => {
+  const handleDelete = (material: RawMaterialItem) => {
+    setActionError(null);
     if (material.usedInBOMCount > 0) {
       const names = material.usedInProducts.map((p) => p.name).join(", ");
-      alert(
+      setActionError(
         `Bahan baku "${material.name}" tidak dapat dihapus karena masih digunakan pada BOM produk: ${names}. Hapus komponen dari produk terlebih dahulu.`
       );
       return;
     }
 
-    if (!confirm(`Hapus bahan baku "${material.name}" dari sistem?`)) {
-      return;
-    }
+    setPendingDeleteMaterial(material);
+  };
 
+  const handleConfirmDeleteMaterial = async () => {
+    if (!pendingDeleteMaterial) return;
+    setIsDeletingMaterial(true);
+    setActionError(null);
     try {
-      await deleteFloristRawMaterial(material.id);
+      await deleteFloristRawMaterial(pendingDeleteMaterial.id);
+      setPendingDeleteMaterial(null);
       await fetchInventoryData();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Gagal menghapus bahan baku";
-      alert(message);
+      setActionError(message);
+      setPendingDeleteMaterial(null);
+    } finally {
+      setIsDeletingMaterial(false);
     }
   };
 
   const openAdjustModal = (material: RawMaterialItem) => {
     setSelectedForAdjust(material);
-    setAdjustType("ADD");
-    setAdjustAmount("10");
+    if (material.isSelfSupplied) {
+      setAdjustType("ADD");
+      setAdjustAmount("10");
+    } else {
+      setAdjustType("SUBTRACT");
+      setAdjustAmount(material.quantity > 0 ? "1" : "0");
+    }
     setAdjustReason("");
+    setAdjustError(null);
     setIsAdjustModalOpen(true);
   };
 
@@ -335,6 +381,7 @@ export default function RawMaterialsPage() {
       minThreshold: material.minThreshold.toString(),
       location: material.location === "-" ? "" : material.location,
     });
+    setEditError(null);
     setIsEditModalOpen(true);
   };
 
@@ -355,7 +402,7 @@ export default function RawMaterialsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Header Halaman */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <section className="flex flex-col gap-6 rounded-[24px] border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Operasional & Bahan Baku
@@ -373,19 +420,19 @@ export default function RawMaterialsPage() {
             href="/florist/products"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10"
           >
-            <Layers className="w-3.5 h-3.5" />
-            Produk Jadi & BOM
+            <Layers className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Produk Jadi & BOM</span>
           </Link>
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <Plus className="w-3.5 h-3.5" />
-            Tambah Bahan Baku
+            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Tambah Bahan Baku</span>
           </button>
         </div>
-      </div>
+      </section>
 
       {/* Ringkasan stok */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -397,7 +444,7 @@ export default function RawMaterialsPage() {
         ].map((item) => (
           <div key={item.label} className="rounded-2xl border border-border bg-surface p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
-            <p className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${item.attention && item.value > 0 ? "text-amber-600" : "text-foreground"}`}>
+            <p className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${item.attention && item.value > 0 ? "text-warning" : "text-foreground"}`}>
               {item.value.toLocaleString("id-ID")} {item.unit && <span className="text-xs font-normal text-muted-foreground ml-1">{item.unit}</span>}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p>
@@ -435,7 +482,7 @@ export default function RawMaterialsPage() {
                   href="/florist/products"
                   className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs transition-colors ${
                     isLow
-                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      ? "border-warning/30 bg-warning/10 text-warning"
                       : "border-border bg-surface-container-low text-foreground hover:border-primary/40"
                   }`}
                 >
@@ -449,6 +496,22 @@ export default function RawMaterialsPage() {
       )}
 
       {/* Filter & Search Bar */}
+      {actionError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error"
+        >
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-xs font-semibold underline"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center">
           <div>
@@ -458,22 +521,35 @@ export default function RawMaterialsPage() {
           <div className="w-full sm:w-80">
             <SearchInput
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={(value) => {
+                setSearchQuery(value);
+                setCurrentPage(1);
+              }}
               placeholder="Cari mawar, tulip, pita, kertas..."
             />
           </div>
         </div>
-        <div className="flex items-center gap-2 w-full overflow-x-auto pt-3 mt-3 border-t border-border">
-          <span className="text-xs font-medium text-muted-foreground shrink-0 mr-1">Kategori:</span>
+        <div
+          role="group"
+          aria-label="Filter kategori bahan baku"
+          className="mt-3 flex w-full items-center gap-2 overflow-x-auto border-t border-border pt-3"
+        >
+          <span className="mr-1 shrink-0 text-xs font-medium text-muted-foreground">
+            Kategori:
+          </span>
           {CATEGORY_OPTIONS.map((cat) => (
             <button
               key={cat}
               type="button"
-              onClick={() => setCategoryFilter(cat)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors whitespace-nowrap ${
+              aria-pressed={categoryFilter === cat}
+              onClick={() => {
+                setCategoryFilter(cat);
+                setCurrentPage(1);
+              }}
+              className={`whitespace-nowrap rounded-xl border px-3 py-1.5 text-xs font-semibold transition-colors ${
                 categoryFilter === cat
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-surface-container-low text-muted-foreground hover:text-foreground"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               }`}
             >
               {cat === "ALL" ? "Semua Kategori" : cat}
@@ -514,676 +590,867 @@ export default function RawMaterialsPage() {
               }
             />
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-180 text-left text-sm">
-              <thead className="bg-surface-dark border-b border-white/10 text-xs font-semibold text-white/80 uppercase tracking-wider">
-                <tr>
-                  <th scope="col" className="px-5 py-3.5">
-                    Nama Bahan Baku
-                  </th>
-                  <th scope="col" className="px-5 py-3.5">
-                    Kategori
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-center">
-                    Sumber
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-right">
-                    Stok Fisik
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-right">
-                    Harga Modal
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-center">
-                    BOM Buket
-                  </th>
-                  <th scope="col" className="px-5 py-3.5 text-center">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {rawMaterials.map((material) => (
-                  <tr key={material.id} className="hover:bg-surface-container-low/40 transition-colors">
-                    {/* Nama & Lokasi */}
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-foreground">{material.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Lokasi: {material.location}
-                      </p>
-                    </td>
+        ) : (() => {
+          const totalMaterialPages = Math.max(
+            1,
+            Math.ceil(rawMaterials.length / MATERIALS_PER_PAGE),
+          );
+          const safeMaterialPage = Math.min(currentPage, totalMaterialPages);
+          const materialStart = (safeMaterialPage - 1) * MATERIALS_PER_PAGE;
+          const paginatedMaterials = rawMaterials.slice(
+            materialStart,
+            materialStart + MATERIALS_PER_PAGE,
+          );
 
-                    {/* Kategori */}
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-container-low text-muted-foreground border border-border">
-                        {material.category}
-                      </span>
-                    </td>
+          return (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-180 text-left text-sm">
+                  <thead className="border-b border-border bg-surface-container-low/60 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th scope="col" className="px-5 py-3.5">
+                        Nama Bahan Baku
+                      </th>
+                      <th scope="col" className="px-5 py-3.5">
+                        Kategori
+                      </th>
+                      <th scope="col" className="px-5 py-3.5 text-center">
+                        Sumber
+                      </th>
+                      <th scope="col" className="px-5 py-3.5 text-right">
+                        Stok Fisik
+                      </th>
+                      <th scope="col" className="px-5 py-3.5 text-right">
+                        Harga Modal
+                      </th>
+                      <th scope="col" className="px-5 py-3.5 text-center">
+                        BOM Buket
+                      </th>
+                      <th scope="col" className="px-5 py-3.5 text-center">
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {paginatedMaterials.map((material) => (
+                      <tr key={material.id} className="hover:bg-surface-container-low/40 transition-colors">
+                        {/* Nama & Lokasi */}
+                        <td className="px-5 py-4">
+                          <p className="font-semibold text-foreground">{material.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Lokasi: {material.location}
+                          </p>
+                        </td>
 
-                    {/* Sumber */}
-                    <td className="px-5 py-4 text-center">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          material.isSelfSupplied
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : "bg-sky-50 text-sky-700 border border-sky-200"
-                        }`}
-                      >
-                        {material.sourceLabel}
-                      </span>
-                    </td>
+                        {/* Kategori */}
+                        <td className="px-5 py-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-container-low text-muted-foreground border border-border">
+                            {material.category}
+                          </span>
+                        </td>
 
-                    {/* Stok & Satuan */}
-                    <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <span
-                          className={`font-mono text-base font-bold ${
-                            material.isOutOfStock
-                              ? "text-red-600"
-                              : material.isLowStock
-                              ? "text-amber-600"
-                              : "text-foreground"
-                          }`}
-                        >
-                          {material.quantity}
-                        </span>
-                        <span className="text-xs text-muted-foreground font-medium">{material.unit}</span>
-                      </div>
-                      {material.isLowStock && (
-                        <p className="text-[10px] text-amber-600 font-medium">
-                          Batas min: {material.minThreshold}
-                        </p>
-                      )}
-                    </td>
+                        {/* Sumber */}
+                        <td className="px-5 py-4 text-center">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              material.isSelfSupplied
+                                ? "bg-primary/10 text-primary border border-primary/20"
+                                : "bg-info/10 text-info border border-info/25"
+                            }`}
+                          >
+                            {material.sourceLabel}
+                          </span>
+                        </td>
 
-                    {/* Harga Modal */}
-                    <td className="px-5 py-4 text-right font-mono text-xs font-semibold text-foreground">
-                      {formatRupiah(material.pricePerUnit)} <span className="text-muted-foreground font-normal">/{material.unit}</span>
-                    </td>
+                        {/* Stok & Satuan */}
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span
+                              className={`font-mono text-base font-bold tabular-nums ${
+                                material.isOutOfStock
+                                  ? "text-error"
+                                  : material.isLowStock
+                                  ? "text-warning"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {material.quantity}
+                            </span>
+                            <span className="text-xs text-muted-foreground font-medium">{material.unit}</span>
+                          </div>
+                          {material.isLowStock && (
+                            <p className="text-[10px] text-warning font-medium tabular-nums">
+                              Batas min: {material.minThreshold}
+                            </p>
+                          )}
+                        </td>
 
-                    {/* Terhubung di BOM */}
-                    <td className="px-5 py-4 text-center">
-                      {material.usedInBOMCount > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedBOMInfo(material)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                          title="Klik untuk melihat produk yang memakai bahan ini"
-                        >
-                          <Layers className="w-3.5 h-3.5" />
-                          {material.usedInBOMCount} Produk
-                        </button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Belum dipakai</span>
-                      )}
-                    </td>
+                        {/* Harga Modal */}
+                        <td className="px-5 py-4 text-right font-mono text-xs font-semibold text-foreground">
+                          {formatRupiah(material.pricePerUnit)} <span className="text-muted-foreground font-normal">/{material.unit}</span>
+                        </td>
 
-                    {/* Aksi */}
-                    <td className="px-5 py-4 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openAdjustModal(material)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
-                          title="Sesuaikan stok (tambah/kurang mandiri)"
-                        >
-                          <ArrowUpDown className="w-3.5 h-3.5" />
-                          Stok
-                        </button>
+                        {/* Terhubung di BOM */}
+                        <td className="px-5 py-4 text-center">
+                          {material.usedInBOMCount > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedBOMInfo(material)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                              title="Klik untuk melihat produk yang memakai bahan ini"
+                            >
+                              <Layers className="w-3.5 h-3.5" />
+                              {material.usedInBOMCount} Produk
+                            </button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Belum dipakai</span>
+                          )}
+                        </td>
 
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(material)}
-                          className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-surface-container transition-colors"
-                          title="Edit detail bahan baku"
-                          aria-label={`Edit ${material.name}`}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
+                        {/* Aksi */}
+                        <td className="px-5 py-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openAdjustModal(material)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+                              title={
+                                material.isSelfSupplied
+                                  ? "Tambah atau kurangi stok mandiri"
+                                  : "Catat pengurangan bunga layu / rusak"
+                              }
+                            >
+                              <ArrowUpDown className="w-3.5 h-3.5" />
+                              Stok
+                            </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(material)}
-                          className="p-1.5 text-rose-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                          title="Hapus bahan baku"
-                          aria-label={`Hapus ${material.name}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(material)}
+                              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-surface-container transition-colors"
+                              title="Edit detail bahan baku"
+                              aria-label={`Edit ${material.name}`}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(material)}
+                              className="p-1.5 text-error rounded-lg hover:bg-error/10 transition-colors"
+                              title="Hapus bahan baku"
+                              aria-label={`Hapus ${material.name}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {rawMaterials.length > MATERIALS_PER_PAGE && (
+                <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-5 py-3.5 sm:flex-row">
+                  <p className="text-xs tabular-nums text-muted-foreground">
+                    Menampilkan {materialStart + 1}–
+                    {Math.min(materialStart + MATERIALS_PER_PAGE, rawMaterials.length)}{" "}
+                    dari {rawMaterials.length} bahan baku
+                  </p>
+                  <Pagination
+                    currentPage={safeMaterialPage}
+                    totalPages={totalMaterialPages}
+                    onPageChange={(page) => {
+                      setCurrentPage(page);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    ariaLabel="Navigasi halaman bahan baku"
+                  />
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Modal Tambah Bahan Baku Baru */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Tambah Bahan Baku Florist"
-            className="relative w-full max-w-xl rounded-2xl bg-card shadow-xl border border-border max-h-[90vh] overflow-hidden flex flex-col"
-          >
-            <div className="flex justify-between items-center bg-surface-dark text-white p-5 sm:p-6 flex-shrink-0">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">Input Mandiri</p>
-                <h3 className="text-lg font-bold text-white mt-1">
-                  Tambah Bahan Baku Florist
-                </h3>
-                <p className="text-xs text-white/70 mt-0.5">
-                  Bunga potong segar atau material wrapping untuk BOM produk buket.
-                </p>
-              </div>
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => !isSubmittingAdd && setIsAddModalOpen(false)}
+        size="md"
+        headerVariant="dark"
+        kicker="Input Mandiri"
+        title="Tambah Bahan Baku Florist"
+        subtitle="Bunga potong segar atau material wrapping untuk BOM produk buket."
+      >
+        {/* Pilihan Cepat Preset Bunga & Material */}
+        <div className="mb-5 p-3 rounded-xl bg-surface-container-low border border-border">
+          <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
+            <Info className="w-3.5 h-3.5 text-primary" />
+            Pilihan Cepat (Klik untuk mengisi otomatis):
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_PRESETS.map((preset) => (
               <button
+                key={preset.name}
                 type="button"
-                aria-label="Tutup dialog tambah bahan baku"
-                onClick={() => setIsAddModalOpen(false)}
-                className="text-white/60 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
+                onClick={() => applyPreset(preset)}
+                className="text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-primary text-muted-foreground hover:text-primary transition-colors text-left"
               >
-                ✕
+                + {preset.name}
               </button>
+            ))}
+          </div>
+        </div>
+
+        <form onSubmit={handleAddSubmit} className="space-y-4">
+          {addErrors.submit && (
+            <div role="alert" className="p-3 bg-error/10 border border-error/30 text-error text-xs rounded-xl">
+              {addErrors.submit}
+            </div>
+          )}
+
+          {/* Nama Bahan Baku */}
+          <div>
+            <label
+              htmlFor="add-material-name"
+              className="mb-1 block text-xs font-medium text-foreground"
+            >
+              Nama Bahan Baku / Bunga <span className="text-error">*</span>
+            </label>
+            <input
+              id="add-material-name"
+              type="text"
+              placeholder="Contoh: Bunga Tulip Merah Import"
+              value={addForm.name}
+              onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+              className="input-field w-full text-sm"
+              required
+            />
+            {addErrors.name && (
+              <p className="mt-1 text-xs text-error">{addErrors.name}</p>
+            )}
+          </div>
+
+          {/* Kategori & Satuan */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="add-material-category"
+                className="mb-1 block text-xs font-medium text-foreground"
+              >
+                Kategori <span className="text-error">*</span>
+              </label>
+              <select
+                id="add-material-category"
+                value={addForm.category}
+                onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
+                className="input-field w-full text-sm"
+              >
+                <option value="Bunga Segar">Bunga Segar (Umum)</option>
+                <option value="Mawar">Mawar</option>
+                <option value="Tulip">Tulip</option>
+                <option value="Lily">Lily</option>
+                <option value="Krisan">Krisan</option>
+                <option value="Anyelir">Anyelir / Carnation</option>
+                <option value="Daun & Filler Segar">Daun & Filler Segar</option>
+              </select>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-1">
-              {/* Pilihan Cepat Preset Bunga & Material */}
-              <div className="mb-5 p-3 rounded-xl bg-surface-container-low border border-border">
-                <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-primary" />
-                  Pilihan Cepat (Klik untuk mengisi otomatis):
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {QUICK_PRESETS.map((preset) => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      onClick={() => applyPreset(preset)}
-                      className="text-[11px] px-2.5 py-1 rounded-lg bg-surface border border-border hover:border-primary text-muted-foreground hover:text-primary transition-colors text-left"
-                    >
-                      + {preset.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div>
+              <label
+                htmlFor="add-material-unit"
+                className="mb-1 block text-xs font-medium text-foreground"
+              >
+                Satuan Penggunaan <span className="text-error">*</span>
+              </label>
+              <input
+                id="add-material-unit"
+                type="text"
+                value="tangkai"
+                readOnly
+                className="input-field w-full cursor-not-allowed bg-surface-container-low font-mono text-sm text-foreground"
+                title="Satuan baku inventori bunga Florahub adalah tangkai"
+              />
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                Standar baku bunga: tangkai
+              </p>
+            </div>
+          </div>
 
-            <form onSubmit={handleAddSubmit} className="space-y-4">
-              {addErrors.submit && (
-                <div className="p-3 bg-error/10 border border-error/30 text-error text-xs rounded-xl">
-                  {addErrors.submit}
+          {/* Stok Awal & Harga Modal */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="add-material-qty"
+                className="mb-1 block text-xs font-medium text-foreground"
+              >
+                Stok Awal Fisik ({addForm.unit || "tangkai"}) <span className="text-error">*</span>
+              </label>
+              <input
+                id="add-material-qty"
+                type="number"
+                min="0"
+                placeholder="Contoh: 50"
+                value={addForm.quantity}
+                onChange={(e) => setAddForm({ ...addForm, quantity: e.target.value })}
+                className="input-field w-full font-mono text-sm tabular-nums"
+                required
+              />
+              {addErrors.quantity && (
+                <p className="mt-1 text-xs text-error">{addErrors.quantity}</p>
+              )}
+            </div>
+
+            <div>
+              <label
+                htmlFor="add-material-price"
+                className="mb-1 block text-xs font-medium text-foreground"
+              >
+                Harga Modal Beli / {addForm.unit || "tangkai"} (Rp) <span className="text-error">*</span>
+              </label>
+              <input
+                id="add-material-price"
+                type="number"
+                min="0"
+                placeholder="Contoh: 15000"
+                value={addForm.pricePerUnit}
+                onChange={(e) => setAddForm({ ...addForm, pricePerUnit: e.target.value })}
+                className="input-field w-full font-mono text-sm tabular-nums"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Minimal Threshold & Lokasi Penyimpanan */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="add-material-threshold"
+                className="mb-1 block text-xs font-medium text-foreground"
+              >
+                Batas Peringatan Stok Minimum
+              </label>
+              <input
+                id="add-material-threshold"
+                type="number"
+                min="0"
+                value={addForm.minThreshold}
+                onChange={(e) => setAddForm({ ...addForm, minThreshold: e.target.value })}
+                className="input-field w-full font-mono text-sm tabular-nums"
+              />
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                Sistem memberi tanda peringatan jika stok di bawah angka ini.
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="add-material-location"
+                className="mb-1 block text-xs font-medium text-foreground"
+              >
+                Lokasi Penyimpanan
+              </label>
+              <input
+                id="add-material-location"
+                type="text"
+                placeholder="Contoh: Cold Storage Rak A"
+                value={addForm.location}
+                onChange={(e) => setAddForm({ ...addForm, location: e.target.value })}
+                className="input-field w-full text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 flex justify-end gap-3 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(false)}
+              disabled={isSubmittingAdd}
+              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingAdd}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
+            >
+              {isSubmittingAdd && <Loader2 className="w-4 h-4 animate-spin" />}
+              Simpan Bahan Baku
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Sesuaikan Stok Mandiri / Kurangi Stok Supplier */}
+      <Modal
+        isOpen={isAdjustModalOpen && Boolean(selectedForAdjust)}
+        onClose={() => !isSubmittingAdjust && setIsAdjustModalOpen(false)}
+        size="sm"
+        headerVariant="dark"
+        kicker={selectedForAdjust?.isSelfSupplied ? "Stok Mandiri" : "Kurangi Stok"}
+        title={
+          selectedForAdjust
+            ? `Sesuaikan Stok: ${selectedForAdjust.name}`
+            : "Sesuaikan Stok"
+        }
+        subtitle={
+          selectedForAdjust
+            ? `Stok saat ini: ${selectedForAdjust.quantity} ${selectedForAdjust.unit}`
+            : undefined
+        }
+      >
+        {selectedForAdjust && (() => {
+          const parsedAmount = Number.parseInt(adjustAmount, 10);
+          const safeAmount = Number.isNaN(parsedAmount) || parsedAmount < 0 ? 0 : parsedAmount;
+          const unitLabel = selectedForAdjust.unit || "tangkai";
+          const isSupplierSourced = !selectedForAdjust.isSelfSupplied;
+          const effectiveType: "ADD" | "SUBTRACT" = isSupplierSourced
+            ? "SUBTRACT"
+            : adjustType;
+          const projectedQuantity =
+            effectiveType === "ADD"
+              ? selectedForAdjust.quantity + safeAmount
+              : Math.max(0, selectedForAdjust.quantity - safeAmount);
+          const exceedsAvailableStock =
+            effectiveType === "SUBTRACT" &&
+            safeAmount > selectedForAdjust.quantity;
+          const isSubmitDisabled =
+            safeAmount <= 0 ||
+            (effectiveType === "SUBTRACT" &&
+              (selectedForAdjust.quantity === 0 || exceedsAvailableStock));
+
+          return (
+            <form onSubmit={handleAdjustSubmit} className="space-y-4">
+              {adjustError && (
+                <div role="alert" className="rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error">
+                  {adjustError}
                 </div>
               )}
 
-              {/* Nama Bahan Baku */}
+              {isSupplierSourced && (
+                <div className="space-y-2.5 rounded-xl border border-info/25 bg-info/5 p-3.5 text-xs text-foreground">
+                  <div className="flex items-start gap-2">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" aria-hidden="true" />
+                    <p className="leading-relaxed">
+                      Stok dari {selectedForAdjust.sourceLabel} bertambah otomatis saat pesanan diterima.
+                      Form ini khusus untuk mencatat bunga layu atau rusak.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-0.5">
+                    <Link
+                      href="/florist/supplier-stocks"
+                      className="inline-flex min-h-8 items-center rounded-lg border border-primary/30 bg-card px-2.5 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/5"
+                    >
+                      Pasokan Kebun
+                    </Link>
+                    <Link
+                      href="/florist/harvest-plans"
+                      className="inline-flex min-h-8 items-center rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+                    >
+                      Rencana Panen
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {!isSupplierSourced && (
+                <div>
+                  <p className="mb-1.5 block text-xs font-medium text-foreground">
+                    Pilih Aksi
+                  </p>
+                  <div
+                    role="group"
+                    aria-label="Jenis penyesuaian stok"
+                    className="grid grid-cols-2 gap-2"
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={adjustType === "ADD"}
+                      onClick={() => {
+                        setAdjustType("ADD");
+                        setAdjustError(null);
+                      }}
+                      className={`rounded-lg border py-2 text-xs font-semibold transition-colors ${
+                        adjustType === "ADD"
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-surface-container-low text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      + Tambah Stok
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={adjustType === "SUBTRACT"}
+                      onClick={() => {
+                        setAdjustType("SUBTRACT");
+                        setAdjustError(null);
+                      }}
+                      className={`rounded-lg border py-2 text-xs font-semibold transition-colors ${
+                        adjustType === "SUBTRACT"
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-surface-container-low text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      - Kurang Stok
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Nama Bahan Baku / Bunga <span className="text-error">*</span>
+                <label
+                  htmlFor="adjust-material-amount"
+                  className="mb-1 block text-xs font-medium text-foreground"
+                >
+                  {isSupplierSourced
+                    ? `Jumlah layu / rusak (${unitLabel})`
+                    : effectiveType === "ADD"
+                      ? `Jumlah ditambah (${unitLabel})`
+                      : `Jumlah dikurangi (${unitLabel})`}
                 </label>
                 <input
-                  type="text"
-                  placeholder="Contoh: Bunga Tulip Merah Import"
-                  value={addForm.name}
-                  onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
-                  className="input-field text-sm w-full"
+                  id="adjust-material-amount"
+                  type="number"
+                  min="1"
+                  max={
+                    effectiveType === "SUBTRACT"
+                      ? selectedForAdjust.quantity
+                      : undefined
+                  }
+                  value={adjustAmount}
+                  onChange={(e) => {
+                    setAdjustAmount(e.target.value);
+                    setAdjustError(null);
+                  }}
+                  className="input-field w-full font-mono text-sm tabular-nums"
                   required
                 />
-                {addErrors.name && (
-                  <p className="text-xs text-error mt-1">{addErrors.name}</p>
-                )}
-              </div>
-
-              {/* Kategori & Satuan */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Kategori <span className="text-error">*</span>
-                  </label>
-                  <select
-                    value={addForm.category}
-                    onChange={(e) => setAddForm({ ...addForm, category: e.target.value })}
-                    className="input-field text-sm w-full"
-                  >
-                    <option value="Bunga Segar">Bunga Segar (Umum)</option>
-                    <option value="Mawar">Mawar</option>
-                    <option value="Tulip">Tulip</option>
-                    <option value="Lily">Lily</option>
-                    <option value="Krisan">Krisan</option>
-                    <option value="Anyelir">Anyelir / Carnation</option>
-                    <option value="Daun & Filler Segar">Daun & Filler Segar</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Satuan Penggunaan <span className="text-error">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value="tangkai"
-                    readOnly
-                    className="input-field text-sm w-full bg-surface-container-low font-mono cursor-not-allowed text-foreground"
-                    title="Satuan baku inventori bunga Florahub adalah tangkai"
-                  />
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Standar baku bunga: tangkai
-                  </p>
-                </div>
-              </div>
-
-              {/* Stok Awal & Harga Modal */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Stok Awal Fisik ({addForm.unit || "tangkai"}) <span className="text-error">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Contoh: 50"
-                    value={addForm.quantity}
-                    onChange={(e) => setAddForm({ ...addForm, quantity: e.target.value })}
-                    className="input-field text-sm w-full font-mono"
-                    required
-                  />
-                  {addErrors.quantity && (
-                    <p className="text-xs text-error mt-1">{addErrors.quantity}</p>
+                <div className="mt-1.5 text-[11px]">
+                  {exceedsAvailableStock ? (
+                    <span className="font-medium text-error tabular-nums">
+                      Melebihi stok tersedia ({selectedForAdjust.quantity} {unitLabel})
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground tabular-nums">
+                      {effectiveType === "ADD" ? "Stok baru:" : "Sisa stok:"}{" "}
+                      <strong className="font-mono text-foreground">
+                        {projectedQuantity} {unitLabel}
+                      </strong>
+                    </span>
                   )}
                 </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Harga Modal Beli / {addForm.unit || "tangkai"} (Rp) <span className="text-error">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Contoh: 15000"
-                    value={addForm.pricePerUnit}
-                    onChange={(e) => setAddForm({ ...addForm, pricePerUnit: e.target.value })}
-                    className="input-field text-sm w-full font-mono"
-                    required
-                  />
-                </div>
               </div>
 
-              {/* Minimal Threshold & Lokasi Penyimpanan */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Batas Peringatan Stok Minimum
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={addForm.minThreshold}
-                    onChange={(e) => setAddForm({ ...addForm, minThreshold: e.target.value })}
-                    className="input-field text-sm w-full font-mono"
-                  />
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Sistem memberi tanda peringatan jika stok di bawah angka ini.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Lokasi Penyimpanan
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: Cold Storage Rak A"
-                    value={addForm.location}
-                    onChange={(e) => setAddForm({ ...addForm, location: e.target.value })}
-                    className="input-field text-sm w-full"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  disabled={isSubmittingAdd}
-                  className="btn-secondary rounded-xl text-xs py-2 px-4"
+              <div>
+                <label
+                  htmlFor="adjust-material-reason"
+                  className="mb-1 block text-xs font-medium text-foreground"
                 >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingAdd}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
-                >
-                  {isSubmittingAdd && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Simpan Bahan Baku
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    )}
-
-      {/* Modal Sesuaikan Stok Mandiri */}
-      {isAdjustModalOpen && selectedForAdjust && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="text-base font-bold text-foreground">
-                  Sesuaikan Stok: {selectedForAdjust.name}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Stok saat ini:{" "}
-                  <span className="font-semibold text-foreground font-mono">
-                    {selectedForAdjust.quantity} {selectedForAdjust.unit}
-                  </span>
-                </p>
-              </div>
-              <button
-                onClick={() => setIsAdjustModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleAdjustSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Jenis Penyesuaian
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAdjustType("ADD")}
-                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
-                      adjustType === "ADD"
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "bg-surface-container-low border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    + Tambah Stok
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAdjustType("SUBTRACT")}
-                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
-                      adjustType === "SUBTRACT"
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "bg-surface-container-low border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    - Kurang Stok
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAdjustType("SET")}
-                    className={`py-2 text-xs font-semibold rounded-lg border transition-colors ${
-                      adjustType === "SET"
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "bg-surface-container-low border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Atur Total
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Jumlah Penyesuaian ({selectedForAdjust.unit || "tangkai"})
+                  Catatan (opsional)
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  value={adjustAmount}
-                  onChange={(e) => setAdjustAmount(e.target.value)}
-                  className="input-field text-sm w-full font-mono"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Alasan Penyesuaian
-                </label>
-                <input
+                  id="adjust-material-reason"
                   type="text"
-                  placeholder="Contoh: Pembelian pasar bunga / bunga layu / opname"
+                  placeholder={
+                    effectiveType === "ADD"
+                      ? "Contoh: Beli tambahan di pasar bunga"
+                      : "Contoh: Bunga layu atau batang patah"
+                  }
                   value={adjustReason}
                   onChange={(e) => setAdjustReason(e.target.value)}
-                  className="input-field text-sm w-full"
+                  className="input-field w-full text-sm"
                 />
               </div>
 
-              <div className="pt-3 flex justify-end gap-3 border-t border-border">
+              <div className="flex justify-end gap-3 border-t border-border pt-3">
                 <button
                   type="button"
                   onClick={() => setIsAdjustModalOpen(false)}
                   disabled={isSubmittingAdjust}
-                  className="btn-secondary text-xs"
+                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingAdjust}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 px-3.5 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
+                  disabled={isSubmittingAdjust || isSubmitDisabled}
+                  className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {isSubmittingAdjust && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Simpan Penyesuaian
+                  {isSubmittingAdjust && (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  )}
+                  <span>
+                    {isSupplierSourced ? "Kurangi Stok" : "Simpan"}
+                  </span>
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          );
+        })()}
+      </Modal>
 
       {/* Modal Edit Detail Bahan Baku */}
-      {isEditModalOpen && selectedForEdit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="relative w-full max-w-lg rounded-2xl bg-surface p-6 shadow-xl border border-border">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-bold text-foreground">
-                Edit Bahan Baku: {selectedForEdit.name}
-              </h3>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1"
+      <Modal
+        isOpen={isEditModalOpen && Boolean(selectedForEdit)}
+        onClose={() => !isSubmittingEdit && setIsEditModalOpen(false)}
+        size="md"
+        headerVariant="dark"
+        kicker="Pembaruan Bahan Baku"
+        title={
+          selectedForEdit
+            ? `Edit Bahan Baku: ${selectedForEdit.name}`
+            : "Edit Bahan Baku"
+        }
+      >
+        {selectedForEdit && (
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            {editError && (
+              <div
+                role="alert"
+                className="rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error"
               >
-                ✕
-              </button>
+                {editError}
+              </div>
+            )}
+
+            {!selectedForEdit.isSelfSupplied && (
+              <div className="flex items-start gap-2 rounded-xl border border-info/25 bg-info/5 p-3 text-xs text-foreground">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" aria-hidden="true" />
+                <p className="leading-relaxed">
+                  Data bunga mengikuti katalog {selectedForEdit.sourceLabel}. Anda tetap bisa mengubah{" "}
+                  <strong className="font-semibold">Batas Minimum Peringatan</strong> dan{" "}
+                  <strong className="font-semibold">Lokasi Penyimpanan</strong>.
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label
+                htmlFor="edit-material-name"
+                className="mb-1 block text-xs font-medium text-foreground"
+              >
+                Nama Bahan Baku
+              </label>
+              <input
+                id="edit-material-name"
+                type="text"
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name: e.target.value })
+                }
+                disabled={!selectedForEdit.isSelfSupplied}
+                className="input-field w-full text-sm"
+                required
+              />
             </div>
 
-            <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Nama Bahan Baku
+                <label
+                  htmlFor="edit-material-category"
+                  className="mb-1 block text-xs font-medium text-foreground"
+                >
+                  Kategori
+                </label>
+                <select
+                  id="edit-material-category"
+                  value={editForm.category}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, category: e.target.value })
+                  }
+                  disabled={!selectedForEdit.isSelfSupplied}
+                  className="input-field w-full text-sm"
+                >
+                  <option value="Bunga Segar">Bunga Segar (Umum)</option>
+                  <option value="Mawar">Mawar</option>
+                  <option value="Tulip">Tulip</option>
+                  <option value="Lily">Lily</option>
+                  <option value="Krisan">Krisan</option>
+                  <option value="Anyelir">Anyelir / Carnation</option>
+                  <option value="Daun & Filler Segar">Daun & Filler Segar</option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="edit-material-unit"
+                  className="mb-1 block text-xs font-medium text-foreground"
+                >
+                  Satuan
                 </label>
                 <input
+                  id="edit-material-unit"
                   type="text"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="input-field text-sm w-full"
+                  value={editForm.unit}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, unit: e.target.value })
+                  }
+                  disabled={!selectedForEdit.isSelfSupplied}
+                  className="input-field w-full text-sm"
                   required
                 />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Kategori
-                  </label>
-                  <select
-                    value={editForm.category}
-                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                    className="input-field text-sm w-full"
-                  >
-                    <option value="Bunga Segar">Bunga Segar (Umum)</option>
-                    <option value="Mawar">Mawar</option>
-                    <option value="Tulip">Tulip</option>
-                    <option value="Lily">Lily</option>
-                    <option value="Krisan">Krisan</option>
-                    <option value="Anyelir">Anyelir / Carnation</option>
-                    <option value="Daun & Filler Segar">Daun & Filler Segar</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Satuan
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.unit}
-                    onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
-                    className="input-field text-sm w-full"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Harga Modal (Rp)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editForm.pricePerUnit}
-                    onChange={(e) => setEditForm({ ...editForm, pricePerUnit: e.target.value })}
-                    className="input-field text-sm w-full font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Batas Minimum Peringatan
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editForm.minThreshold}
-                    onChange={(e) => setEditForm({ ...editForm, minThreshold: e.target.value })}
-                    className="input-field text-sm w-full font-mono"
-                  />
-                </div>
-              </div>
-
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-foreground mb-1">
-                  Lokasi Penyimpanan
+                <label
+                  htmlFor="edit-material-price"
+                  className="mb-1 block text-xs font-medium text-foreground"
+                >
+                  Harga Modal (Rp)
                 </label>
                 <input
-                  type="text"
-                  value={editForm.location}
-                  onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                  className="input-field text-sm w-full"
+                  id="edit-material-price"
+                  type="number"
+                  min="0"
+                  value={editForm.pricePerUnit}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, pricePerUnit: e.target.value })
+                  }
+                  disabled={!selectedForEdit.isSelfSupplied}
+                  className="input-field w-full font-mono text-sm tabular-nums"
                 />
               </div>
 
-              <div className="pt-3 flex justify-end gap-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  disabled={isSubmittingEdit}
-                  className="btn-secondary text-xs"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingEdit}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 px-3.5 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
-                >
-                  {isSubmittingEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Detail Keterkaitan BOM */}
-      {selectedBOMInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Keterkaitan BOM Produk"
-            className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl border border-border"
-          >
-            <div className="flex justify-between items-center mb-4">
               <div>
-                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-primary" />
-                  Keterkaitan BOM Produk
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Bahan baku: <span className="font-semibold text-foreground">{selectedBOMInfo.name}</span>
-                </p>
+                <label
+                  htmlFor="edit-material-threshold"
+                  className="mb-1 block text-xs font-medium text-foreground"
+                >
+                  Batas Minimum Peringatan
+                </label>
+                <input
+                  id="edit-material-threshold"
+                  type="number"
+                  min="0"
+                  value={editForm.minThreshold}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, minThreshold: e.target.value })
+                  }
+                  className="input-field w-full font-mono text-sm tabular-nums"
+                />
               </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="edit-material-location"
+                className="mb-1 block text-xs font-medium text-foreground"
+              >
+                Lokasi Penyimpanan
+              </label>
+              <input
+                id="edit-material-location"
+                type="text"
+                value={editForm.location}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, location: e.target.value })
+                }
+                className="input-field w-full text-sm"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-border pt-3">
               <button
                 type="button"
-                aria-label="Tutup keterkaitan BOM"
-                onClick={() => setSelectedBOMInfo(null)}
-                className="text-muted-foreground hover:text-foreground p-1"
+                onClick={() => setIsEditModalOpen(false)}
+                disabled={isSubmittingEdit}
+                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
               >
-                ✕
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingEdit}
+                className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isSubmittingEdit && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                )}
+                <span>Simpan Perubahan</span>
               </button>
             </div>
+          </form>
+        )}
+      </Modal>
 
-            <div className="space-y-3 max-h-72 overflow-y-auto mb-4">
-              {selectedBOMInfo.usedInProducts.map((p) => (
-                <div
-                  key={p.id}
-                  className="p-3 rounded-xl bg-surface-container-low border border-border flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    {p.image ? (
-                      <Image
-                        src={p.image}
-                        alt={p.name}
-                        width={40}
-                        height={40}
-                        unoptimized
-                        className="w-10 h-10 rounded-lg object-cover border border-border"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <Flower2 className="w-5 h-5" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-xs font-semibold text-foreground">{p.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Dibutuhkan: <span className="font-mono text-primary font-bold">{p.quantityRequired}</span> {selectedBOMInfo.unit} / buket
-                      </p>
+      {/* Modal Detail Keterkaitan BOM */}
+      <Modal
+        isOpen={Boolean(selectedBOMInfo)}
+        onClose={() => setSelectedBOMInfo(null)}
+        size="sm"
+        headerVariant="dark"
+        kicker="Formula Perakitan"
+        title="Keterkaitan BOM Produk"
+        subtitle={selectedBOMInfo ? `Bahan baku: ${selectedBOMInfo.name}` : undefined}
+        footer={
+          <button
+            type="button"
+            onClick={() => setSelectedBOMInfo(null)}
+            className="inline-flex min-h-10 w-full items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
+          >
+            Tutup
+          </button>
+        }
+      >
+        {selectedBOMInfo && (
+          <div className="space-y-3">
+            {selectedBOMInfo.usedInProducts.map((p) => (
+              <div
+                key={p.id}
+                className="p-3 rounded-xl bg-surface-container-low border border-border flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  {p.image ? (
+                    <Image
+                      src={p.image}
+                      alt={p.name}
+                      width={40}
+                      height={40}
+                      unoptimized
+                      className="w-10 h-10 rounded-lg object-cover border border-border"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                      <Flower2 className="w-5 h-5" />
                     </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">{p.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Dibutuhkan: <span className="font-mono text-primary font-bold">{p.quantityRequired}</span> {selectedBOMInfo.unit} / buket
+                    </p>
                   </div>
-                  <Link
-                    href={`/florist/products`}
-                    className="text-xs text-primary hover:underline font-medium"
-                  >
-                    Lihat BOM
-                  </Link>
                 </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setSelectedBOMInfo(null)}
-              className="btn-secondary w-full text-xs"
-            >
-              Tutup
-            </button>
+                <Link
+                  href="/florist/products"
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  Lihat BOM
+                </Link>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeleteMaterial)}
+        onClose={() => setPendingDeleteMaterial(null)}
+        onConfirm={handleConfirmDeleteMaterial}
+        title="Hapus Bahan Baku"
+        description={
+          pendingDeleteMaterial
+            ? `Hapus bahan baku "${pendingDeleteMaterial.name}" dari sistem?`
+            : ""
+        }
+        confirmLabel="Hapus Bahan Baku"
+        variant="danger"
+        loading={isDeletingMaterial}
+      />
     </div>
   );
 }

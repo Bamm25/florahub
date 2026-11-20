@@ -103,11 +103,11 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Banner Operasional (FundedNext dark hero style) */}
+      {/* Hero Banner Operasional Platform */}
       <section className="relative overflow-hidden rounded-2xl bg-surface-dark p-6 text-white sm:p-8">
         <div className="relative z-10 flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold tracking-wider text-kicker uppercase">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1 text-xs font-medium tracking-[0.04em] text-kicker">
               <ShieldAlert className="h-3.5 w-3.5" />
               Pusat Kendali Platform
             </span>
@@ -131,11 +131,6 @@ export default function AdminDashboardPage() {
             <span>Segarkan Data</span>
           </button>
         </div>
-        {/* Elemen Dekorasi Latar Belakang */}
-        <div
-          className="pointer-events-none absolute -top-24 -right-24 h-80 w-80 rounded-full bg-primary/20 blur-3xl"
-          aria-hidden="true"
-        />
       </section>
       {/* Kondisi Loading & Error */}
       {isLoading && !stats ? (
@@ -162,7 +157,7 @@ export default function AdminDashboardPage() {
                   <Users className="h-4 w-4" />
                 </div>
               </div>
-              <p className="mt-3 text-2xl font-bold text-foreground">
+              <p className="mt-3 text-2xl font-bold tabular-nums text-foreground">
                 {stats.users.total}
               </p>
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -184,7 +179,7 @@ export default function AdminDashboardPage() {
                   <TrendingUp className="h-4 w-4" />
                 </div>
               </div>
-              <p className="mt-3 text-2xl font-bold text-foreground">
+              <p className="mt-3 text-2xl font-bold tabular-nums text-foreground">
                 {formatRupiah(stats.b2cOrders.settledRevenue)}
               </p>
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -204,7 +199,7 @@ export default function AdminDashboardPage() {
                   <Store className="h-4 w-4" />
                 </div>
               </div>
-              <p className="mt-3 text-2xl font-bold text-foreground">
+              <p className="mt-3 text-2xl font-bold tabular-nums text-foreground">
                 {formatRupiah(stats.b2bSupply.directSales.settledRevenue)}
               </p>
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -224,7 +219,7 @@ export default function AdminDashboardPage() {
                   <Sprout className="h-4 w-4" />
                 </div>
               </div>
-              <p className="mt-3 text-2xl font-bold text-foreground">
+              <p className="mt-3 text-2xl font-bold tabular-nums text-foreground">
                 {formatRupiah(stats.b2bSupply.preOrders.committedValue)}
               </p>
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -376,7 +371,7 @@ export default function AdminDashboardPage() {
               <Link
                 key={item.title}
                 href={item.href}
-                className="group relative flex flex-col justify-between rounded-xl border border-border bg-surface p-5 shadow-xs transition-all hover:border-primary/50 hover:shadow-md"
+                className="m-card group relative flex flex-col justify-between rounded-xl border border-border bg-surface p-5 hover:border-primary/50"
               >
                 <div>
                   <div className="flex items-center justify-between">

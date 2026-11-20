@@ -1,5 +1,6 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import prisma from "@/lib/prisma";
 import { produceProductSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
@@ -123,6 +124,14 @@ export async function POST(
 
         const newQty = updatedInventory.quantity;
 
+        // Sinkronkan juga tabel stock jika bahan baku dimiliki florist secara mandiri
+        if (updatedInventory.stock.supplierId === userId) {
+          await tx.stock.update({
+            where: { id: updatedInventory.stockId },
+            data: { quantity: newQty },
+          });
+        }
+
         inventoryUpdates.push({
           material: updatedInventory.stock.name,
           consumed: consumedQty,
@@ -164,6 +173,8 @@ export async function POST(
         lowStockTriggered: lowStockNotifications.length > 0,
       };
     });
+
+    safeRevalidatePaths(["/", "/products", "/stores", `/stores/${userId}`]);
 
     // Kembalikan respon sukses proses produksi produk
     return NextResponse.json({

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, Loader2, Calendar, CheckCircle2 } from "lucide-react";
+import { Loader2, Calendar, CheckCircle2 } from "lucide-react";
+import Modal from "@/components/forms/Modal";
 import { formatDate, formatRupiah } from "@/lib/utils/formatters";
 import { createFloristPreOrder } from "@/lib/api/florist";
 import { ApiClientError } from "@/lib/api/client";
@@ -127,39 +128,19 @@ export default function PreOrderModal({
   // Hitung sisa stok bunga yang tersedia untuk dipesan
   const available = announcement.estimatedQuantity - (announcement.totalReservedQuantity ?? announcement._count.preOrders ?? 0);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Buat Pre-Order Panen"
-        className="rounded-2xl border border-border bg-card w-full max-w-2xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden"
-      >
-        <div className="sticky top-0 z-50 bg-surface-dark text-white p-5 sm:p-6 flex items-center justify-between flex-shrink-0">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-kicker">Pengajuan Kuota</p>
-            <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-white mt-1">
-              Buat Pre-Order Panen
-            </h2>
-            <p className="text-xs text-white/70 mt-0.5">
-              Ajukan alokasi bunga potong sebelum tanggal panen tiba
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="Tutup dialog pre-order"
-            onClick={onClose}
-            className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-      <form onSubmit={handleSubmit} className="min-h-0 p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="md"
+      headerVariant="dark"
+      kicker="Pengajuan Kuota"
+      title="Buat Pre-Order Panen"
+      subtitle="Ajukan alokasi bunga potong sebelum tanggal panen tiba"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
         {showSuccess && (
-          <div className="p-4 bg-success/10 border border-success/30 rounded-xl flex items-center gap-3 text-success animate-in fade-in slide-in-from-top-2">
+          <div role="status" className="p-4 bg-success/10 border border-success/30 rounded-xl flex items-center gap-3 text-success">
             <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
             <div>
               <p className="font-medium">Pre-order berhasil dibuat!</p>
@@ -169,7 +150,7 @@ export default function PreOrderModal({
         )}
         
         {formErrors.submit && (
-          <div className="p-3 bg-error/5 border border-error/20 rounded-xl text-sm text-error">
+          <div role="alert" className="p-3 bg-error/5 border border-error/20 rounded-xl text-sm text-error">
             {formErrors.submit}
           </div>
         )}
@@ -257,7 +238,7 @@ export default function PreOrderModal({
               setFormData({ ...formData, notes: e.target.value })
             }
             rows={3}
-            className="input-field resize-none"
+            className="input-field"
             placeholder="Tambahkan catatan untuk supplier..."
           />
         </div>
@@ -290,7 +271,6 @@ export default function PreOrderModal({
           </button>
         </div>
       </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,6 +1,7 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import { parsePaginationParams } from "@/lib/config/domain";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import prisma from "@/lib/prisma";
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
@@ -324,6 +325,8 @@ export async function POST(request: Request) {
     });
 
     // Kembalikan respon sukses pembuatan produk
+    safeRevalidatePaths(["/", "/products", "/stores", `/stores/${userId}`]);
+
     return NextResponse.json(
       {
         success: true,

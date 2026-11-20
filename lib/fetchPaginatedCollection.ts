@@ -11,7 +11,11 @@ export async function fetchPaginatedCollection<T>(
     const query = new URLSearchParams(path.split("?")[1] || "");
     query.set("page", String(page));
     query.set("limit", "100");
-    const response = await fetcher(`${path.split("?")[0]}?${query}`);
+    const targetUrl = `${path.split("?")[0]}?${query}`;
+    const response =
+      fetcher === fetch
+        ? await fetcher(targetUrl, { cache: "no-store" })
+        : await fetcher(targetUrl);
     const body = await response.json();
     if (!response.ok || !body?.success || !Array.isArray(body.data?.[key])) {
       throw new Error(body?.message || "Gagal memuat seluruh data");

@@ -74,7 +74,7 @@ export default function AdminLayout({
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-surface-dim flex items-center justify-center">
+      <div className="min-h-dvh bg-surface-dim flex items-center justify-center">
         <LoadingSpinner message="Memverifikasi hak akses admin..." />
       </div>
     );
@@ -90,7 +90,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-surface-dim">
+    <div className="flex min-h-dvh bg-surface-dim">
       {/* Overlay mobile */}
       {mobileMenuOpen && (
         <div

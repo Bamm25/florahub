@@ -15,7 +15,6 @@ interface Product {
   images: string[];
   categoryId: string;
   isActive: boolean;
-  isFeatured: boolean;
   tags: string[];
   weight: number | null;
   createdAt: string;
@@ -43,38 +42,33 @@ export default function ProductCard({
   onProduce,
 }: ProductCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden hover:border-foreground/30 transition-colors flex flex-col justify-between">
+    <article className="@container m-card group flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-surface transition-colors hover:border-foreground/30">
       <div>
         {/* Product Image */}
-        <div className="relative h-44 bg-surface-container-low overflow-hidden">
+        <div className="relative h-48 overflow-hidden bg-surface-container-low">
           {product.image ? (
             <Image
               src={product.image}
               alt={product.name}
               fill
               unoptimized
-              className="object-cover transition-transform duration-300 hover:scale-105"
+              className="m-zoom object-cover"
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground/60">
-              <ImageIcon className="h-10 w-10 stroke-[1.5]" />
+            <div className="flex h-full items-center justify-center text-muted-foreground/60">
+              <ImageIcon className="h-10 w-10 stroke-[1.5]" aria-hidden="true" />
             </div>
           )}
 
           {/* Status Badges */}
-          <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5">
+          <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
             {!product.isActive && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-zinc-900/90 text-zinc-300 backdrop-blur-xs">
+              <span className="inline-flex items-center rounded-md border border-white/15 bg-surface-dark/90 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-xs">
                 Nonaktif
               </span>
             )}
-            {product.isFeatured && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-500/90 text-white backdrop-blur-xs">
-                Unggulan
-              </span>
-            )}
             {product.stock === 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-600 text-white backdrop-blur-xs">
+              <span className="inline-flex items-center rounded-md bg-error px-2 py-0.5 text-[11px] font-semibold text-error-foreground">
                 Stok Habis
               </span>
             )}
@@ -82,68 +76,75 @@ export default function ProductCard({
         </div>
 
         {/* Product Details */}
-        <div className="p-4 space-y-2.5">
+        <div className="space-y-2.5 p-4">
           <div>
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               {product.category.name}
             </span>
-            <h3 className="font-semibold text-foreground text-sm line-clamp-1 mt-0.5">
+            <h3 className="mt-0.5 line-clamp-1 text-sm font-bold text-foreground">
               {product.name}
             </h3>
           </div>
 
-          <div className="flex items-baseline justify-between pt-1 border-t border-border/60">
-            <div>
-              <p className="text-base font-bold text-foreground tabular-nums">
-                {formatRupiah(product.price)}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className={`text-xs font-semibold tabular-nums ${product.stock === 0 ? "text-rose-500" : "text-muted-foreground"}`}>
-                Stok: {product.stock}
-              </span>
-            </div>
+          <div className="flex items-baseline justify-between border-t border-border/60 pt-2">
+            <p className="text-base font-bold tabular-nums text-foreground">
+              {formatRupiah(product.price)}
+            </p>
+            <span
+              className={`text-xs font-semibold tabular-nums ${
+                product.stock === 0
+                  ? "text-error"
+                  : product.stock < 10
+                    ? "text-warning"
+                    : "text-muted-foreground"
+              }`}
+            >
+              Stok: {product.stock}
+            </span>
           </div>
         </div>
       </div>
 
       {/* Action Buttons */}
       <div className="p-4 pt-0">
-        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border">
+        <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
           <button
             type="button"
             onClick={() => onProduce(product)}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors shadow-xs"
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
             title="Produksi Produk Jadi"
           >
-            <Package className="w-3.5 h-3.5" />
-            Produksi
+            <Package className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Produksi</span>
           </button>
           <button
+            type="button"
             onClick={() => onViewComponents(product)}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground bg-surface-container-low hover:bg-surface-container rounded-lg border border-border/80 transition-colors"
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low"
             title="Lihat Komponen BOM"
           >
-            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-            BOM
+            <Eye className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+            <span>BOM</span>
           </button>
           <button
+            type="button"
             onClick={() => onEdit(product)}
-            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-surface-container-low transition-colors"
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-container-low hover:text-foreground"
           >
-            <Edit className="w-3.5 h-3.5" />
-            Edit
+            <Edit className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Edit</span>
           </button>
           <button
+            type="button"
             onClick={() => onDelete(product.id)}
-            className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-rose-500 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-error transition-colors hover:bg-error/10"
             title="Hapus"
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            Hapus
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Hapus</span>
           </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

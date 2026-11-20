@@ -1,5 +1,6 @@
 import { reportServerError } from "@/lib/server-error-report";
 import { requireAuth } from "@/lib/middleware/requireAuth";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -358,6 +359,8 @@ export async function PUT(
       },
     });
 
+    safeRevalidatePaths(["/", "/products", "/stores", `/stores/${userId}`]);
+
     // Kembalikan respon sukses pembaruan produk
     return NextResponse.json({
       success: true,
@@ -416,6 +419,8 @@ export async function DELETE(
     await prisma.product.delete({
       where: { id: productId },
     });
+
+    safeRevalidatePaths(["/", "/products", "/stores", `/stores/${userId}`]);
 
     // Kembalikan respon sukses penghapusan produk
     return NextResponse.json({

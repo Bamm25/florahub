@@ -1,4 +1,4 @@
-import { Search, Plus } from "lucide-react";
+import SearchInput from "@/components/ui/SearchInput";
 
 // Interface data kategori untuk filter produk
 interface Category {
@@ -15,8 +15,15 @@ interface ProductFiltersProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
   categories: Category[];
-  onCreateClick: () => void;
+  onCreateClick?: () => void;
 }
+
+const PRODUCT_STATUS_OPTIONS = [
+  { value: "ALL", label: "Semua Status" },
+  { value: "ACTIVE", label: "Aktif" },
+  { value: "INACTIVE", label: "Nonaktif" },
+  { value: "OUT_OF_STOCK", label: "Stok Habis" },
+] as const;
 
 // Komponen toolbar filter dan pencarian produk katalog florist
 export default function ProductFilters({
@@ -27,27 +34,44 @@ export default function ProductFilters({
   searchQuery,
   onSearchChange,
   categories,
-  onCreateClick,
 }: ProductFiltersProps) {
   return (
-    <div className="rounded-xl border border-border bg-background p-3.5 sm:p-4">
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Cari nama produk, buket, karangan..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="input-field pl-10 text-sm w-full"
-          />
+    <div className="space-y-3.5 rounded-2xl border border-border bg-surface p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          role="group"
+          aria-label="Filter status produk"
+          className="flex flex-wrap gap-2"
+        >
+          {PRODUCT_STATUS_OPTIONS.map((option) => {
+            const isActive = statusFilter === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => onStatusChange(option.value)}
+                className={`min-h-9 rounded-xl border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  isActive
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="flex flex-wrap sm:flex-nowrap gap-2.5">
+        <div className="w-full sm:w-52">
+          <label htmlFor="product-category-filter" className="sr-only">
+            Filter Kategori Produk
+          </label>
           <select
+            id="product-category-filter"
             value={categoryFilter}
             onChange={(e) => onCategoryChange(e.target.value)}
-            className="input-field text-sm w-full sm:w-44 py-2"
+            className="input-field w-full py-2 text-xs font-medium"
           >
             <option value="ALL">Semua Kategori</option>
             {Array.isArray(categories) &&
@@ -57,27 +81,14 @@ export default function ProductFilters({
                 </option>
               ))}
           </select>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => onStatusChange(e.target.value)}
-            className="input-field text-sm w-full sm:w-40 py-2"
-          >
-            <option value="ALL">Semua Status</option>
-            <option value="ACTIVE">Aktif</option>
-            <option value="INACTIVE">Nonaktif</option>
-            <option value="OUT_OF_STOCK">Stok Habis</option>
-          </select>
-
-          <button
-            onClick={onCreateClick}
-            className="btn-primary min-h-10 px-4 text-sm font-semibold whitespace-nowrap shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            Tambah Produk
-          </button>
         </div>
       </div>
+
+      <SearchInput
+        value={searchQuery}
+        onChange={onSearchChange}
+        placeholder="Cari nama produk buket atau karangan bunga..."
+      />
     </div>
   );
 }

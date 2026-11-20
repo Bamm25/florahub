@@ -1062,7 +1062,7 @@ export default function AdminCouponsAndCategoriesPage() {
           if (!couponSaving) setCouponModalOpen(open);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
               {editingCoupon

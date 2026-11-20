@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import { updateFloristProfileSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -96,16 +97,31 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Perbarui data informasi toko florist di database
-    const updatedProfile = await prisma.floristProfile.update({
-      where: { userId },
-      data: {
-        shopName: validated.shopName,
-        shopDescription: validated.shopDescription,
-        logo: validated.logo,
-        banner: validated.banner,
-      },
+    const trimmedShopName = validated.shopName?.trim();
+
+    // Perbarui data informasi toko florist dan sinkronkan nama akun pemilik toko
+    const updatedProfile = await prisma.$transaction(async (tx) => {
+      const nextProfile = await tx.floristProfile.update({
+        where: { userId },
+        data: {
+          shopName: trimmedShopName,
+          shopDescription: validated.shopDescription,
+          logo: validated.logo,
+          banner: validated.banner,
+        },
+      });
+
+      if (trimmedShopName) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { name: trimmedShopName },
+        });
+      }
+
+      return nextProfile;
     });
+
+    safeRevalidatePaths(["/", "/products", "/stores", `/stores/${userId}`]);
 
     // Kembalikan respon sukses pembaruan profil toko
     return NextResponse.json({

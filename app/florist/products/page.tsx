@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
-import { LoadingSpinner, ErrorState } from "@/components/ui";
+import { Plus, CheckCircle2 } from "lucide-react";
+import {
+  ConfirmDialog,
+  LoadingSpinner,
+  ErrorState,
+  Pagination,
+} from "@/components/ui";
 import ProductModal from "@/components/florist/ProductModal";
 import BOMModal from "@/components/florist/BOMModal";
 import ProduceModal from "@/components/florist/ProduceModal";
@@ -28,7 +33,6 @@ interface Product {
   images: string[];
   categoryId: string;
   isActive: boolean;
-  isFeatured: boolean;
   tags: string[];
   weight: number | null;
   createdAt: string;
@@ -51,6 +55,8 @@ interface Product {
   }>;
 }
 
+const PRODUCTS_PER_PAGE = 12;
+
 export default function FloristProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -60,6 +66,7 @@ export default function FloristProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
@@ -81,23 +88,33 @@ export default function FloristProductsPage() {
     weight: "",
     tags: "",
     isActive: true,
-    isFeatured: false,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [pendingDeleteProductId, setPendingDeleteProductId] = useState<string | null>(null);
 
-  const fetchProducts = async () => {
-    setIsLoading(true);
-    setError(null);
+  const fetchProducts = async (silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
       const productList = await fetchPaginatedCollection<Product>("/api/florist/products", "products");
       setProducts(productList);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message);
+      if (silent) {
+        setActionError("Gagal memperbarui daftar produk: " + message);
+      } else {
+        setError(message);
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -122,6 +139,7 @@ export default function FloristProductsPage() {
   }, []);
 
   const openCreateModal = () => {
+    setActionSuccess(null);
     setModalMode("create");
     setSelectedProduct(null);
     setFormData({
@@ -134,13 +152,13 @@ export default function FloristProductsPage() {
       weight: "",
       tags: "",
       isActive: true,
-      isFeatured: false,
     });
     setFormErrors({});
     setIsModalOpen(true);
   };
 
   const openEditModal = (product: Product) => {
+    setActionSuccess(null);
     setModalMode("edit");
     setSelectedProduct(product);
     setFormData({
@@ -153,7 +171,6 @@ export default function FloristProductsPage() {
       weight: product.weight?.toString() || "",
       tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
       isActive: product.isActive,
-      isFeatured: product.isFeatured,
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -165,13 +182,17 @@ export default function FloristProductsPage() {
   };
 
   const openProduceModal = async (product: Product) => {
+    setActionError(null);
+    setActionSuccess(null);
     try {
       // Ambil data lengkap produk beserta komponen BOM
       const fullProduct = await getFloristProductById<Product>(product.id);
       setSelectedProductForProduce(fullProduct);
       setIsProduceModalOpen(true);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal memuat data produk");
+      setActionError(
+        err instanceof Error ? err.message : "Gagal memuat data produk",
+      );
     }
   };
 
@@ -183,7 +204,7 @@ export default function FloristProductsPage() {
   const closeComponentModal = () => {
     setIsComponentModalOpen(false);
     setSelectedProductForBOM(null);
-    void fetchProducts();
+    void fetchProducts(true);
   };
 
   const validateForm = (): boolean => {
@@ -246,7 +267,6 @@ export default function FloristProductsPage() {
           .map((tag) => tag.trim())
           .filter((tag) => tag.length > 0),
         isActive: formData.isActive,
-        isFeatured: formData.isFeatured,
       };
 
       if (modalMode === "edit" && !selectedProduct?.id) {
@@ -268,18 +288,21 @@ export default function FloristProductsPage() {
     }
   };
 
-  const handleDelete = async (productId: string) => {
-    if (!confirm(`Hapus produk ini?`)) return;
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteProductId) return;
 
     setIsSubmitting(true);
+    setActionError(null);
+    setActionSuccess(null);
     try {
-      await deleteFloristProduct(productId);
-      await fetchProducts();
+      await deleteFloristProduct(pendingDeleteProductId);
+      await fetchProducts(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      alert("Gagal menghapus produk: " + message);
+      setActionError("Gagal menghapus produk: " + message);
     } finally {
       setIsSubmitting(false);
+      setPendingDeleteProductId(null);
     }
   };
 
@@ -306,6 +329,17 @@ export default function FloristProductsPage() {
     ? products.filter(filterProduct)
     : [];
 
+  const totalProductPages = Math.max(
+    1,
+    Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE),
+  );
+  const safeProductPage = Math.min(currentPage, totalProductPages);
+  const productStart = (safeProductPage - 1) * PRODUCTS_PER_PAGE;
+  const paginatedProducts = filteredProducts.slice(
+    productStart,
+    productStart + PRODUCTS_PER_PAGE,
+  );
+
   const hasFilters = Boolean(
     searchQuery || categoryFilter !== "ALL" || statusFilter !== "ALL"
   );
@@ -325,9 +359,9 @@ export default function FloristProductsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Header Halaman */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <section className="flex flex-col gap-6 rounded-[24px] border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Katalog & Perakitan
@@ -340,39 +374,102 @@ export default function FloristProductsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex w-full items-center gap-3 sm:w-auto">
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:w-auto"
           >
-            <Plus className="w-4 h-4" />
-            Tambah Produk Baru
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            <span>Tambah Produk Baru</span>
           </button>
         </div>
-      </div>
+      </section>
+
+      {actionSuccess && (
+        <div
+          role="status"
+          className="flex items-start justify-between gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-foreground"
+        >
+          <div className="flex items-start gap-2.5">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+            <span>{actionSuccess}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActionSuccess(null)}
+            className="shrink-0 text-xs font-semibold text-success hover:underline"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
+
+      {actionError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error"
+        >
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-xs font-semibold underline"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
 
       <ProductStats products={products} />
 
       <ProductFilters
         categoryFilter={categoryFilter}
-        onCategoryChange={setCategoryFilter}
+        onCategoryChange={(value) => {
+          setCategoryFilter(value);
+          setCurrentPage(1);
+        }}
         statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
+        onStatusChange={(value) => {
+          setStatusFilter(value);
+          setCurrentPage(1);
+        }}
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(value) => {
+          setSearchQuery(value);
+          setCurrentPage(1);
+        }}
         categories={categories}
         onCreateClick={openCreateModal}
       />
 
       <ProductList
-        products={filteredProducts}
+        products={paginatedProducts}
         hasFilters={hasFilters}
         onEdit={openEditModal}
-        onDelete={handleDelete}
+        onDelete={(productId) => setPendingDeleteProductId(productId)}
         onViewComponents={openComponentsModal}
         onProduce={openProduceModal}
       />
+
+      {filteredProducts.length > PRODUCTS_PER_PAGE && (
+        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-3.5 sm:flex-row">
+          <p className="text-xs tabular-nums text-muted-foreground">
+            Menampilkan {productStart + 1}–
+            {Math.min(productStart + PRODUCTS_PER_PAGE, filteredProducts.length)}{" "}
+            dari {filteredProducts.length} produk
+          </p>
+          <Pagination
+            currentPage={safeProductPage}
+            totalPages={totalProductPages}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            ariaLabel="Navigasi halaman produk"
+          />
+        </div>
+      )}
 
       <ProductModal
         isOpen={isModalOpen}
@@ -403,11 +500,24 @@ export default function FloristProductsPage() {
             setIsProduceModalOpen(false);
             setSelectedProductForProduce(null);
           }}
-          onSuccess={() => {
-            fetchProducts();
+          onSuccess={(message) => {
+            setActionError(null);
+            setActionSuccess(message);
+            void fetchProducts(true);
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeleteProductId)}
+        onClose={() => setPendingDeleteProductId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Produk"
+        description="Produk yang dihapus tidak akan tampil lagi di katalog toko Anda."
+        confirmLabel="Hapus Produk"
+        variant="danger"
+        loading={isSubmitting}
+      />
     </div>
   );
 }

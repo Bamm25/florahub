@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   MapPin,
   Plus,
   Edit2,
   Trash2,
   CheckCircle2,
-  X,
   Upload,
   Loader2,
 } from "lucide-react";
-import { LoadingSpinner, ErrorState } from "@/components/ui";
+import { ConfirmDialog, LoadingSpinner, ErrorState } from "@/components/ui";
+import Modal from "@/components/forms/Modal";
 import {
   uploadMediaFile,
   getFloristProfile,
@@ -29,6 +30,7 @@ type ProfileData = FloristProfilePayload;
 
 export default function FloristSettingsShopPage() {
   const router = useRouter();
+  const { update: updateSession } = useSession();
   const [data, setData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,10 @@ export default function FloristSettingsShopPage() {
   const [mediaPreview, setMediaPreview] = useState<Partial<Record<"logo" | "banner", string>>>({});
   const [mediaMessage, setMediaMessage] = useState("");
   const [isChangingDefault, setIsChangingDefault] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "status" | "error"; message: string } | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [pendingDeleteAddressId, setPendingDeleteAddressId] = useState<string | null>(null);
+  const [isDeletingAddress, setIsDeletingAddress] = useState(false);
 
   // Pilih gambar dan tampilkan preview sebelum disimpan.
   function handleMediaSelect(file: File, field: "logo" | "banner") {
@@ -135,19 +141,38 @@ export default function FloristSettingsShopPage() {
   }
 
   async function handleSaveShopInfo() {
+    setFeedback(null);
+    const trimmedShopName = shopForm.shopName.trim();
     try {
       setIsSavingShop(true);
-      await updateFloristProfile(shopForm);
+      await updateFloristProfile({
+        shopName: trimmedShopName,
+        shopDescription: shopForm.shopDescription.trim() || null,
+      });
       await fetchProfile();
+      if (trimmedShopName) {
+        await updateSession({ name: trimmedShopName });
+        window.dispatchEvent(
+          new CustomEvent("florahub:florist-profile-updated", {
+            detail: { shopName: trimmedShopName },
+          }),
+        );
+      }
+      router.refresh();
       setIsEditingShop(false);
+      setFeedback({ type: "status", message: "Informasi toko berhasil diperbarui." });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal menyimpan");
+      setFeedback({
+        type: "error",
+        message: err instanceof Error ? err.message : "Gagal menyimpan",
+      });
     } finally {
       setIsSavingShop(false);
     }
   }
 
   function openAddressModal(address?: Address) {
+    setAddressError(null);
     if (address) {
       setEditingAddress(address);
       setAddressForm({
@@ -177,16 +202,22 @@ export default function FloristSettingsShopPage() {
   function closeAddressModal() {
     setShowAddressModal(false);
     setEditingAddress(null);
+    setAddressError(null);
   }
 
   async function handleSaveAddress() {
+    setAddressError(null);
     try {
       setIsSavingAddress(true);
       await saveFloristAddress(addressForm, editingAddress?.id);
       await fetchProfile();
       closeAddressModal();
+      router.refresh();
+      setFeedback({ type: "status", message: "Alamat penjemputan toko berhasil disimpan." });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal menyimpan alamat");
+      setAddressError(
+        err instanceof Error ? err.message : "Gagal menyimpan alamat",
+      );
     } finally {
       setIsSavingAddress(false);
     }
@@ -194,24 +225,39 @@ export default function FloristSettingsShopPage() {
 
   async function handleSetDefault(addressId: string) {
     setIsChangingDefault(true);
+    setFeedback(null);
     try {
       await setDefaultFloristAddress(addressId);
       await fetchProfile();
+      router.refresh();
+      setFeedback({ type: "status", message: "Alamat utama toko berhasil diperbarui." });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal set alamat default");
+      setFeedback({
+        type: "error",
+        message: err instanceof Error ? err.message : "Gagal set alamat default",
+      });
     } finally {
       setIsChangingDefault(false);
     }
   }
 
-  async function handleDeleteAddress(addressId: string) {
-    if (!confirm("Yakin ingin menghapus alamat ini?")) return;
-
+  async function handleConfirmDeleteAddress() {
+    if (!pendingDeleteAddressId) return;
+    setIsDeletingAddress(true);
+    setFeedback(null);
     try {
-      await deleteFloristAddress(addressId);
+      await deleteFloristAddress(pendingDeleteAddressId);
       await fetchProfile();
+      router.refresh();
+      setFeedback({ type: "status", message: "Alamat toko berhasil dihapus." });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal menghapus alamat");
+      setFeedback({
+        type: "error",
+        message: err instanceof Error ? err.message : "Gagal menghapus alamat",
+      });
+    } finally {
+      setIsDeletingAddress(false);
+      setPendingDeleteAddressId(null);
     }
   }
 
@@ -232,463 +278,611 @@ export default function FloristSettingsShopPage() {
   if (!data) return null;
 
   const { profile, user, addresses } = data;
+  const sortedAddresses = addresses.toSorted(
+    (a, b) => Number(b.isDefault) - Number(a.isDefault),
+  );
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
-      {/* Restrained Dark Header for Rhythm */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      {/* Editorial Dark Masthead */}
+      <section className="flex flex-col gap-6 rounded-[24px] border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
-            Konfigurasi & Profil
+            Konfigurasi & Profil Studio
           </p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-white lg:text-4xl">
             Pengaturan Toko Florist
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/70">
-            Kelola nama toko publik, deskripsi, identitas visual (logo & banner), serta titik alamat pickup armada logistik.
+            Kelola identitas toko publik, logo & banner studio, serta titik alamat penjemputan kurir logistik.
           </p>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
-        <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">
-              Informasi Toko
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Nama dan deskripsi toko yang dilihat oleh pelanggan publik
-            </p>
-          </div>
-          {!isEditingShop && (
-            <button
-              onClick={() => setIsEditingShop(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-container-low hover:bg-surface-container px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-foreground transition-colors"
-            >
-              <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>Edit Profil</span>
-            </button>
-          )}
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+              profile.isActive
+                ? "border-success/30 bg-success/15 text-success"
+                : "border-white/20 bg-white/10 text-white/70"
+            }`}
+          >
+            {profile.isActive ? "Toko Publik Aktif" : "Toko Nonaktif"}
+          </span>
         </div>
+      </section>
 
-        <div className="p-6">
-          {isEditingShop ? (
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-                  Nama Toko *
-                </label>
-                <input
-                  type="text"
-                  value={shopForm.shopName}
-                  onChange={(e) =>
-                    setShopForm({ ...shopForm, shopName: e.target.value })
-                  }
-                  className="input-field"
-                  placeholder="Toko Bunga Indah"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-                  Deskripsi Toko
-                </label>
-                <textarea
-                  value={shopForm.shopDescription}
-                  onChange={(e) =>
-                    setShopForm({
-                      ...shopForm,
-                      shopDescription: e.target.value,
-                    })
-                  }
-                  className="input-field min-h-[100px]"
-                  placeholder="Ceritakan tentang toko bunga Anda..."
-                />
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleSaveShopInfo}
-                  disabled={isSavingShop}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2.5 text-xs font-semibold text-primary-foreground transition-colors disabled:opacity-50"
-                >
-                  {isSavingShop ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Menyimpan...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>Simpan Perubahan</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditingShop(false);
-                    setShopForm({
-                      shopName: profile.shopName,
-                      shopDescription: profile.shopDescription || "",
-                    });
-                  }}
-                  disabled={isSavingShop}
-                  className="btn-secondary rounded-xl text-xs py-2.5 px-4"
-                >
-                  Batal
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                  Nama Toko
-                </p>
-                <p className="text-base font-bold text-foreground">
-                  {profile.shopName}
-                </p>
-              </div>
-
-              {profile.shopDescription && (
-                <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                    Deskripsi Toko
-                  </p>
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {profile.shopDescription}
-                  </p>
-                </div>
-              )}
-
-              <div className="pt-2 border-t border-border">
-                <p className="text-xs text-muted-foreground">
-                  Email: {user.email}
-                </p>
-                {user.phone && (
-                  <p className="text-xs text-muted-foreground">
-                    Telepon: {user.phone}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-xs">
-        <div className="p-5 sm:p-6 space-y-5">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Logo & Banner Toko</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Pilih gambar visual toko publik. Format JPG, PNG, WebP, atau GIF maksimal 5 MB.</p>
-          </div>
-          {mediaMessage && <p role="status" aria-live="polite" className="rounded-xl border border-border bg-surface-container-low p-3 text-sm text-foreground">{mediaMessage}</p>}
-          {(["logo", "banner"] as const).map((field) => (
-            <div key={field} className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{field === "logo" ? "Logo Toko" : "Banner Toko"}</p>
-              {(mediaPreview[field] || profile[field]) && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={mediaPreview[field] || profile[field]!} alt={field === "logo" ? "Logo toko" : "Banner toko"} className={field === "logo" ? "h-20 w-20 rounded-xl object-cover border border-border" : "h-32 w-full rounded-xl object-cover border border-border"} />
-              )}
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-surface-container-low hover:bg-surface-container px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors">
-                  <Upload className="h-3.5 w-3.5" /> Pilih {field === "logo" ? "Logo" : "Banner"}
-                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" disabled={isUploadingMedia} onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) handleMediaSelect(file, field);
-                    event.target.value = "";
-                  }} />
-                </label>
-                {pendingMedia[field] && (
-                  <button type="button" onClick={() => void handleMediaSave(field)} disabled={isUploadingMedia} className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50">
-                    {isUploadingMedia && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                    Simpan {field === "logo" ? "Logo" : "Banner"}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-xs">
-        <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">
-              Alamat Toko & Titik Pickup
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Lokasi penjemputan armada logistik kurir
-            </p>
-          </div>
+      {feedback && (
+        <div
+          role={feedback.type === "error" ? "alert" : "status"}
+          className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+            feedback.type === "error"
+              ? "border-error/30 bg-error/5 text-error"
+              : "border-success/30 bg-success/10 text-success"
+          }`}
+        >
+          <span>{feedback.message}</span>
           <button
             type="button"
-            onClick={() => openAddressModal()}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-primary-foreground transition-colors shadow-xs"
+            onClick={() => setFeedback(null)}
+            className="text-xs font-semibold underline"
           >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Tambah Alamat</span>
+            Tutup
           </button>
         </div>
+      )}
 
-        <div className="p-6">
-          {addresses.length === 0 ? (
-            <div className="text-center py-8">
-              <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-sm font-semibold text-foreground">
-                Belum ada alamat terdaftar
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Tambahkan alamat toko untuk pickup shipment
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Kolom Kiri: Profil & Identitas Visual */}
+        <div className="space-y-6 lg:col-span-7">
+          {/* Informasi Toko */}
+          <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+            <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
+              <div>
+                <h2 className="text-base font-bold tracking-tight text-foreground">
+                  Informasi Toko Publik
+                </h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Nama dan deskripsi studio yang dilihat oleh customer.
+                </p>
+              </div>
+              {!isEditingShop && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingShop(true)}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low"
+                >
+                  <Edit2 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                  <span>Edit Profil</span>
+                </button>
+              )}
+            </div>
+
+            <div className="p-6">
+              {isEditingShop ? (
+                <div className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="shop-name-input"
+                      className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                    >
+                      Nama Toko <span className="text-error">*</span>
+                    </label>
+                    <input
+                      id="shop-name-input"
+                      type="text"
+                      value={shopForm.shopName}
+                      onChange={(e) =>
+                        setShopForm({ ...shopForm, shopName: e.target.value })
+                      }
+                      className="input-field"
+                      placeholder="Toko Bunga Indah"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="shop-desc-input"
+                      className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                    >
+                      Deskripsi Toko
+                    </label>
+                    <textarea
+                      id="shop-desc-input"
+                      value={shopForm.shopDescription}
+                      onChange={(e) =>
+                        setShopForm({
+                          ...shopForm,
+                          shopDescription: e.target.value,
+                        })
+                      }
+                      className="input-field min-h-[100px]"
+                      placeholder="Ceritakan karakter rangkaian bunga studio Anda..."
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveShopInfo}
+                      disabled={isSavingShop}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {isSavingShop ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                          <span>Menyimpan...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                          <span>Simpan Perubahan</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingShop(false);
+                        setShopForm({
+                          shopName: profile.shopName,
+                          shopDescription: profile.shopDescription || "",
+                        });
+                      }}
+                      disabled={isSavingShop}
+                      className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <dl className="space-y-4">
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Nama Toko
+                    </dt>
+                    <dd className="mt-1 text-base font-bold text-foreground">
+                      {profile.shopName}
+                    </dd>
+                  </div>
+
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Deskripsi Studio
+                    </dt>
+                    <dd className="mt-1 text-sm leading-relaxed text-foreground">
+                      {profile.shopDescription || "Belum ada deskripsi toko."}
+                    </dd>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 border-t border-border pt-4 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Email Akun
+                      </dt>
+                      <dd className="mt-0.5 text-xs font-medium text-foreground">
+                        {user.email}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Telepon Kontak
+                      </dt>
+                      <dd className="mt-0.5 text-xs font-medium tabular-nums text-foreground">
+                        {user.phone || "-"}
+                      </dd>
+                    </div>
+                  </div>
+                </dl>
+              )}
+            </div>
+          </section>
+
+          {/* Logo & Banner Toko */}
+          <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+            <div className="border-b border-border p-5 sm:p-6">
+              <h2 className="text-base font-bold tracking-tight text-foreground">
+                Logo & Banner Toko
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Identitas visual halaman toko publik. Format JPG, PNG, WebP, atau GIF maksimal 5 MB.
               </p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {addresses.map((address) => (
-                <div
-                  key={address.id}
-                  className={`rounded-xl border p-4 transition-colors ${
-                    address.isDefault
-                      ? "border-primary/40 bg-primary/5"
-                      : "border-border bg-surface-container-low/40"
-                  }`}
+
+            <div className="space-y-6 p-6">
+              {mediaMessage && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="rounded-xl border border-border bg-surface-container-low p-3 text-xs font-medium text-foreground"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <p className="font-semibold text-foreground">
-                          {address.label}
-                        </p>
-                        {address.isDefault && (
-                          <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                            Alamat Utama
-                          </span>
+                  {mediaMessage}
+                </p>
+              )}
+
+              {(["logo", "banner"] as const).map((field) => (
+                <div key={field} className="space-y-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {field === "logo" ? "Logo Toko" : "Banner Toko"}
+                  </p>
+                  {(mediaPreview[field] || profile[field]) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={mediaPreview[field] || profile[field]!}
+                      alt={field === "logo" ? "Logo toko" : "Banner toko"}
+                      className={
+                        field === "logo"
+                          ? "h-20 w-20 rounded-xl border border-border object-cover"
+                          : "h-36 w-full rounded-xl border border-border object-cover"
+                      }
+                    />
+                  )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/30 hover:bg-surface-container-low">
+                      <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Pilih {field === "logo" ? "Logo" : "Banner"}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="sr-only"
+                        disabled={isUploadingMedia}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) handleMediaSelect(file, field);
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {pendingMedia[field] && (
+                      <button
+                        type="button"
+                        onClick={() => void handleMediaSave(field)}
+                        disabled={isUploadingMedia}
+                        className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {isUploadingMedia && (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                         )}
-                      </div>
-
-                      <p className="text-sm font-semibold text-foreground">
-                        {address.recipientName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {address.phone}
-                      </p>
-                      <p className="text-sm text-foreground mt-2">
-                        {address.fullAddress}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {address.city}, {address.province} {address.postalCode}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {!address.isDefault && (
-                        <button
-                          type="button"
-                          onClick={() => handleSetDefault(address.id)}
-                          disabled={isChangingDefault}
-                          className="btn-secondary text-xs px-3 py-1.5 rounded-xl"
-                        >
-                          Jadikan Utama
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => openAddressModal(address)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-surface-container hover:bg-surface-container-high text-foreground transition-colors"
-                      >
-                        <Edit2 className="h-4 w-4" />
+                        Simpan {field === "logo" ? "Logo" : "Banner"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAddress(address.id)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-error/20 bg-error/5 hover:bg-error/10 text-error transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
-          )}
+          </section>
         </div>
-      </div>
 
-      {showAddressModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">
-          <div className="rounded-2xl border border-border bg-surface max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between bg-surface-dark text-white p-5 sm:p-6 flex-shrink-0">
+        {/* Kolom Kanan: Alamat Toko & Titik Pickup */}
+        <div className="lg:col-span-5">
+          <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+            <div className="flex items-center justify-between border-b border-border p-5 sm:p-6">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">Titik Penjemputan</p>
-                <h3 className="text-lg font-bold text-white mt-1">
-                  {editingAddress ? "Edit Alamat Toko" : "Tambah Alamat Baru"}
-                </h3>
+                <h2 className="text-base font-bold tracking-tight text-foreground">
+                  Alamat Toko & Titik Pickup
+                </h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Lokasi asal penjemputan kurir ekspedisi.
+                </p>
               </div>
               <button
                 type="button"
-                aria-label="Tutup dialog alamat"
-                onClick={closeAddressModal}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                onClick={() => openAddressModal()}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
               >
-                <X className="h-5 w-5" />
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Tambah Alamat</span>
               </button>
             </div>
 
-            <div className="p-6 space-y-4 overflow-y-auto flex-1">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-                    Label *
-                  </label>
-                  <input
-                    type="text"
-                    value={addressForm.label}
-                    onChange={(e) =>
-                      setAddressForm({ ...addressForm, label: e.target.value })
-                    }
-                    className="input-field"
-                    placeholder="Toko Utama"
+            <div className="p-5 sm:p-6">
+              {sortedAddresses.length === 0 ? (
+                <div className="py-10 text-center">
+                  <MapPin
+                    className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50"
+                    aria-hidden="true"
                   />
+                  <p className="text-sm font-semibold text-foreground">
+                    Belum ada alamat terdaftar
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Tambahkan alamat studio agar ongkos kirim kurir dapat dihitung otomatis.
+                  </p>
                 </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {sortedAddresses.map((address) => (
+                    <article
+                      key={address.id}
+                      className={`rounded-2xl border p-4 transition-colors ${
+                        address.isDefault
+                          ? "border-primary/40 bg-primary/[0.04]"
+                          : "border-border bg-card"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-sm font-bold text-foreground">
+                              {address.label}
+                            </h3>
+                            {address.isDefault && (
+                              <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                                Alamat Utama
+                              </span>
+                            )}
+                          </div>
 
-                <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-                    Nama Penerima *
-                  </label>
-                  <input
-                    type="text"
-                    value={addressForm.recipientName}
-                    onChange={(e) =>
-                      setAddressForm({
-                        ...addressForm,
-                        recipientName: e.target.value,
-                      })
-                    }
-                    className="input-field"
-                    placeholder="Nama toko/PIC"
-                  />
+                          <p className="mt-2 text-xs font-semibold text-foreground">
+                            {address.recipientName} ·{" "}
+                            <span className="tabular-nums text-muted-foreground">
+                              {address.phone}
+                            </span>
+                          </p>
+                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                            {address.fullAddress}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {address.city}, {address.province}{" "}
+                            {address.postalCode}
+                          </p>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openAddressModal(address)}
+                            aria-label={`Ubah alamat ${address.label}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-surface text-foreground transition-colors hover:bg-surface-container-low"
+                          >
+                            <Edit2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPendingDeleteAddressId(address.id)}
+                            aria-label={`Hapus alamat ${address.label}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-error/20 bg-error/5 text-error transition-colors hover:bg-error/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {!address.isDefault && (
+                        <div className="mt-3 border-t border-border pt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => handleSetDefault(address.id)}
+                            disabled={isChangingDefault}
+                            className="text-xs font-semibold text-primary hover:underline disabled:opacity-50"
+                          >
+                            Jadikan Alamat Pickup Utama
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  ))}
                 </div>
-              </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
 
-              <div>
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-                  Nomor Telepon *
-                </label>
-                <input
-                  type="tel"
-                  value={addressForm.phone}
-                  onChange={(e) =>
-                    setAddressForm({ ...addressForm, phone: e.target.value })
-                  }
-                  className="input-field"
-                  placeholder="081234567890"
-                />
-              </div>
+      <Modal
+        isOpen={showAddressModal}
+        onClose={closeAddressModal}
+        size="md"
+        headerVariant="dark"
+        kicker="Titik Penjemputan"
+        title={editingAddress ? "Edit Alamat Toko" : "Tambah Alamat Baru"}
+      >
+        <div className="space-y-4">
+          {addressError && (
+            <div
+              role="alert"
+              className="rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error"
+            >
+              {addressError}
+            </div>
+          )}
 
-              <div>
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-                  Alamat Lengkap *
-                </label>
-                <textarea
-                  value={addressForm.fullAddress}
-                  onChange={(e) =>
-                    setAddressForm({
-                      ...addressForm,
-                      fullAddress: e.target.value,
-                    })
-                  }
-                  className="input-field min-h-[80px]"
-                  placeholder="Jl. Basuki Rahmat No. 45, Tegalsari"
-                />
-              </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="shop-addr-label"
+                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                Label Alamat <span className="text-error">*</span>
+              </label>
+              <input
+                id="shop-addr-label"
+                type="text"
+                value={addressForm.label}
+                onChange={(e) =>
+                  setAddressForm({ ...addressForm, label: e.target.value })
+                }
+                className="input-field"
+                placeholder="Studio Utama"
+              />
+            </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-                    Kota *
-                  </label>
-                  <input
-                    type="text"
-                    value={addressForm.city}
-                    onChange={(e) =>
-                      setAddressForm({ ...addressForm, city: e.target.value })
-                    }
-                    className="input-field"
-                    placeholder="Surabaya"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-                    Provinsi *
-                  </label>
-                  <input
-                    type="text"
-                    value={addressForm.province}
-                    onChange={(e) =>
-                      setAddressForm({
-                        ...addressForm,
-                        province: e.target.value,
-                      })
-                    }
-                    className="input-field"
-                    placeholder="Jawa Timur"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-                    Kode Pos *
-                  </label>
-                  <input
-                    type="text"
-                    value={addressForm.postalCode}
-                    onChange={(e) =>
-                      setAddressForm({
-                        ...addressForm,
-                        postalCode: e.target.value,
-                      })
-                    }
-                    className="input-field"
-                    placeholder="60261"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-4 border-t border-border">
-                <button
-                  type="button"
-                  onClick={handleSaveAddress}
-                  disabled={isSavingAddress}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2.5 text-xs font-semibold text-primary-foreground transition-colors shadow-xs disabled:opacity-50"
-                >
-                  {isSavingAddress ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Menyimpan...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span>Simpan Alamat</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={closeAddressModal}
-                  disabled={isSavingAddress}
-                  className="btn-secondary rounded-xl text-xs py-2.5 px-4"
-                >
-                  Batal
-                </button>
-              </div>
+            <div>
+              <label
+                htmlFor="shop-addr-recipient"
+                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                Nama Kontak / PIC <span className="text-error">*</span>
+              </label>
+              <input
+                id="shop-addr-recipient"
+                type="text"
+                value={addressForm.recipientName}
+                autoComplete="name"
+                onChange={(e) =>
+                  setAddressForm({
+                    ...addressForm,
+                    recipientName: e.target.value,
+                  })
+                }
+                className="input-field"
+                placeholder="Nama toko / PIC"
+              />
             </div>
           </div>
+
+          <div>
+            <label
+              htmlFor="shop-addr-phone"
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              Nomor Telepon <span className="text-error">*</span>
+            </label>
+            <input
+              id="shop-addr-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={addressForm.phone}
+              onChange={(e) =>
+                setAddressForm({ ...addressForm, phone: e.target.value })
+              }
+              className="input-field tabular-nums"
+              placeholder="081234567890"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="shop-addr-street"
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              Alamat Lengkap <span className="text-error">*</span>
+            </label>
+            <textarea
+              id="shop-addr-street"
+              autoComplete="street-address"
+              value={addressForm.fullAddress}
+              onChange={(e) =>
+                setAddressForm({
+                  ...addressForm,
+                  fullAddress: e.target.value,
+                })
+              }
+              className="input-field min-h-[80px]"
+              placeholder="Jl. Basuki Rahmat No. 45, Tegalsari"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label
+                htmlFor="shop-addr-city"
+                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                Kota <span className="text-error">*</span>
+              </label>
+              <input
+                id="shop-addr-city"
+                type="text"
+                autoComplete="address-level2"
+                value={addressForm.city}
+                onChange={(e) =>
+                  setAddressForm({ ...addressForm, city: e.target.value })
+                }
+                className="input-field"
+                placeholder="Surabaya"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="shop-addr-province"
+                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                Provinsi <span className="text-error">*</span>
+              </label>
+              <input
+                id="shop-addr-province"
+                type="text"
+                autoComplete="address-level1"
+                value={addressForm.province}
+                onChange={(e) =>
+                  setAddressForm({
+                    ...addressForm,
+                    province: e.target.value,
+                  })
+                }
+                className="input-field"
+                placeholder="Jawa Timur"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="shop-addr-postal"
+                className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                Kode Pos <span className="text-error">*</span>
+              </label>
+              <input
+                id="shop-addr-postal"
+                type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                value={addressForm.postalCode}
+                onChange={(e) =>
+                  setAddressForm({
+                    ...addressForm,
+                    postalCode: e.target.value,
+                  })
+                }
+                className="input-field tabular-nums"
+                placeholder="60261"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 border-t border-border pt-4">
+            <button
+              type="button"
+              onClick={handleSaveAddress}
+              disabled={isSavingAddress}
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              {isSavingAddress ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span>Menyimpan...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  <span>Simpan Alamat</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={closeAddressModal}
+              disabled={isSavingAddress}
+              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-surface-container-low disabled:opacity-50"
+            >
+              Batal
+            </button>
+          </div>
         </div>
-      )}
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeleteAddressId)}
+        onClose={() => setPendingDeleteAddressId(null)}
+        onConfirm={handleConfirmDeleteAddress}
+        title="Hapus Alamat Toko"
+        description="Yakin ingin menghapus alamat penjemputan toko ini?"
+        confirmLabel="Hapus Alamat"
+        variant="danger"
+        loading={isDeletingAddress}
+      />
     </div>
   );
 }

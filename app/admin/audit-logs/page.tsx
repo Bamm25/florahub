@@ -525,7 +525,7 @@ export default function AdminAuditLogsPage() {
           if (!open) setSelectedLog(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               Detail Audit {selectedLog?.entity} ({selectedLog?.action})

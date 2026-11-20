@@ -4,12 +4,12 @@ import { useEffect, useState } from "react";
 import {
   Package,
   Loader2,
-  X,
   Truck,
   Printer,
   Navigation,
   Search,
 } from "lucide-react";
+import Modal from "@/components/forms/Modal";
 import TabNavigation from "@/components/ui/TabNavigation";
 import DataStateWrapper from "@/components/ui/DataStateWrapper";
 import SupplierDeliveryStatus from "@/components/ui/SupplierDeliveryStatus";
@@ -44,6 +44,7 @@ export default function SupplierShipmentsPage() {
   const [isFetchingRates, setIsFetchingRates] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Modal Tracking
   const [trackingShipment, setTrackingShipment] =
@@ -137,6 +138,7 @@ export default function SupplierShipmentsPage() {
 
   // Cetak label thermal AWB Biteship
   const handlePrintLabel = async (shipment: SupplierUnifiedShipment) => {
+    setActionError(null);
     try {
       if (shipment.biteshipLabelUrl) {
         window.open(shipment.biteshipLabelUrl, "_blank");
@@ -146,10 +148,12 @@ export default function SupplierShipmentsPage() {
       if (labelUrl) {
         window.open(labelUrl, "_blank");
       } else {
-        alert("Label pengiriman Biteship belum tersedia");
+        setActionError("Label pengiriman Biteship belum tersedia.");
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal membuka label pengiriman");
+      setActionError(
+        err instanceof Error ? err.message : "Gagal membuka label pengiriman.",
+      );
     }
   };
 
@@ -214,7 +218,7 @@ export default function SupplierShipmentsPage() {
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Perlu Dibuat Resi
           </p>
-          <p className={`mt-2 text-3xl font-bold ${readyCount > 0 ? "text-amber-600" : "text-foreground"}`}>
+          <p className={`mt-2 text-3xl font-bold tabular-nums ${readyCount > 0 ? "text-warning" : "text-foreground"}`}>
             {readyCount}
           </p>
         </div>
@@ -237,6 +241,22 @@ export default function SupplierShipmentsPage() {
       </div>
 
       {/* Navigasi Tab */}
+      {actionError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error"
+        >
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-xs font-semibold underline"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
+
       <TabNavigation
         tabs={[
           {
@@ -460,32 +480,26 @@ export default function SupplierShipmentsPage() {
       )}
 
       {/* MODAL BOOKING BITESHIP */}
-      {isModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <div className="flex items-center gap-2">
-                <Truck className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-bold text-foreground">
-                  Buat Resi Pengiriman
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-surface-container"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
+      <Modal
+        isOpen={isModalOpen && Boolean(selectedOrder)}
+        onClose={() => !isSubmitting && setIsModalOpen(false)}
+        title="Buat Resi Pengiriman"
+        subtitle={
+          selectedOrder
+            ? `${selectedOrder.orderNumber} · ${selectedOrder.buyer.name}`
+            : undefined
+        }
+        size="sm"
+      >
+        {selectedOrder && (
+          <div className="space-y-4">
             {modalError && (
-              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+              <div role="alert" className="rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error">
                 {modalError}
               </div>
             )}
 
-            <form onSubmit={handleShipmentSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleShipmentSubmit} className="space-y-4">
               {/* Ringkasan Tujuan */}
               <div className="rounded-xl bg-surface-container-low p-3.5 space-y-1.5 text-xs">
                 <div className="flex justify-between">
@@ -546,7 +560,7 @@ export default function SupplierShipmentsPage() {
                             </p>
                           </div>
                         </div>
-                        <span className="text-xs font-bold text-primary">
+                        <span className="text-xs font-bold text-primary tabular-nums">
                           {formatRupiah(r.price)}
                         </span>
                       </label>
@@ -574,8 +588,8 @@ export default function SupplierShipmentsPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* MODAL PELACAKAN PENGIRIMAN */}
       {trackingShipment && (

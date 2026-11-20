@@ -39,8 +39,8 @@ export default function SupplierDeliveryStatus({
   if (status === "SHIPPED") {
     return (
       <div className="space-y-1 text-xs">
-        <span className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 font-semibold text-sky-800">
-          <Truck className="h-3.5 w-3.5 text-sky-600" />
+        <span className="inline-flex items-center gap-1 rounded-full border border-info/30 bg-info/10 px-2.5 py-1 font-semibold text-info">
+          <Truck className="h-3.5 w-3.5 text-info" />
           <span>Kurir Mengantar ke Florist</span>
         </span>
         {courier && <p className="text-muted-foreground">Kurir: {courier}</p>}
@@ -53,8 +53,8 @@ export default function SupplierDeliveryStatus({
   if (booked && status === "PAID") {
     return (
       <div className="space-y-1 text-xs">
-        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 font-medium text-amber-800">
-          <PackageCheck className="h-3.5 w-3.5 text-amber-600" />
+        <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2.5 py-1 font-medium text-warning">
+          <PackageCheck className="h-3.5 w-3.5 text-warning" />
           <span>Booking Biteship · Menunggu Jemput</span>
         </span>
         {courier && <p className="text-muted-foreground">Kurir: {courier}</p>}

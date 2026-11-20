@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Calendar } from "lucide-react";
 import SearchInput from "@/components/ui/SearchInput";
 import DataStateWrapper from "@/components/ui/DataStateWrapper";
+import Pagination from "@/components/ui/Pagination";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import AnnouncementCard from "@/components/florist/AnnouncementCard";
 import PreOrderTable, { PreOrder } from "@/components/florist/PreOrderTable";
 import PreOrderModal from "@/components/florist/PreOrderModal";
@@ -39,6 +41,9 @@ interface HarvestAnnouncement {
   totalReservedQuantity?: number;
 }
 
+const ANNOUNCEMENTS_PER_PAGE = 9;
+const PREORDERS_PER_PAGE = 10;
+
 export default function FloristHarvestPlansPage() {
   const [announcements, setAnnouncements] = useState<HarvestAnnouncement[]>([]);
   const [myPreOrders, setMyPreOrders] = useState<PreOrder[]>([]);
@@ -48,16 +53,21 @@ export default function FloristHarvestPlansPage() {
   const [preOrdersError, setPreOrdersError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [announcementsPage, setAnnouncementsPage] = useState(1);
+  const [preOrdersPage, setPreOrdersPage] = useState(1);
   const [activeTab, setActiveTab] = useState<"browse" | "my-orders">("browse");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] =
     useState<HarvestAnnouncement | null>(null);
 
-  // State loading saat membuka Midtrans Snap
+  // State loading saat membuka Midtrans Snap dan umpan balik non-blocking
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{ type: "status" | "error"; message: string } | null>(null);
+  const [pendingReceiveOrder, setPendingReceiveOrder] = useState<PreOrder | null>(null);
 
   const handlePayDepositMidtrans = async (order: PreOrder) => {
+    setFeedback(null);
     try {
       setPayingOrderId(order.id);
       const res = await getPreOrderDepositSnapToken(order.id);
@@ -71,23 +81,34 @@ export default function FloristHarvestPlansPage() {
                 result?.transaction_id,
               );
               await fetchData();
-              alert(
-                "Pembayaran DP 50% berhasil! DP terverifikasi. Status pesanan telah diperbarui.",
-              );
+              setFeedback({
+                type: "status",
+                message:
+                  "Pembayaran DP 50% berhasil! DP terverifikasi dan status pesanan telah diperbarui.",
+              });
             } catch {
-
               await fetchData();
-              alert("Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.");
+              setFeedback({
+                type: "error",
+                message:
+                  "Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.",
+              });
             }
           },
           onPending: async () => {
-            alert(
-              "Pembayaran sedang diproses / menunggu transfer Virtual Account.",
-            );
+            setFeedback({
+              type: "status",
+              message:
+                "Pembayaran sedang diproses / menunggu transfer Virtual Account.",
+            });
             await fetchData();
           },
           onError: () => {
-            alert("Pembayaran Midtrans gagal atau dibatalkan. Pesanan belum lunas.");
+            setFeedback({
+              type: "error",
+              message:
+                "Pembayaran Midtrans gagal atau dibatalkan. Pesanan belum lunas.",
+            });
             void fetchMyPreOrders();
           },
           onClose: () => {
@@ -95,20 +116,26 @@ export default function FloristHarvestPlansPage() {
           },
         });
       } else {
-        alert("Midtrans Snap belum siap. Silakan muat ulang halaman.");
+        setFeedback({
+          type: "error",
+          message: "Midtrans Snap belum siap. Silakan muat ulang halaman.",
+        });
       }
     } catch (err) {
-      alert(
-        err instanceof Error
-          ? err.message
-          : "Gagal memulai pembayaran DP Midtrans",
-      );
+      setFeedback({
+        type: "error",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Gagal memulai pembayaran DP Midtrans",
+      });
     } finally {
       setPayingOrderId(null);
     }
   };
 
   const handlePayFinalMidtrans = async (order: PreOrder) => {
+    setFeedback(null);
     try {
       setPayingOrderId(order.id);
       const res = await getPreOrderFinalSnapToken(order.id);
@@ -122,23 +149,34 @@ export default function FloristHarvestPlansPage() {
                 result?.transaction_id,
               );
               await fetchData();
-              alert(
-                "Pelunasan berhasil! Pelunasan terverifikasi. Supplier akan menyiapkan pengiriman Biteship.",
-              );
+              setFeedback({
+                type: "status",
+                message:
+                  "Pelunasan berhasil terverifikasi! Supplier akan menyiapkan pengiriman Biteship.",
+              });
             } catch {
-
               await fetchData();
-              alert("Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.");
+              setFeedback({
+                type: "error",
+                message:
+                  "Midtrans belum dapat memverifikasi pembayaran. Periksa status pesanan kembali sebelum mencoba lagi.",
+              });
             }
           },
           onPending: async () => {
-            alert(
-              "Pembayaran sedang diproses / menunggu transfer Virtual Account.",
-            );
+            setFeedback({
+              type: "status",
+              message:
+                "Pembayaran sedang diproses / menunggu transfer Virtual Account.",
+            });
             await fetchData();
           },
           onError: () => {
-            alert("Pembayaran Midtrans gagal atau dibatalkan. Pesanan belum lunas.");
+            setFeedback({
+              type: "error",
+              message:
+                "Pembayaran Midtrans gagal atau dibatalkan. Pesanan belum lunas.",
+            });
             void fetchMyPreOrders();
           },
           onClose: () => {
@@ -146,12 +184,17 @@ export default function FloristHarvestPlansPage() {
           },
         });
       } else {
-        alert("Midtrans Snap belum siap. Silakan muat ulang halaman.");
+        setFeedback({
+          type: "error",
+          message: "Midtrans Snap belum siap. Silakan muat ulang halaman.",
+        });
       }
     } catch (err) {
-      alert(
-        err instanceof Error ? err.message : "Gagal memulai pelunasan Midtrans",
-      );
+      setFeedback({
+        type: "error",
+        message:
+          err instanceof Error ? err.message : "Gagal memulai pelunasan Midtrans",
+      });
     } finally {
       setPayingOrderId(null);
     }
@@ -159,25 +202,30 @@ export default function FloristHarvestPlansPage() {
 
   const [isReceivingId, setIsReceivingId] = useState<string | null>(null);
 
-  const handleReceivePreOrder = async (order: PreOrder) => {
-    const confirmed = window.confirm(
-      `Apakah Anda yakin telah menerima bunga "${order.announcement.flowerName}" (${order.quantity} tangkai)?`,
-    );
-    if (!confirmed) return;
+  const handleConfirmReceivePreOrder = async () => {
+    if (!pendingReceiveOrder) return;
+    const order = pendingReceiveOrder;
 
     try {
+      setFeedback(null);
       setIsReceivingId(order.id);
       await receivePreOrder(order.id);
       await fetchMyPreOrders();
-      alert("Konfirmasi penerimaan berhasil! Bunga telah diterima.");
+      setFeedback({
+        type: "status",
+        message: "Konfirmasi penerimaan berhasil! Bunga telah diterima.",
+      });
     } catch (err) {
-      alert(
-        err instanceof Error
-          ? err.message
-          : "Gagal mengonfirmasi penerimaan bunga",
-      );
+      setFeedback({
+        type: "error",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Gagal mengonfirmasi penerimaan bunga",
+      });
     } finally {
       setIsReceivingId(null);
+      setPendingReceiveOrder(null);
     }
   };
 
@@ -258,10 +306,35 @@ export default function FloristHarvestPlansPage() {
     ? myPreOrders.filter((o) => o.status === "PENDING").length
     : 0;
 
+  const announcementsTotalPages = Math.max(
+    1,
+    Math.ceil(filteredAnnouncements.length / ANNOUNCEMENTS_PER_PAGE),
+  );
+  const safeAnnouncementsPage = Math.min(
+    announcementsPage,
+    announcementsTotalPages,
+  );
+  const announcementsStart = (safeAnnouncementsPage - 1) * ANNOUNCEMENTS_PER_PAGE;
+  const paginatedAnnouncements = filteredAnnouncements.slice(
+    announcementsStart,
+    announcementsStart + ANNOUNCEMENTS_PER_PAGE,
+  );
+
+  const preOrdersTotalPages = Math.max(
+    1,
+    Math.ceil(filteredPreOrders.length / PREORDERS_PER_PAGE),
+  );
+  const safePreOrdersPage = Math.min(preOrdersPage, preOrdersTotalPages);
+  const preOrdersStart = (safePreOrdersPage - 1) * PREORDERS_PER_PAGE;
+  const paginatedPreOrders = filteredPreOrders.slice(
+    preOrdersStart,
+    preOrdersStart + PREORDERS_PER_PAGE,
+  );
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Restrained Dark Header for Rhythm */}
-      <div className="flex flex-col gap-6 rounded-[24px] bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
+      <section className="flex flex-col gap-6 rounded-[24px] border border-white/10 bg-surface-dark px-6 py-8 text-white sm:px-8 sm:py-9 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-kicker">
             Rantai Pasok & Pengadaan
@@ -282,7 +355,7 @@ export default function FloristHarvestPlansPage() {
             Perbarui Jadwal
           </button>
         </div>
-      </div>
+      </section>
 
       {/* Ringkasan Status */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -292,8 +365,8 @@ export default function FloristHarvestPlansPage() {
           { label: "Menunggu konfirmasi", value: pendingCount, attention: pendingCount > 0, sub: "Perlu konfirmasi supplier" },
         ].map((item) => (
           <div key={item.label} className="rounded-2xl border border-border bg-surface p-5">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{item.label}</p>
-            <p className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${item.attention ? "text-amber-600" : "text-foreground"}`}>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{item.label}</p>
+            <p className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${item.attention ? "text-warning" : "text-foreground"}`}>
               {item.value.toLocaleString("id-ID")}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p>
@@ -302,26 +375,32 @@ export default function FloristHarvestPlansPage() {
       </div>
 
       <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            role="group"
+            aria-label="Tampilan rencana panen"
+            className="flex flex-wrap gap-2"
+          >
             <button
               type="button"
+              aria-pressed={activeTab === "browse"}
               onClick={() => setActiveTab("browse")}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-colors ${
+              className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
                 activeTab === "browse"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-surface-container-low text-muted-foreground hover:text-foreground"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               }`}
             >
               Jelajah Jadwal Panen
             </button>
             <button
               type="button"
+              aria-pressed={activeTab === "my-orders"}
               onClick={() => setActiveTab("my-orders")}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-colors ${
+              className={`min-h-10 rounded-xl border px-4 py-2 text-xs font-semibold transition-colors ${
                 activeTab === "my-orders"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-surface-container-low text-muted-foreground hover:text-foreground"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               }`}
             >
               Pre-Order Saya {myPreOrders.length > 0 && `(${myPreOrders.length})`}
@@ -331,12 +410,36 @@ export default function FloristHarvestPlansPage() {
           <div className="w-full sm:w-80">
             <SearchInput
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={(value) => {
+                setSearchQuery(value);
+                setAnnouncementsPage(1);
+                setPreOrdersPage(1);
+              }}
               placeholder="Cari nama bunga atau supplier..."
             />
           </div>
         </div>
       </div>
+
+      {feedback && (
+        <div
+          role={feedback.type === "error" ? "alert" : "status"}
+          className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
+            feedback.type === "error"
+              ? "border-error/30 bg-error/5 text-error"
+              : "border-success/30 bg-success/10 text-success"
+          }`}
+        >
+          <span>{feedback.message}</span>
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="text-xs font-semibold underline"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
 
       {activeTab === "browse" && (
         <DataStateWrapper
@@ -358,14 +461,37 @@ export default function FloristHarvestPlansPage() {
           loadingMessage="Memuat data..."
           errorTitle="Gagal Memuat Data"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAnnouncements.map((ann) => (
-              <AnnouncementCard
-                key={ann.id}
-                announcement={ann}
-                onCreatePreOrder={openPreOrderModal}
-              />
-            ))}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedAnnouncements.map((ann) => (
+                <AnnouncementCard
+                  key={ann.id}
+                  announcement={ann}
+                  onCreatePreOrder={openPreOrderModal}
+                />
+              ))}
+            </div>
+            {filteredAnnouncements.length > ANNOUNCEMENTS_PER_PAGE && (
+              <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-3.5 sm:flex-row">
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  Menampilkan {announcementsStart + 1}–
+                  {Math.min(
+                    announcementsStart + ANNOUNCEMENTS_PER_PAGE,
+                    filteredAnnouncements.length,
+                  )}{" "}
+                  dari {filteredAnnouncements.length} jadwal panen
+                </p>
+                <Pagination
+                  currentPage={safeAnnouncementsPage}
+                  totalPages={announcementsTotalPages}
+                  onPageChange={(page) => {
+                    setAnnouncementsPage(page);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  ariaLabel="Navigasi halaman jadwal panen"
+                />
+              </div>
+            )}
           </div>
         </DataStateWrapper>
       )}
@@ -389,14 +515,38 @@ export default function FloristHarvestPlansPage() {
           onRetry={fetchData}
           loadingMessage="Memuat data..."
         >
-          <PreOrderTable
-            preOrders={filteredPreOrders}
-            onPayDeposit={handlePayDepositMidtrans}
-            onPayFinal={handlePayFinalMidtrans}
-            payingOrderId={payingOrderId}
-            onReceiveOrder={handleReceivePreOrder}
-            isReceivingId={isReceivingId}
-          />
+          <div className="space-y-4">
+            <PreOrderTable
+              preOrders={paginatedPreOrders}
+              onPayDeposit={handlePayDepositMidtrans}
+              onPayFinal={handlePayFinalMidtrans}
+              payingOrderId={payingOrderId}
+              onReceiveOrder={(order) => setPendingReceiveOrder(order)}
+              isReceivingId={isReceivingId}
+              onRefresh={() => void fetchData()}
+            />
+            {filteredPreOrders.length > PREORDERS_PER_PAGE && (
+              <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-border bg-surface px-5 py-3.5 sm:flex-row">
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  Menampilkan {preOrdersStart + 1}–
+                  {Math.min(
+                    preOrdersStart + PREORDERS_PER_PAGE,
+                    filteredPreOrders.length,
+                  )}{" "}
+                  dari {filteredPreOrders.length} pre-order
+                </p>
+                <Pagination
+                  currentPage={safePreOrdersPage}
+                  totalPages={preOrdersTotalPages}
+                  onPageChange={(page) => {
+                    setPreOrdersPage(page);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  ariaLabel="Navigasi halaman pre-order"
+                />
+              </div>
+            )}
+          </div>
         </DataStateWrapper>
       )}
 
@@ -408,6 +558,20 @@ export default function FloristHarvestPlansPage() {
           onSuccess={handlePreOrderSuccess}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingReceiveOrder)}
+        onClose={() => setPendingReceiveOrder(null)}
+        onConfirm={handleConfirmReceivePreOrder}
+        title="Konfirmasi Penerimaan Bunga"
+        description={
+          pendingReceiveOrder
+            ? `Apakah Anda yakin telah menerima bunga "${pendingReceiveOrder.announcement.flowerName}" (${pendingReceiveOrder.quantity} tangkai)?`
+            : ""
+        }
+        confirmLabel="Konfirmasi Diterima"
+        loading={Boolean(isReceivingId)}
+      />
     </div>
   );
 }

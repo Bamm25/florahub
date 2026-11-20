@@ -1,6 +1,7 @@
 "use client";
 
-import { EmptyState, ErrorState, FilterBar, LoadingSpinner, SearchInput } from "@/components/ui";
+import { ConfirmDialog, EmptyState, ErrorState, FilterBar, LoadingSpinner, SearchInput } from "@/components/ui";
+import Modal from "@/components/forms/Modal";
 import {
   CreateStockInput,
   createSupplierStock,
@@ -11,7 +12,7 @@ import {
   updateSupplierStock,
 } from "@/lib/api/supplier";
 import { formatDate, formatRupiah } from "@/lib/utils/formatters";
-import { AlertTriangle, CheckCircle2, Edit2, Loader2, Package, Plus, Trash2, X, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Edit2, Loader2, Package, Plus, Trash2, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 export default function SupplierStocksPage() {
@@ -42,8 +43,10 @@ export default function SupplierStocksPage() {
   const [editForm, setEditForm] = useState<UpdateStockInput>({});
   const [editError, setEditError] = useState<string | null>(null);
 
-  // Loading state saat menghapus stok
+  // Loading state saat menghapus stok & umpan balik non-blocking
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingDeleteStock, setPendingDeleteStock] = useState<{ id: string; name: string } | null>(null);
 
   const fetchStocks = async () => {
     try {
@@ -196,19 +199,20 @@ export default function SupplierStocksPage() {
   };
 
   // Handler hapus stok
-  const handleDeleteStock = async (id: string, name: string) => {
-    const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menghapus stok "${name}"? Aksi ini tidak dapat dibatalkan.`,
-    );
-    if (!confirmed) return;
+  const handleConfirmDeleteStock = async () => {
+    if (!pendingDeleteStock) return;
+    setActionError(null);
     try {
-      setDeletingId(id);
-      await deleteSupplierStock(id);
+      setDeletingId(pendingDeleteStock.id);
+      await deleteSupplierStock(pendingDeleteStock.id);
       await fetchStocks();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal menghapus stok bunga");
+      setActionError(
+        err instanceof Error ? err.message : "Gagal menghapus stok bunga",
+      );
     } finally {
       setDeletingId(null);
+      setPendingDeleteStock(null);
     }
   };
 
@@ -250,6 +254,22 @@ export default function SupplierStocksPage() {
         </button>
       </div>
       {/* Bar Pencarian & Filter Kategori */}
+      {actionError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-error"
+        >
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-xs font-semibold underline"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <SearchInput
           value={searchQuery}
@@ -342,12 +362,12 @@ export default function SupplierStocksPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {isOut ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-container px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                             <XCircle className="h-3 w-3" />
                             <span>Habis</span>
                           </span>
                         ) : isLow ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">
                             <AlertTriangle className="h-3 w-3" />
                             <span>Menipis</span>
                           </span>
@@ -375,10 +395,14 @@ export default function SupplierStocksPage() {
                             type="button"
                             disabled={deletingId === stock.id}
                             onClick={() =>
-                              handleDeleteStock(stock.id, stock.name)
+                              setPendingDeleteStock({
+                                id: stock.id,
+                                name: stock.name,
+                              })
                             }
-                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-error/10 hover:text-error disabled:opacity-50"
                             title="Hapus Stok"
+                            aria-label={`Hapus stok ${stock.name}`}
                           >
                             {deletingId === stock.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -397,156 +421,139 @@ export default function SupplierStocksPage() {
         </div>
       )}
       {/* Modal Tambah Stok Bunga */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <h2 className="text-lg font-bold text-foreground">
-                Tambah Stok Bunga Baru
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-surface-container"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            {addError && (
-              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
-                {addError}
-              </div>
-            )}
-            <form onSubmit={handleCreateStock} className="mt-4 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-foreground">
-                  Nama Bunga *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: Mawar Semi Holland"
-                  value={addForm.name}
-                  onChange={(e) =>
-                    setAddForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  className="input-field mt-1.5 w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-foreground">
-                  Varietas / Warna *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: Merah Sexy Red / Putih Avalon"
-                  value={addForm.variety}
-                  onChange={(e) =>
-                    setAddForm((prev) => ({ ...prev, variety: e.target.value }))
-                  }
-                  className="input-field mt-1.5 w-full"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-foreground">
-                    Satuan *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="tangkai / ikat"
-                    value={addForm.unit}
-                    onChange={(e) =>
-                      setAddForm((prev) => ({ ...prev, unit: e.target.value }))
-                    }
-                    className="input-field mt-1.5 w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-foreground">
-                    Jumlah Stok Awal *
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={addForm.quantity}
-                    onChange={(e) =>
-                      setAddForm((prev) => ({
-                        ...prev,
-                        quantity: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    className="input-field mt-1.5 w-full"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-foreground">
-                  Harga per Satuan (Rp) *
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="500"
-                  required
-                  value={addForm.pricePerUnit}
-                  onChange={(e) =>
-                    setAddForm((prev) => ({
-                      ...prev,
-                      pricePerUnit: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className="input-field mt-1.5 w-full"
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-container"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingAdd}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {isSubmittingAdd && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
-                  <span>Simpan Stok</span>
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => !isSubmittingAdd && setIsAddModalOpen(false)}
+        title="Tambah Stok Bunga Baru"
+        size="sm"
+      >
+        {addError && (
+          <div role="alert" className="mb-4 rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error">
+            {addError}
           </div>
-        </div>
-      )}
-      {/* Modal Edit Stok Bunga */}
-      {isEditModalOpen && selectedStock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <h2 className="text-lg font-bold text-foreground">
-                Ubah Detail Stok Bunga
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsEditModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-surface-container"
-              >
-                <X className="h-5 w-5" />
-              </button>
+        )}
+        <form onSubmit={handleCreateStock} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-foreground">
+              Nama Bunga *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="Contoh: Mawar Semi Holland"
+              value={addForm.name}
+              onChange={(e) =>
+                setAddForm((prev) => ({ ...prev, name: e.target.value }))
+              }
+              className="input-field mt-1.5 w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-foreground">
+              Varietas / Warna *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="Contoh: Merah Sexy Red / Putih Avalon"
+              value={addForm.variety}
+              onChange={(e) =>
+                setAddForm((prev) => ({ ...prev, variety: e.target.value }))
+              }
+              className="input-field mt-1.5 w-full"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-foreground">
+                Satuan *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="tangkai / ikat"
+                value={addForm.unit}
+                onChange={(e) =>
+                  setAddForm((prev) => ({ ...prev, unit: e.target.value }))
+                }
+                className="input-field mt-1.5 w-full"
+              />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-foreground">
+                Jumlah Stok Awal *
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                value={addForm.quantity}
+                onChange={(e) =>
+                  setAddForm((prev) => ({
+                    ...prev,
+                    quantity: parseInt(e.target.value) || 0,
+                  }))
+                }
+                className="input-field mt-1.5 w-full"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-foreground">
+              Harga per Satuan (Rp) *
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="500"
+              required
+              value={addForm.pricePerUnit}
+              onChange={(e) =>
+                setAddForm((prev) => ({
+                  ...prev,
+                  pricePerUnit: parseInt(e.target.value) || 0,
+                }))
+              }
+              className="input-field mt-1.5 w-full"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(false)}
+              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-container"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmittingAdd}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {isSubmittingAdd && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              <span>Simpan Stok</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Edit Stok Bunga */}
+      <Modal
+        isOpen={isEditModalOpen && Boolean(selectedStock)}
+        onClose={() => !isSubmittingEdit && setIsEditModalOpen(false)}
+        title="Ubah Detail Stok Bunga"
+        size="sm"
+      >
+        {selectedStock && (
+          <div className="space-y-4">
             {editError && (
-              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+              <div role="alert" className="rounded-xl border border-error/30 bg-error/5 p-3 text-xs text-error">
                 {editError}
               </div>
             )}
-            <form onSubmit={handleUpdateStock} className="mt-4 space-y-4">
+            <form onSubmit={handleUpdateStock} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-foreground">
                   Nama Bunga
@@ -667,8 +674,23 @@ export default function SupplierStocksPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeleteStock)}
+        onClose={() => setPendingDeleteStock(null)}
+        onConfirm={handleConfirmDeleteStock}
+        title="Hapus Stok Bunga"
+        description={
+          pendingDeleteStock
+            ? `Apakah Anda yakin ingin menghapus stok "${pendingDeleteStock.name}"? Aksi ini tidak dapat dibatalkan.`
+            : ""
+        }
+        confirmLabel="Hapus Stok"
+        variant="danger"
+        loading={Boolean(deletingId)}
+      />
     </div>
   );
 }

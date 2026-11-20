@@ -246,6 +246,12 @@ export async function GET(request: Request) {
         where: { id: floristProfile.defaultAddressId, userId, isDefault: true },
       });
     }
+    if (!defaultAddress) {
+      defaultAddress = await prisma.address.findFirst({
+        where: { userId, isDefault: true },
+        orderBy: { createdAt: "desc" },
+      });
+    }
 
     // Kembalikan respon sukses seluruh metrik dashboard florist
     return NextResponse.json({

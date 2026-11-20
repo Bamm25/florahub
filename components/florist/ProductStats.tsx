@@ -2,7 +2,6 @@
 interface Product {
   isActive: boolean;
   stock: number;
-  isFeatured: boolean;
 }
 
 // Props interface untuk komponen ringkasan statistik produk
@@ -15,13 +14,15 @@ export default function ProductStats({ products }: ProductStatsProps) {
   const totalProducts = Array.isArray(products) ? products.length : 0;
   const activeCount = Array.isArray(products) ? products.filter((p) => p.isActive).length : 0;
   const outOfStockCount = Array.isArray(products) ? products.filter((p) => p.stock === 0).length : 0;
-  const featuredCount = Array.isArray(products) ? products.filter((p) => p.isFeatured).length : 0;
+  const lowStockCount = Array.isArray(products)
+    ? products.filter((p) => p.stock > 0 && p.stock < 10).length
+    : 0;
 
   const stats = [
     { label: "Total katalog", value: totalProducts, accent: "text-foreground" },
     { label: "Produk aktif", value: activeCount, accent: "text-success" },
-    { label: "Stok habis", value: outOfStockCount, accent: outOfStockCount > 0 ? "text-warning" : "text-foreground" },
-    { label: "Unggulan / featured", value: featuredCount, accent: "text-primary" },
+    { label: "Stok habis", value: outOfStockCount, accent: outOfStockCount > 0 ? "text-error" : "text-foreground" },
+    { label: "Stok menipis (< 10)", value: lowStockCount, accent: lowStockCount > 0 ? "text-warning" : "text-foreground" },
   ];
 
   return (

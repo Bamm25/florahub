@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import { updateAddressSchema } from "@/lib/validations/schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -51,6 +52,8 @@ export async function PUT(
       where: { id },
       data: validated,
     });
+
+    safeRevalidatePaths(["/stores", `/stores/${userId}`]);
 
     // Kembalikan respon sukses pembaruan data alamat
     return NextResponse.json({
@@ -143,17 +146,32 @@ export async function DELETE(
       );
     }
 
-    // Hapus alamat dan reset referensi alamat default jika terkait
+    // Hapus alamat dan pastikan alamat utama tetap sinkron jika alamat default sebelumnya dihapus
     await prisma.$transaction(async (tx) => {
       const profile = await tx.floristProfile.findUnique({ where: { userId } });
-      if (profile?.defaultAddressId === id) {
-        await tx.floristProfile.update({
-          where: { userId },
-          data: { defaultAddressId: null },
-        });
-      }
       await tx.address.delete({ where: { id, userId } });
+
+      if (existingAddress.isDefault || profile?.defaultAddressId === id) {
+        const nextDefault = await tx.address.findFirst({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (nextDefault) {
+          await tx.address.update({
+            where: { id: nextDefault.id, userId },
+            data: { isDefault: true },
+          });
+        }
+        if (profile) {
+          await tx.floristProfile.update({
+            where: { userId },
+            data: { defaultAddressId: nextDefault?.id ?? null },
+          });
+        }
+      }
     });
+
+    safeRevalidatePaths(["/stores", `/stores/${userId}`]);
 
     // Kembalikan respon sukses penghapusan alamat
     return NextResponse.json({

@@ -62,7 +62,7 @@ export default function SupplierLayout({
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
+      <div className="min-h-dvh bg-surface flex items-center justify-center">
         <LoadingSpinner message="Memuat area supplier..." />
       </div>
     );
@@ -79,7 +79,7 @@ export default function SupplierLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-surface-dim">
+    <div className="flex min-h-dvh bg-surface-dim">
       {/* Overlay latar belakang saat menu mobile terbuka */}
       {mobileMenuOpen && (
         <div
@@ -152,7 +152,7 @@ export default function SupplierLayout({
                       <span>{item.name}</span>
                       {item.href === "/supplier/notifications" &&
                         unreadCount > 0 && (
-                          <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                          <span className="inline-flex items-center justify-center rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold tabular-nums text-warning-foreground">
                             {unreadCount > 99 ? "99+" : unreadCount}
                           </span>
                         )}
@@ -202,7 +202,7 @@ export default function SupplierLayout({
             >
               <Bell className="h-4 w-4 text-muted-foreground" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white shadow-xs">
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-bold tabular-nums text-warning-foreground">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}

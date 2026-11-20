@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/middleware/requireAuth";
 import prisma from "@/lib/prisma";
+import { safeRevalidatePaths } from "@/lib/revalidate-safe";
 import { NextResponse } from "next/server";
 
 // Handler HTTP PUT untuk menetapkan alamat sebagai alamat penjemputan default florist
@@ -76,6 +77,8 @@ export async function PUT(
       });
       return address;
     });
+
+    safeRevalidatePaths(["/stores", `/stores/${userId}`]);
 
     // Kembalikan respon sukses penetapan alamat default
     return NextResponse.json({

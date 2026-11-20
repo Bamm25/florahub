@@ -51,11 +51,11 @@ export default function StatusBadge({ status, variant, size = "md" }: StatusBadg
         },
         CONFIRMED: {
           label: "Menunggu DP",
-          className: "bg-amber-500/10 text-amber-700 border-amber-500/20",
+          className: "bg-warning/10 text-warning border-warning/25",
         },
         DEPOSIT_PAID: {
           label: "DP Diterima",
-          className: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+          className: "bg-info/10 text-info border-info/25",
         },
         PAID: {
           label: "Lunas",

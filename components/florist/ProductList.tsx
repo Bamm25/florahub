@@ -12,7 +12,6 @@ interface Product {
   images: string[];
   categoryId: string;
   isActive: boolean;
-  isFeatured: boolean;
   tags: string[];
   weight: number | null;
   createdAt: string;

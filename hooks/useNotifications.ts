@@ -55,8 +55,16 @@ export function useNotifications(
           signal,
         );
         if (!signal?.aborted) {
+          const nextUnread = res.unreadCount ?? 0;
           setNotifications(res.notifications ?? []);
-          setUnreadCount(res.unreadCount ?? 0);
+          setUnreadCount(nextUnread);
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("florahub:notifications-updated", {
+                detail: { unreadCount: nextUnread },
+              }),
+            );
+          }
         }
       } catch (err) {
         if (

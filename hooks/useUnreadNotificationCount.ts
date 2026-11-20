@@ -32,9 +32,25 @@ export function useUnreadNotificationCount(
       () => void fetchUnreadCount(controller.signal),
       intervalMs,
     );
+    const handleNotificationsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ unreadCount?: number }>).detail;
+      if (typeof detail?.unreadCount === "number") {
+        setUnreadCount(detail.unreadCount);
+      } else {
+        void fetchUnreadCount(controller.signal);
+      }
+    };
+    window.addEventListener(
+      "florahub:notifications-updated",
+      handleNotificationsUpdated,
+    );
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(interval);
+      window.removeEventListener(
+        "florahub:notifications-updated",
+        handleNotificationsUpdated,
+      );
       controller.abort();
     };
   }, [status, fetchUnreadCount, pathname, intervalMs]);
